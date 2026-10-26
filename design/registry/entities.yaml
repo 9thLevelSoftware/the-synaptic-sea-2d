@@ -124,6 +124,50 @@ items: []
 # Optional: expression (the actual formula), notes
 
 formulas:
+  - name: speed_ceiling
+    status: active
+    source: design/gdd/player-controller-input.md
+    referenced_by: []
+    attributes:
+      expression: v_ceil = min(ceil(LAG_CUT/(FOLLOW_TAU*TICK_RATE)) - 1, floor((0.30*field_h - LOOKAHEAD_PX)/(FOLLOW_TAU*TICK_RATE)))
+      variables: LAG_CUT 48, FOLLOW_TAU 0.18, TICK_RATE 60, field_h 360, LOOKAHEAD_PX 72
+      output: 3 px/tick at defaults (inner-box inequality binds: v_max < 200 px/s)
+    added: 2026-10-26
+    revised: 2026-10-26
+    # Couples Player Controller speeds to the camera; with v_run 3, FOLLOW_TAU <= 0.20 and LOOKAHEAD_PX <= 75 are the operative ceilings
+  - name: locomotion_axis_step
+    status: active
+    source: design/gdd/player-controller-input.md
+    referenced_by: []
+    attributes:
+      expression: sub += unit[octant]*v*256; step = trunc(sub/256); sub -= step*256 (x then y, 1-px AABB sweeps)
+      variables: unit table 256 cardinal / 181 diagonal (1/256 px fixed point), v px/tick
+      output: integer base px per tick; diagonal cadence walk 1,1,2,1,2,1,1,2; run eight 2s then 3
+    added: 2026-10-26
+    revised: 2026-10-26
+    # Owned by Body's LocomotionStep per PC-14; the avatar has no physics body
+  - name: facing_from_aim
+    status: active
+    source: design/gdd/player-controller-input.md
+    referenced_by: []
+    attributes:
+      expression: facing = sector(aim_angle) with 2-quanta hysteresis; overrides: frozen (stagger/down/dead), channel-locked, running -> movement; aim idle -> movement
+      variables: aim_angle 0..4095 (1/4096 turn), FACING_HYSTERESIS 64 units
+      output: one of 8 facings (5 drawn + 3 mirrored)
+    added: 2026-10-26
+    revised: 2026-10-26
+    # Beam state does not change the rule; pad default follows movement until first right-stick input
+  - name: chest_point
+    status: active
+    source: design/gdd/player-controller-input.md
+    referenced_by: []
+    attributes:
+      expression: chest = floor(lerp(pos_prev, pos_curr, tick_alpha)) + CHEST_POINT[facing][anim] * (flip_h ? (-1,1) : (1,1))
+      variables: CHEST_POINT per facing and animation, |x| <= 2
+      output: integer base px; beam origin (chest-mounted lamp, user decision 2026-10-26)
+    added: 2026-10-26
+    revised: 2026-10-26
+    # Hand point is retained only for tool-sprite placement
   - name: world_scale_k
     status: active
     source: design/gdd/pixel-perfect-render-pipeline-camera.md
@@ -160,7 +204,8 @@ formulas:
   - name: camera_follow
     status: active
     source: design/gdd/pixel-perfect-render-pipeline-camera.md
-    referenced_by: []
+    referenced_by:
+      - design/gdd/player-controller-input.md
     attributes:
       expression: cam += (target - cam) * (1 - exp(-dt / FOLLOW_TAU)); pose = floor_to(cam, QUANTUM)
       variables: dt render s, FOLLOW_TAU 0.18 s, QUANTUM in {1, 1/k} base px
@@ -182,7 +227,8 @@ formulas:
   - name: camera_cut_predicates
     status: active
     source: design/gdd/pixel-perfect-render-pipeline-camera.md
-    referenced_by: []
+    referenced_by:
+      - design/gdd/player-controller-input.md
     attributes:
       expression: cut if follow_speed > 1.25*v_max for T_PAN, or lag > LAG_CUT, or single-frame jump >= JUMP_CUT
       variables: T_PAN 0.10 s, LAG_CUT 48 px, JUMP_CUT 48 px; invariant LAG_CUT > v_max*FOLLOW_TAU
@@ -227,6 +273,7 @@ formulas:
     status: active
     source: design/gdd/command-simulation-layer.md
     referenced_by:
+      - design/gdd/player-controller-input.md
       - design/gdd/pixel-perfect-render-pipeline-camera.md
     attributes:
       expression: clamp(t_since_last_commit / tick_duration, 0, 1)
@@ -313,6 +360,107 @@ formulas:
 # Required fields: name, status, source, referenced_by, value, unit, added
 
 constants:
+  - name: V_WALK
+    status: active
+    source: design/gdd/player-controller-input.md
+    referenced_by: []
+    attributes:
+      value: 2
+      unit: base px per tick (120 px/s, 2.5 tiles/s)
+    added: 2026-10-26
+    revised: 2026-10-26
+    # Provisional until the pacing spike; alt 1
+  - name: V_RUN
+    status: active
+    source: design/gdd/player-controller-input.md
+    referenced_by: []
+    attributes:
+      value: 3
+      unit: base px per tick (180 px/s, 3.75 tiles/s)
+    added: 2026-10-26
+    revised: 2026-10-26
+    # Integer ceiling from speed_ceiling; v_max = V_RUN
+  - name: V_CARRY
+    status: active
+    source: design/gdd/player-controller-input.md
+    referenced_by: []
+    attributes:
+      value: 1
+      unit: base px per tick
+    added: 2026-10-26
+    revised: 2026-10-26
+    # No run while carrying
+  - name: AIM_UNITS
+    status: active
+    source: design/gdd/player-controller-input.md
+    referenced_by: []
+    attributes:
+      value: 4096
+      unit: units per turn
+      set_once: true
+    added: 2026-10-26
+    revised: 2026-10-26
+    # Committed aim resolution; send threshold 32 units (1/128 turn)
+  - name: FACING_HYSTERESIS
+    status: active
+    source: design/gdd/player-controller-input.md
+    referenced_by: []
+    attributes:
+      value: 64
+      unit: aim units (2 quanta, ~5.6 deg)
+    added: 2026-10-26
+    revised: 2026-10-26
+    # Less than half a 45-degree sector
+  - name: REACH_PX
+    status: active
+    source: design/gdd/player-controller-input.md
+    referenced_by: []
+    attributes:
+      value: 72
+      unit: base px (1.5 tiles)
+    added: 2026-10-26
+    revised: 2026-10-26
+    # Interaction reach radius; half-angle 70 deg about facing
+  - name: CONFIRM_HOLD_S
+    status: active
+    source: design/gdd/player-controller-input.md
+    referenced_by: []
+    attributes:
+      value: 0.8
+      unit: s
+    added: 2026-10-26
+    revised: 2026-10-26
+    # Hold-to-confirm on the linear bar; range 0.6-1.2; two-tap option
+  - name: STAGGER_TICKS
+    status: active
+    source: design/gdd/player-controller-input.md
+    referenced_by: []
+    attributes:
+      value: 30
+      unit: ticks
+    added: 2026-10-26
+    revised: 2026-10-26
+    # Floor 20 (four frames at 12 fps)
+  - name: DOWN_TO_DEATH_TICKS
+    status: active
+    source: design/gdd/player-controller-input.md
+    referenced_by: []
+    attributes:
+      value: 1800
+      unit: ticks (30 s)
+    added: 2026-10-26
+    revised: 2026-10-26
+    # Solo MVP placeholder
+  - name: NOISE_PER_TICK
+    status: active
+    source: design/gdd/player-controller-input.md
+    referenced_by: []
+    attributes:
+      value: walk 1 / run 4 / carry 1
+      unit: Attention stimulus units (placeholder)
+    added: 2026-10-26
+    revised: 2026-10-26
+    # Attention's intake defines the units
   - name: BASE_RESOLUTION
     status: active
     source: design/gdd/pixel-perfect-render-pipeline-camera.md
@@ -327,7 +475,8 @@ constants:
   - name: TILE_PX
     status: active
     source: design/gdd/pixel-perfect-render-pipeline-camera.md
-    referenced_by: []
+    referenced_by:
+      - design/gdd/player-controller-input.md
     attributes:
       value: 48
       unit: base px
@@ -358,7 +507,8 @@ constants:
   - name: LOOKAHEAD_PX
     status: active
     source: design/gdd/pixel-perfect-render-pipeline-camera.md
-    referenced_by: []
+    referenced_by:
+      - design/gdd/player-controller-input.md
     attributes:
       value: 72
       unit: base px (1.5 tiles)
@@ -368,7 +518,8 @@ constants:
   - name: FOLLOW_TAU
     status: active
     source: design/gdd/pixel-perfect-render-pipeline-camera.md
-    referenced_by: []
+    referenced_by:
+      - design/gdd/player-controller-input.md
     attributes:
       value: 0.18
       unit: s
@@ -378,7 +529,8 @@ constants:
   - name: LAG_CUT
     status: active
     source: design/gdd/pixel-perfect-render-pipeline-camera.md
-    referenced_by: []
+    referenced_by:
+      - design/gdd/player-controller-input.md
     attributes:
       value: 48
       unit: base px
@@ -409,6 +561,7 @@ constants:
     status: active
     source: design/gdd/command-simulation-layer.md
     referenced_by:
+      - design/gdd/player-controller-input.md
       - design/gdd/pixel-perfect-render-pipeline-camera.md
     attributes:
       value: 60

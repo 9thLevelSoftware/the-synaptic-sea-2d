@@ -1273,6 +1273,9 @@ Non-blocking items recorded by the sign-off reviewer for the next maintenance pa
 - **Vent bursts (2.8) vs 8.11 flag 8.** 2.8 describes venting loops as point sources where they burst; flag 8 says only machinery nodes cast light. A vent burst is a transient failure event: treat it as a transient non-shadow `PointLight2D` inside the ≤ 24 cap, or as purely emissive glow with no light — whichever 8.12 supports. Routed to technical-artist.
 - **8.3 fixture row** says "never flickers"; the cryo-bay lamp gutters (2.2) and is the one exception, via the sixth shadow slot.
 
+- **User decision 2026-10-26 — chest-mounted lamp (Pandorum), supersedes "hand point" as the beam origin in 3.2, 5.1, 5.5, 5.6 and 8.3.** The player's lamp is mounted on the suit's chest and is hands-free: the beam origin is a per-facing **chest point** near the centreline (so a mirror barely moves it), the tool layer carries no light, and the beam is available while carrying and channelling. Carry frames must keep the chest lamp unobstructed (module held below it). The four beam *shapes* remain the identity rule unchanged. Art-director to rewrite the five passages in place at the next maintenance pass.
+- **User decision 2026-10-26 — throwable glowsticks** join the deployable-light family (3.2, 8.3): thrown on a short arc, landing as an omnidirectional world light the web can see. Current deployables are specified as flickering Tungsten pools; a glowstick's steady chemical light needs a colour decision inside the palette — it must not borrow a loop hue or the sanity hues (4.4). Art-director to specify (and whether the deployable "flicker" word stays for flares only).
+
 ## 9. Reference Direction
 
 ### 9.0 How this section is read

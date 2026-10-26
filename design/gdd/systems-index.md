@@ -24,7 +24,7 @@ The tiers follow the producer-adjusted scope in the concept. **MVP** is the sing
 - **7. Player Controller & Input** (Core, MVP, inferred). Movement, 5-facing sprite with mirrored facings, per-facing hand point for the beam, gamepad/keyboard input mapping, stiff-weighted animation states. *Why this tier:* Nothing is playable without a body to light.
 - **8. Interaction System** (Gameplay, MVP, inferred). Inspect, cut, weld, open, carry, run a field check; the act-only-on-lit rule uses the light-exposure query (prompts drawn only for lit objects is the UI side, 7.0); hold-to-confirm on destructive actions; proximity focus for gamepad. Falsification checks reach Sanity as commands from here. Also owns the friendly-harm act: tool use against a crewmate is an Interaction command accepted only when Sanity's gate reports the actor below threshold (no dedicated damage or combat system — Anti-Pillar), with no reward path. *Why this tier:* The verb layer for boarding; encodes the 'spend light to act' rule.
 - **9. Failure & Trail System** (Gameplay, MVP, explicit). Pure reader: maps graph failure state and footprint sources to physical trail visuals (frost, mist, scorch, drip, hairlines) in the three sizes, writing only CanvasItem/Material/particles. Owns no propagation and no atmosphere — both are Graph state. Tagged as a truth channel: immune to the Perception Filter. *Why this tier:* Pillar 1 made visible; the honest channel every hallucination is checked against.
-- **10. Suit & Equipment** (Gameplay, MVP, inferred). Suit vitals (O2, integrity, local temperature and pressure read from the Graph's compartment atmosphere) as a PER_PLAYER block keyed by PlayerId, loadout and tool slots, the four beam shapes and deployables as emitters, carried modules. Each tool's effect is defined by the system it acts on (cutter/welder: Interaction and Assembly; scanner: Sanity falsification; suppressant: Attention/Horror). *Why this tier:* Personal survival state and the beam are the player's two instruments; the suit layer HUD reads from here.
+- **10. Suit & Equipment** (Gameplay, MVP, inferred). Suit vitals (O2, integrity, local temperature and pressure read from the Graph's compartment atmosphere) as a PER_PLAYER block keyed by PlayerId, loadout and tool slots, the chest-mounted lamp (hands-free; the four beam shapes) and deployables — including throwable glowsticks (user decision 2026-10-26) — as emitters, carried modules. Each tool's effect is defined by the system it acts on (cutter/welder: Interaction and Assembly; scanner: Sanity falsification; suppressant: Attention/Horror). *Why this tier:* Personal survival state and the beam are the player's two instruments; the suit layer HUD reads from here.
 - **11. Ship Section & Layout Data Model** (Core, MVP, inferred). The runtime section schema shared by authoring, procgen, assembly and save: tile layer reference, collision shapes, sockets, seams, graph-node references, salvage/module slots, and the pure-data ship layout (sections, transforms, welds) that is projected onto the scene tree. *Why this tier:* TD-SYSTEM-BOUNDARY: without a single owner three GDDs would each define a socket; needed before the weld spike.
 - **12. Ship Body & Interior Physics** (Core, MVP, inferred). The composite ship as one physics body with a ship-local reference frame; characters and props moving inside a moving body (the moving-platform problem); detach spawns a new body. *Why this tier:* TD-SYSTEM-BOUNDARY: the spike is weld-on-a-moving-ship and nothing owned the motion; needed before the weld spike.
 - **13. Modular Ship Assembly** (Gameplay, MVP, explicit). Weld and cut sections as atomic one-tick commands across graph join and layout change: join validation is a pure Graph query; seams set edge properties; cap plates; detach into a new body. Also owns module install/uninstall (cut a scrubber free, install it at home) as a graph mutation distinct from section welding. *Why this tier:* The game's hook and its riskiest build task (producer: the weld is the hardest MVP item); first spike.
@@ -74,9 +74,9 @@ The tiers follow the producer-adjusted scope in the concept. **MVP** is the sing
 | 2 | Life-Support Graph | Core | MVP | Not Started | — | Command & Simulation Layer |
 | 3 | Item & Module Database (inferred) | Economy | MVP | Not Started | — | Life-Support Graph |
 | 4 | Pixel-Perfect Render Pipeline & Camera (inferred) | Core | MVP | Designed | design/gdd/pixel-perfect-render-pipeline-camera.md | — |
-| 5 | Emitter State & Light-Exposure Query (inferred) | Core | MVP | Not Started | — | Command & Simulation Layer, Life-Support Graph |
+| 5 | Emitter State & Light-Exposure Query (inferred) | Core | MVP | Not Started | — | Command & Simulation Layer, Life-Support Graph, Player Controller & Input |
 | 6 | 2D Lighting & Occlusion | Core | MVP | Not Started | — | Pixel-Perfect Render Pipeline & Camera, Emitter State & Light-Exposure Query |
-| 7 | Player Controller & Input (inferred) | Core | MVP | Not Started | — | Command & Simulation Layer, Pixel-Perfect Render Pipeline & Camera |
+| 7 | Player Controller & Input (inferred) | Core | MVP | Designed | design/gdd/player-controller-input.md | Command & Simulation Layer, Pixel-Perfect Render Pipeline & Camera |
 | 8 | Interaction System (inferred) | Gameplay | MVP | Not Started | — | Command & Simulation Layer, Player Controller & Input, Emitter State & Light-Exposure Query, Pixel-Perfect Render Pipeline & Camera |
 | 9 | Failure & Trail System | Gameplay | MVP | Not Started | — | Life-Support Graph, Pixel-Perfect Render Pipeline & Camera |
 | 10 | Suit & Equipment (inferred) | Gameplay | MVP | Not Started | — | Command & Simulation Layer, Life-Support Graph, Item & Module Database, Player Controller & Input, Emitter State & Light-Exposure Query, Save/Load & Versioned Format |
@@ -86,11 +86,11 @@ The tiers follow the producer-adjusted scope in the concept. **MVP** is the sing
 | 14 | Derelict Authoring (Handmade Kits) | Gameplay | MVP | Not Started | — | Ship Section & Layout Data Model, Item & Module Database, Emitter State & Light-Exposure Query |
 | 15 | Boarding & Salvage | Gameplay | MVP | Not Started | — | Interaction System, Suit & Equipment, Modular Ship Assembly, Derelict Authoring (Handmade Kits), Item & Module Database |
 | 16 | Web Map & Transit | Gameplay | MVP | Not Started | — | Command & Simulation Layer, Derelict Authoring (Handmade Kits), Save/Load & Versioned Format |
-| 17 | Attention System | Gameplay | MVP | Not Started | — | Command & Simulation Layer, Life-Support Graph, Emitter State & Light-Exposure Query, Suit & Equipment, Save/Load & Versioned Format |
+| 17 | Attention System | Gameplay | MVP | Not Started | — | Command & Simulation Layer, Life-Support Graph, Emitter State & Light-Exposure Query, Suit & Equipment, Player Controller & Input, Save/Load & Versioned Format |
 | 18 | Horror Entities | Gameplay | MVP | Not Started | — | Command & Simulation Layer, Life-Support Graph, Emitter State & Light-Exposure Query, Attention System |
 | 19 | Sanity & Hallucination Rules | Gameplay | MVP | Not Started | — | Command & Simulation Layer, Attention System, Interaction System, Suit & Equipment, Save/Load & Versioned Format |
 | 20 | Perception Filter | Gameplay | MVP | Not Started | — | Command & Simulation Layer, Pixel-Perfect Render Pipeline & Camera, 2D Lighting & Occlusion, Sanity & Hallucination Rules |
-| 21 | HUD & Suit Layer | UI | MVP | Not Started | — | Pixel-Perfect Render Pipeline & Camera, Suit & Equipment, Perception Filter |
+| 21 | HUD & Suit Layer | UI | MVP | Not Started | — | Pixel-Perfect Render Pipeline & Camera, Suit & Equipment, Perception Filter, Player Controller & Input |
 | 22 | In-World Instruments & Inspect View | UI | MVP | Not Started | — | Life-Support Graph, 2D Lighting & Occlusion, Perception Filter, Interaction System |
 | 23 | Chart Table (Web Map & Menus) | UI | MVP | Not Started | — | Web Map & Transit, Pixel-Perfect Render Pipeline & Camera |
 | 24 | Adaptive Audio & Tells | Audio | MVP | Not Started | — | Life-Support Graph, Horror Entities, Attention System, Sanity & Hallucination Rules |
@@ -144,6 +144,7 @@ The tiers follow the producer-adjusted scope in the concept. **MVP** is the sing
 > **Creative Director Review (CD-SYSTEMS)**: CONCERNS, revisions applied 2026-10-25 — (MVP) Attention now owns the breach state machine and the tell-window contract; (MVP) Save/Load owns the MVP death stub (reload last save) until the Failure Contract lands; (Vertical Slice) Failure Contract & Re-wake owns the cryo-pod mystery throughline with narrative-director; (Vertical Slice) Knowledge Codex gains Attention/Horror/Depth Rings/Web Map dependencies and an actionable-knowledge acceptance criterion; (Vertical Slice) Depth Rings gates ring access by ship capability so VS-A has an implicit ladder; (Vertical Slice, VS-B) Interaction owns the friendly-harm act under Sanity's gate and the Perception Filter owns the victim tell. Verdict otherwise: every system traces to a pillar, none breaks an anti-pillar, MVP is the right test of the core fantasy.
 > **Design note (command-simulation-layer GDD, 2026-10-25)**: the kernel GDD found four dependents missing their kernel edge (Interaction, Attention, Ship Section & Layout Data Model, Perception Filter — added), one redundant edge (Life-Support Graph → Save/Load, satisfied by the registry contract — removed), and corrected per-player keying from peer ID to a stable PlayerId (Sanity, Suit). Design order is unchanged.
 > **Design note (pixel-perfect-render-pipeline-camera GDD, 2026-10-26)**: the pipeline GDD found four dependents missing their edge (Ship Body hard; Interaction, Debug Overlay, Settings & Input Rebinding and Accessibility Settings soft — added). It also routes: an art-bible 8.2 projection amendment (faces occlude screen-north), camera framing as a never-shift anchor (Perception Filter), Player Controller speeds in whole base px per tick, and a UX flag for the settings screen and HUD layer (`/ux-design` before epics). Design order unchanged.
+> **Design note (player-controller-input GDD, 2026-10-26)**: three dependents gained their controller edge (Attention — noise stimuli, soft; Emitter State — beam toggle/aim; HUD — hand rail/prompts, soft). User decisions recorded: chest-mounted hands-free lamp (beam origin = chest point; art bible 3.2/5.1/5.5/5.6/8.3 amendment routed), throwable glowsticks under Suit & Equipment. Routed corrections: render pipeline speeds 120/180 and the inner-box inequality; kernel CR-4 linear bar, facing is derived not an intent. UX flag: prompts/channel bar, hand rail, rebinding (`/ux-design` before epics). Design order unchanged.
 > **Ordering rule**: VS-B (co-op) systems are listed after every VS-A system and must not start before VS-A is complete; VS-A is ordered so that a stop after Onboarding (Cryo Bay) still leaves a shippable single-player game.
 
 ---
@@ -158,13 +159,13 @@ The tiers follow the producer-adjusted scope in the concept. **MVP** is the sing
 ### Core Layer (depends on foundation)
 
 1. Life-Support Graph — depends on: Command & Simulation Layer **[bottleneck: 14 dependents]**
-2. Player Controller & Input — depends on: Command & Simulation Layer, Pixel-Perfect Render Pipeline & Camera **[bottleneck: 5 dependents]**
+2. Player Controller & Input — depends on: Command & Simulation Layer, Pixel-Perfect Render Pipeline & Camera **[bottleneck: 8 dependents]**
 3. Save/Load & Versioned Format — depends on: Command & Simulation Layer **[bottleneck: 9 dependents]**
 
 ### Feature Layer (depends on core)
 
 1. Item & Module Database — depends on: Life-Support Graph **[bottleneck: 9 dependents]**
-2. Emitter State & Light-Exposure Query — depends on: Command & Simulation Layer, Life-Support Graph **[bottleneck: 6 dependents]**
+2. Emitter State & Light-Exposure Query — depends on: Command & Simulation Layer, Life-Support Graph, Player Controller & Input **[bottleneck: 6 dependents]**
 3. 2D Lighting & Occlusion — depends on: Pixel-Perfect Render Pipeline & Camera, Emitter State & Light-Exposure Query
 4. Interaction System — depends on: Command & Simulation Layer, Player Controller & Input, Emitter State & Light-Exposure Query, Pixel-Perfect Render Pipeline & Camera **[bottleneck: 5 dependents]**
 5. Failure & Trail System — depends on: Life-Support Graph, Pixel-Perfect Render Pipeline & Camera
@@ -175,7 +176,7 @@ The tiers follow the producer-adjusted scope in the concept. **MVP** is the sing
 10. Derelict Authoring (Handmade Kits) — depends on: Ship Section & Layout Data Model, Item & Module Database, Emitter State & Light-Exposure Query
 11. Boarding & Salvage — depends on: Interaction System, Suit & Equipment, Modular Ship Assembly, Derelict Authoring (Handmade Kits), Item & Module Database
 12. Web Map & Transit — depends on: Command & Simulation Layer, Derelict Authoring (Handmade Kits), Save/Load & Versioned Format
-13. Attention System — depends on: Command & Simulation Layer, Life-Support Graph, Emitter State & Light-Exposure Query, Suit & Equipment, Save/Load & Versioned Format **[bottleneck: 5 dependents]**
+13. Attention System — depends on: Command & Simulation Layer, Life-Support Graph, Emitter State & Light-Exposure Query, Suit & Equipment, Player Controller & Input, Save/Load & Versioned Format **[bottleneck: 5 dependents]**
 14. Horror Entities — depends on: Command & Simulation Layer, Life-Support Graph, Emitter State & Light-Exposure Query, Attention System
 15. Sanity & Hallucination Rules — depends on: Command & Simulation Layer, Attention System, Interaction System, Suit & Equipment, Save/Load & Versioned Format
 16. Perception Filter — depends on: Command & Simulation Layer, Pixel-Perfect Render Pipeline & Camera, 2D Lighting & Occlusion, Sanity & Hallucination Rules
@@ -194,7 +195,7 @@ The tiers follow the producer-adjusted scope in the concept. **MVP** is the sing
 
 ### Presentation Layer (depends on features)
 
-1. HUD & Suit Layer — depends on: Pixel-Perfect Render Pipeline & Camera, Suit & Equipment, Perception Filter
+1. HUD & Suit Layer — depends on: Pixel-Perfect Render Pipeline & Camera, Suit & Equipment, Perception Filter, Player Controller & Input
 2. In-World Instruments & Inspect View — depends on: Life-Support Graph, 2D Lighting & Occlusion, Perception Filter, Interaction System
 3. Chart Table (Web Map & Menus) — depends on: Web Map & Transit, Pixel-Perfect Render Pipeline & Camera
 4. Adaptive Audio & Tells — depends on: Life-Support Graph, Horror Entities, Attention System, Sanity & Hallucination Rules
@@ -289,10 +290,10 @@ The tiers follow the producer-adjusted scope in the concept. **MVP** is the sing
 | Metric | Count |
 |--------|-------|
 | Total systems identified | 42 |
-| Design docs started | 2 |
+| Design docs started | 3 |
 | Design docs reviewed | 0 |
 | Design docs approved | 0 |
-| MVP systems designed | 2/26 |
+| MVP systems designed | 3/26 |
 | Vertical Slice systems designed | 0/10 |
 
 ---

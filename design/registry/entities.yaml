@@ -278,7 +278,8 @@ formulas:
   - name: hook_runs_this_tick
     status: active
     source: design/gdd/command-simulation-layer.md
-    referenced_by: []
+    referenced_by:
+      - design/gdd/life-support-graph.md
     attributes:
       expression: (T mod divisor) == offset
       variables: T (int tick), divisor (int >= 1), offset (int, 0..divisor-1)
@@ -324,7 +325,8 @@ formulas:
   - name: state_hash
     status: active
     source: design/gdd/command-simulation-layer.md
-    referenced_by: []
+    referenced_by:
+      - design/gdd/life-support-graph.md
     attributes:
       expression: hash(canonical_snapshot(blocks))
       variables: blocks (persist or all SIM), canonical ordering, -0.0 == +0.0, NaN normalised
@@ -335,7 +337,8 @@ formulas:
   - name: rng_derive
     status: active
     source: design/gdd/command-simulation-layer.md
-    referenced_by: []
+    referenced_by:
+      - design/gdd/life-support-graph.md
     attributes:
       expression: mix64(world_seed, hash(stream_name), counter)
       variables: world_seed (u64), stream_name (StringName), counter (u64 stored in the owning block)
@@ -376,7 +379,77 @@ formulas:
 #
 # Required fields: name, status, source, referenced_by, value, unit, added
 
+  - name: fairness_gate
+    status: active
+    source: design/gdd/life-support-graph.md
+    referenced_by: []
+    attributes:
+      expression: endogenous transition to FAILED/DESTROYED (or LEAK->BREACH) allowed iff warn_elapsed >= W_MIN_STEPS, where W_MIN_STEPS = W_MIN_WARNING_S * TICK_RATE / GRAPH_STEP_TICKS = 100 and warn_elapsed counts consecutive runs with a sev>=1 descriptor on the subject
+      variables: warn_elapsed (steps), W_MIN_WARNING_S 10, cause in {ENDOGENOUS, EXOGENOUS}
+      output: bool; exogenous causes bypass; the transition is deferred, never skipped
+    added: 2026-10-26
+    revised: 2026-10-26
+    # D.11; the reason 'death is a bitch' is never arbitrary
+    # pending referenced_by (GDD not yet written): design/gdd/horror-entities.md, design/gdd/interaction-system.md, design/gdd/suit-and-equipment.md
+
+  - name: atmosphere_derive
+    status: active
+    source: design/gdd/life-support-graph.md
+    referenced_by: []
+    attributes:
+      expression: P = n_total / (V * GAS_SCALE); p_o2 = n_o2 / (V * GAS_SCALE); o2_pm = n_o2 * 1000 / n_total; bands from LS-7 tables with absolute hysteresis H_P 5 dkPa / H_T 500 mC
+      variables: n_o2, n_inert (mGU, state), V (tiles, Layout), T (mC, state)
+      output: P, p_o2 in dkPa; band_o2 / band_p / band_t enums
+    added: 2026-10-26
+    revised: 2026-10-26
+    # D.3; pressure from n and V only (no T coupling) in MVP
+    # pending referenced_by (GDD not yet written): design/gdd/suit-and-equipment.md, design/gdd/in-world-instruments-and-inspect-view.md
+    # was: '5 percent hysteresis' before 2026-10-26 (consistency check)
+
+  - name: power_allocation
+    status: active
+    source: design/gdd/life-support-graph.md
+    referenced_by: []
+    attributes:
+      expression: per island: supply = sum(reactor_out) + battery_discharge; demand by tier 0..4; served_pm per LOAD = 1000 for tiers fully met, partial for the first unmet tier, 0 below (brownout shed order: tier 4 'other' first, then tier 3 lamps and HEATER; sat_3 drives lamp brightness)
+      variables: supply W, demand_by_tier W, battery stock dJ, tier 0..4
+      output: served_pm 0..1000 per LOAD; lamp brightness = base * served_pm / 1000
+    added: 2026-10-26
+    revised: 2026-10-26
+    # D.6; island solved as a tree (power cycles rejected in MVP)
+    # pending referenced_by (GDD not yet written): design/gdd/emitter-state-and-light-exposure-query.md, design/gdd/attention-system.md
+    # was: 'tier 4 lamps/heaters first' before 2026-10-26 (consistency check)
+
+  - name: seam_at_weld
+    status: active
+    source: design/gdd/life-support-graph.md
+    referenced_by: []
+    attributes:
+      expression: cap_loop = min(cap_a, cap_b) * (500 + q/2) / 1000; hp = q * 10; leak_bp = SEAM_LEAK_INITIAL_BP (unscaled; q enters via D.2: A_seam = L_seam * ceil(A_SEAM_MAX * leak_bp * (1000 - q)^2 / 1e10)); opening area = 0; valves CLOSED; breaker OPEN
+      variables: q = weld quality permille (Assembly), cap_a/cap_b, SEAM_LEAK_INITIAL_BP
+      output: seam edge properties; surge[] informational per sub-edge
+    added: 2026-10-26
+    revised: 2026-10-26
+    # D.14; R9 — welding moves nothing
+    # pending referenced_by (GDD not yet written): design/gdd/modular-ship-assembly.md
+    # was: leak_bp scaled linearly by (1000 - q) before 2026-10-26 (consistency check)
+
+  - name: dirty_key_budget
+    status: active
+    source: design/gdd/life-support-graph.md
+    referenced_by: []
+    attributes:
+      expression: keys_per_run <= C_changed + B_changed + N_transitions + F_buckets + L_quanta + S + T_f (T_f folds T and SEC/<id>); MVP worst ~38, VS-A worst ~135 < MAX_DIRTY_KEYS 256
+      variables: per-family counts; quanta T 1000 mC, P 10 dkPa, p_o2 5 dkPa, pool 20 permille, intensity 100 permille, hp 250 bp
+      output: int; confirms MAX_DIRTY_KEYS 256 (never below 128)
+    added: 2026-10-26
+    revised: 2026-10-26
+    # D.10; continuous values never dirty per step
 constants:
+    # pending referenced_by (GDD not yet written): design/gdd/failure-and-trail-system.md
+    # was: 8-term sum with SEC separate before 2026-10-26 (consistency check)
+    # forward reference: the kernel GDD will cite this once the routed hook/budget amendments land
+
   - name: V_WALK
     status: active
     source: design/gdd/player-controller-input.md
@@ -495,6 +568,7 @@ constants:
     status: active
     source: design/gdd/pixel-perfect-render-pipeline-camera.md
     referenced_by:
+      - design/gdd/life-support-graph.md
       - design/gdd/player-controller-input.md
     attributes:
       value: 48
@@ -596,6 +670,7 @@ constants:
     status: active
     source: design/gdd/command-simulation-layer.md
     referenced_by:
+      - design/gdd/life-support-graph.md
       - design/gdd/player-controller-input.md
       - design/gdd/pixel-perfect-render-pipeline-camera.md
     attributes:
@@ -658,7 +733,8 @@ constants:
   - name: MAX_DIRTY_KEYS
     status: active
     source: design/gdd/command-simulation-layer.md
-    referenced_by: []
+    referenced_by:
+      - design/gdd/life-support-graph.md
     attributes:
       value: 256
       unit: keys per block per tick
@@ -678,7 +754,8 @@ constants:
   - name: STEP_BUDGET_MS
     status: active
     source: design/gdd/command-simulation-layer.md
-    referenced_by: []
+    referenced_by:
+      - design/gdd/life-support-graph.md
     attributes:
       value: 4
       unit: ms
@@ -730,6 +807,278 @@ constants:
     added: 2026-10-26
     revised: 2026-10-26
     # Collision uses the 24-px footprint, not the 72-px face; Y-sort by the footprint's south edge under the up-screen convention (art bible 8.2, amended 2026-10-26)
+  - name: GRAPH_STEP_TICKS
+    status: active
+    source: design/gdd/life-support-graph.md
+    referenced_by: []
+    attributes:
+      value: 6
+      unit: ticks per propagation run (0.1 s; equals the hook divisor)
+    added: 2026-10-26
+    revised: 2026-10-26
+    # Build assertion: must equal the divisor of graph.propagate.*
+    # forward reference: the kernel GDD will cite this once the routed hook/budget amendments land
+
+  - name: GAS_SCALE
+    status: active
+    source: design/gdd/life-support-graph.md
+    referenced_by: []
+    attributes:
+      value: 1000
+      unit: mGU per GU; 1 GU = 0.1 kPa in a 1-tile volume
+    added: 2026-10-26
+    revised: 2026-10-26
+    # Graph gas unit; pressure derived P = n_total / (V * GAS_SCALE) in dkPa
+  - name: STD_PRESSURE_DKPA
+    status: active
+    source: design/gdd/life-support-graph.md
+    referenced_by: []
+    attributes:
+      value: 1000
+      unit: dkPa (100.0 kPa) — a healthy room
+    added: 2026-10-26
+    revised: 2026-10-26
+    # P_EXT = 0 (vacuum) in MVP
+  - name: STD_O2_PP_DKPA
+    status: active
+    source: design/gdd/life-support-graph.md
+    referenced_by: []
+    attributes:
+      value: 210
+      unit: dkPa O2 partial pressure at standard; range 200-230
+    added: 2026-10-26
+    revised: 2026-10-26
+    # Scrubber setpoint default
+  - name: HP_FULL
+    status: active
+    source: design/gdd/life-support-graph.md
+    referenced_by: []
+    attributes:
+      value: 10000
+      unit: basis points — full integrity
+    added: 2026-10-26
+    revised: 2026-10-26
+    # hp scale for every node and edge
+  - name: HP_OK
+    status: active
+    source: design/gdd/life-support-graph.md
+    referenced_by: []
+    attributes:
+      value: 7000
+      unit: bp — DEGRADED boundary (sev-1 descriptor starts; fairness warning starts); range 5000-9000
+    added: 2026-10-26
+    revised: 2026-10-26
+    # D.4
+  - name: HP_FAIL
+    status: active
+    source: design/gdd/life-support-graph.md
+    referenced_by: []
+    attributes:
+      value: 3000
+      unit: bp — FAILED boundary; range 1000-4000
+    added: 2026-10-26
+    revised: 2026-10-26
+    # D.4; gate floor HP_FAIL + 1
+  - name: COLD_DMG_ONSET_MC
+    status: active
+    source: design/gdd/life-support-graph.md
+    referenced_by: []
+    attributes:
+      value: -15000
+      unit: milli-degC — FREEZING band boundary; Suit's cold-damage onset (insulation shifts it); range -25000..-5000
+    added: 2026-10-26
+    revised: 2026-10-26
+    # Suit must read this, never redefine it
+    # pending referenced_by (GDD not yet written): design/gdd/suit-and-equipment.md
+
+  - name: HEAT_DMG_ONSET_MC
+    status: active
+    source: design/gdd/life-support-graph.md
+    referenced_by: []
+    attributes:
+      value: 45000
+      unit: milli-degC — Suit's heat-damage onset inside HOT; range 40000-60000
+    added: 2026-10-26
+    revised: 2026-10-26
+    # Suit reads
+    # pending referenced_by (GDD not yet written): design/gdd/suit-and-equipment.md
+
+  - name: HYPOXIA_PP
+    status: active
+    source: design/gdd/life-support-graph.md
+    referenced_by: []
+    attributes:
+      value: 140
+      unit: dkPa O2 partial pressure — HYPOXIC band boundary; range 120-160
+    added: 2026-10-26
+    revised: 2026-10-26
+    # Suit reads; D.15 O2 clock
+    # pending referenced_by (GDD not yet written): design/gdd/suit-and-equipment.md
+
+  - name: DECOMP_P
+    status: active
+    source: design/gdd/life-support-graph.md
+    referenced_by: []
+    attributes:
+      value: 400
+      unit: dkPa total pressure — DECOMP band boundary (suit required); range 300-500
+    added: 2026-10-26
+    revised: 2026-10-26
+    # Suit reads; D.15 lethal row
+    # pending referenced_by (GDD not yet written): design/gdd/suit-and-equipment.md
+
+  - name: W_MIN_WARNING_S
+    status: active
+    source: design/gdd/life-support-graph.md
+    referenced_by: []
+    attributes:
+      value: 10
+      unit: seconds (100 steps) of sev>=1 physical warning required before any ENDOGENOUS transition to FAILED/DESTROYED or LEAK->BREACH; range 4-20
+    added: 2026-10-26
+    revised: 2026-10-26
+    # Fairness gate (D.11). Exogenous causes (player verbs, footprint RUPTURE/GOUGE, apply_damage EXOGENOUS) are exempt; player death itself is Suit's rule
+    # pending referenced_by (GDD not yet written): design/gdd/horror-entities.md, design/gdd/interaction-system.md
+    # was: 8 before 2026-10-26 (raised at CD-GDD-ALIGN to sit inside Pillar 2's 10-30 s tell)
+
+  - name: PATCH_DECAY_S
+    status: active
+    source: design/gdd/life-support-graph.md
+    referenced_by: []
+    attributes:
+      value: 240
+      unit: seconds — a PATCH decays to re-leak (warned first, W_MIN applies); range 90-600
+    added: 2026-10-26
+    revised: 2026-10-26
+    # LS-23
+    # pending referenced_by (GDD not yet written): design/gdd/interaction-system.md
+
+  - name: PATCH_CAP_BP
+    status: active
+    source: design/gdd/life-support-graph.md
+    referenced_by: []
+    attributes:
+      value: 6000
+      unit: bp — hp cap of a PATCH repair; full repair needs an Item DB part; range 4500-6900
+    added: 2026-10-26
+    revised: 2026-10-26
+    # LS-23
+    # pending referenced_by (GDD not yet written): design/gdd/interaction-system.md, design/gdd/item-and-module-database.md
+
+  - name: DERELICT_FAULT_COMPRESSION
+    status: active
+    source: design/gdd/life-support-graph.md
+    referenced_by: []
+    attributes:
+      value: 500
+      unit: permille — endogenous damage rate multiplier on derelicts once powered (tell phase halves); range 250-1000
+    added: 2026-10-26
+    revised: 2026-10-26
+    # D.9
+    # pending referenced_by (GDD not yet written): design/gdd/web-map-and-transit.md
+
+  - name: BREACH_PROPAGATION_MULT
+    status: active
+    source: design/gdd/life-support-graph.md
+    referenced_by: []
+    attributes:
+      value: 2000
+      unit: permille — endogenous damage multiplier while a section is under STRESS (breach rhythm); never scales gas/heat physics; range 1000-3000
+    added: 2026-10-26
+    revised: 2026-10-26
+    # D.9 stress_pm; STRESS is a footprint kind of deposit_trace
+    # pending referenced_by (GDD not yet written): design/gdd/attention-system.md, design/gdd/horror-entities.md
+
+  - name: WELD_DP_WARN
+    status: active
+    source: design/gdd/life-support-graph.md
+    referenced_by: []
+    attributes:
+      value: 300
+      unit: dkPa — can_join warns (never rejects) when a seam opening's |dP| exceeds this
+    added: 2026-10-26
+    revised: 2026-10-26
+    # D.14; seam sub-edges are created disconnected (hatch closed, valves closed, breaker open)
+    # pending referenced_by (GDD not yet written): design/gdd/modular-ship-assembly.md
+
+  - name: SEAM_LEAK_INITIAL_BP
+    status: active
+    source: design/gdd/life-support-graph.md
+    referenced_by: []
+    attributes:
+      value: 10000
+      unit: bp — leak imperfection of a fresh seam, lowered by wear-in / SEAL_SEAM; weld quality q enters through the seam area (D.2), not this value
+    added: 2026-10-26
+    revised: 2026-10-26
+    # D.14
+    # pending referenced_by (GDD not yet written): design/gdd/modular-ship-assembly.md
+    # was: 'scaled by weld quality q' before 2026-10-26 (consistency check)
+
+  - name: W_DUTY_BP_PER_100
+    status: active
+    source: design/gdd/life-support-graph.md
+    referenced_by: []
+    attributes:
+      value: 2
+      unit: bp lost per WEAR_PERIOD_STEPS (100 steps) by a running machine (SCRUBBER, PUMP, HEATER; REACTOR by output fraction) scaled by duty_pm; range 1-6
+    added: 2026-10-26
+    revised: 2026-10-26
+    # D.9 duty wear: HP_FULL -> HP_OK in ~4.2 h continuous duty, so a fully repaired ship is quiet but never a safe harbour (CD-GDD-ALIGN 2026-10-26, Pillar 5)
+  - name: HATCH_DT_FROST_MC
+    status: active
+    source: design/gdd/life-support-graph.md
+    referenced_by: []
+    attributes:
+      value: 20000
+      unit: milli-degC temperature difference across a CLOSED opening that raises a SEAL_STRAIN (HEAT/TICK, rim frost) descriptor; range 5000-50000
+    added: 2026-10-26
+    revised: 2026-10-26
+    # D.14; SEAL_STRAIN (GAS/CREAK) also raised when |dP| > WELD_DP_WARN; closed-hatch pressure is a consequence-channel witness (CD-GDD-ALIGN 2026-10-26)
+  - name: MAX_SPREAD_PER_STEP
+    status: active
+    source: design/gdd/life-support-graph.md
+    referenced_by: []
+    attributes:
+      value: 32
+      unit: new endogenous failures applied per propagation run; range 8-64
+    added: 2026-10-26
+    revised: 2026-10-26
+    # LS-12; D.16
+  - name: MAX_FOOTPRINTS_PER_STEP
+    status: active
+    source: design/gdd/life-support-graph.md
+    referenced_by: []
+    attributes:
+      value: 16
+      unit: deposit_trace writes accepted per run per subject; excess no-op; range 4-64
+    added: 2026-10-26
+    revised: 2026-10-26
+    # M17 Class B
+    # pending referenced_by (GDD not yet written): design/gdd/horror-entities.md
+
+  - name: MAX_GRAPH_NODES
+    status: active
+    source: design/gdd/life-support-graph.md
+    referenced_by: []
+    attributes:
+      value: 4096
+      unit: nodes (edges 8192); can_join CAPACITY reason; subject_id < 2^20
+    added: 2026-10-26
+    revised: 2026-10-26
+    # LS-9
+    # pending referenced_by (GDD not yet written): design/gdd/modular-ship-assembly.md, design/gdd/ship-section-and-layout-data-model.md
+
+  - name: GRAPH_HOOK_BUDGET_MS
+    status: active
+    source: design/gdd/life-support-graph.md
+    referenced_by: []
+    attributes:
+      value: 0.5 P99 / 1.0 max per run (MVP); 1.0 P99 per tick (VS-A)
+      unit: ms on the Release export template, sum of the three graph.propagate.* hooks
+    added: 2026-10-26
+    revised: 2026-10-26
+    # Budget of record; STEP_BUDGET_MS 4 is the kernel's logging threshold
+    # forward reference: the kernel GDD will cite this once the routed hook/budget amendments land
+
 # Example:
 #
 # constants:

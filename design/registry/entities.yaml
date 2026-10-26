@@ -54,7 +54,7 @@
 #   in any other shape is reported as unsupported layout, with its number.
 
 version: 1
-last_updated: ""
+last_updated: "2026-10-26"
 
 # ─── ENTITIES ────────────────────────────────────────────────────────────────
 # Named game-world objects: enemies, NPCs, characters, factions, bosses.
@@ -123,7 +123,163 @@ items: []
 #   output_range[min, max], added
 # Optional: expression (the actual formula), notes
 
-formulas: []
+formulas:
+  - name: world_scale_k
+    status: active
+    source: design/gdd/pixel-perfect-render-pipeline-camera.md
+    referenced_by: []
+    attributes:
+      expression: k = floor(min(W/640, H/360))
+      variables: W, H window px
+      output: int >= 2; 2/3/4/6 at 720p/1080p/1440p/2160p; remainder letterboxed under keep
+    added: 2026-10-26
+    revised: 2026-10-26
+    # Every screen-pixel figure in every GDD derives from k
+  - name: hud_multiplier
+    status: active
+    source: design/gdd/pixel-perfect-render-pipeline-camera.md
+    referenced_by: []
+    attributes:
+      expression: H_default = max(k, 3); H in [H_default, 2*H_default] integer
+      variables: k (world scale)
+      output: int >= 3 on every display; cap height = 7*H px
+    added: 2026-10-26
+    revised: 2026-10-26
+    # HUD never below 3x; Steam Deck runs k=2, H=3
+  - name: zoom_out_k
+    status: active
+    source: design/gdd/pixel-perfect-render-pipeline-camera.md
+    referenced_by: []
+    attributes:
+      expression: k_out = ceil(k/2); visible field = (W/k_out, H/k_out) base px
+      variables: k
+      output: integer step only, hold-to-step-back; steps to 1x on 2x worlds
+    added: 2026-10-26
+    revised: 2026-10-26
+    # Implemented by changing the viewport logical size, never Camera2D.zoom
+  - name: camera_follow
+    status: active
+    source: design/gdd/pixel-perfect-render-pipeline-camera.md
+    referenced_by: []
+    attributes:
+      expression: cam += (target - cam) * (1 - exp(-dt / FOLLOW_TAU)); pose = floor_to(cam, QUANTUM)
+      variables: dt render s, FOLLOW_TAU 0.18 s, QUANTUM in {1, 1/k} base px
+      output: zero overshoot; steady-state lag = v * tau
+    added: 2026-10-26
+    revised: 2026-10-26
+    # Quantise after smoothing
+  - name: camera_lookahead
+    status: active
+    source: design/gdd/pixel-perfect-render-pipeline-camera.md
+    referenced_by: []
+    attributes:
+      expression: offset = aim_dir * LOOKAHEAD_PX, slewed at <= L_SLEW_MAX, eased over LOOKAHEAD_TAU
+      variables: aim_dir (local raw aim, regardless of beam state), LOOKAHEAD_PX 72, L_SLEW_MAX 144 px/s, LOOKAHEAD_TAU 0.40 s
+      output: <= 72 px default; range 48-120
+    added: 2026-10-26
+    revised: 2026-10-26
+    # Player-owned input only; never world state
+  - name: camera_cut_predicates
+    status: active
+    source: design/gdd/pixel-perfect-render-pipeline-camera.md
+    referenced_by: []
+    attributes:
+      expression: cut if follow_speed > 1.25*v_max for T_PAN, or lag > LAG_CUT, or single-frame jump >= JUMP_CUT
+      variables: T_PAN 0.10 s, LAG_CUT 48 px, JUMP_CUT 48 px; invariant LAG_CUT > v_max*FOLLOW_TAU
+      output: bool -> CUT (never a fast pan)
+    added: 2026-10-26
+    revised: 2026-10-26
+    # Evaluated on the unclamped follow term only
+  - name: flash_count
+    status: active
+    source: design/gdd/pixel-perfect-render-pipeline-camera.md
+    referenced_by: []
+    attributes:
+      expression: flashes_per_s = count of opposing >= 10% relative-luminance changes in any 1 s window
+      variables: per light, per 213x120 base px region, frame mean; red flash included
+      output: must be <= 3 (WCAG 2.3.1)
+    added: 2026-10-26
+    revised: 2026-10-26
+    # Enforced in the 2D Lighting modifier contract; deployable flicker must be specified inside it
+  - name: ticks_for_seconds
+    status: active
+    source: design/gdd/command-simulation-layer.md
+    referenced_by: []
+    attributes:
+      expression: round(seconds * TICK_RATE)
+      variables: seconds (float, s), TICK_RATE (int, Hz)
+      output: int ticks; 10-30 s tell window = 600-1800 ticks at 60 Hz
+    added: 2026-10-25
+    revised: 2026-10-25
+    # Every duration in every GDD is expressed in ticks via this formula
+  - name: hook_runs_this_tick
+    status: active
+    source: design/gdd/command-simulation-layer.md
+    referenced_by: []
+    attributes:
+      expression: (T mod divisor) == offset
+      variables: T (int tick), divisor (int >= 1), offset (int, 0..divisor-1)
+      output: bool; effective_hook_rate = TICK_RATE / divisor
+    added: 2026-10-25
+    revised: 2026-10-25
+    # Step divisors: Graph 6, Attention 6, Suit vitals 6, Sanity drift 12, Controller/Body/Emitter 1
+  - name: tick_alpha
+    status: active
+    source: design/gdd/command-simulation-layer.md
+    referenced_by:
+      - design/gdd/pixel-perfect-render-pipeline-camera.md
+    attributes:
+      expression: clamp(t_since_last_commit / tick_duration, 0, 1)
+      variables: t_since_last_commit (float s), tick_duration = 1/TICK_RATE
+      output: 0.0-1.0; presentation interpolation fraction
+    added: 2026-10-25
+    revised: 2026-10-25
+    # Read by every presentation system that interpolates motion
+  - name: ordering_key
+    status: active
+    source: design/gdd/command-simulation-layer.md
+    referenced_by: []
+    attributes:
+      expression: (queued_tick, host_order) lexicographic
+      variables: queued_tick (int), host_order (int, kernel-stamped unique counter)
+      output: total order of commands; G1 determinism guarantee
+    added: 2026-10-25
+    revised: 2026-10-25
+    # Single-player = submission order
+  - name: is_stale
+    status: active
+    source: design/gdd/command-simulation-layer.md
+    referenced_by: []
+    attributes:
+      expression: (T - queued_tick) > max_age_ticks
+      variables: T, queued_tick (int ticks), max_age_ticks (per command type: 30 intents, 120 actions)
+      output: bool -> Rejected(STALE); unreachable locally at defaults (queue drains in 8 ticks)
+    added: 2026-10-25
+    revised: 2026-10-25
+    # VS-B seam for remote-stamped ticks
+  - name: state_hash
+    status: active
+    source: design/gdd/command-simulation-layer.md
+    referenced_by: []
+    attributes:
+      expression: hash(canonical_snapshot(blocks))
+      variables: blocks (persist or all SIM), canonical ordering, -0.0 == +0.0, NaN normalised
+      output: u64; equality is the G3/G4 determinism and save-equivalence test
+    added: 2026-10-25
+    revised: 2026-10-25
+    # Also the desync check for VS-B
+  - name: rng_derive
+    status: active
+    source: design/gdd/command-simulation-layer.md
+    referenced_by: []
+    attributes:
+      expression: mix64(world_seed, hash(stream_name), counter)
+      variables: world_seed (u64), stream_name (StringName), counter (u64 stored in the owning block)
+      output: u64 / unit [0,1); pure and deterministic
+    added: 2026-10-25
+    revised: 2026-10-25
+    # No global randf() anywhere in simulation (H9)
+
 
 # Example:
 #
@@ -156,7 +312,212 @@ formulas: []
 #
 # Required fields: name, status, source, referenced_by, value, unit, added
 
-constants: []
+constants:
+  - name: BASE_RESOLUTION
+    status: active
+    source: design/gdd/pixel-perfect-render-pipeline-camera.md
+    referenced_by: []
+    attributes:
+      value: 640x360
+      unit: base px
+      set_once: true
+    added: 2026-10-26
+    revised: 2026-10-26
+    # Art bible 8.1; integer-scales at all common displays
+  - name: TILE_PX
+    status: active
+    source: design/gdd/pixel-perfect-render-pipeline-camera.md
+    referenced_by: []
+    attributes:
+      value: 48
+      unit: base px
+      set_once: true
+    added: 2026-10-26
+    revised: 2026-10-26
+    # Art bible 8.2; crewmate 53 px, wall face 72 + cap 24
+  - name: HUD_MIN_SCALE
+    status: active
+    source: design/gdd/pixel-perfect-render-pipeline-camera.md
+    referenced_by: []
+    attributes:
+      value: 3
+      unit: integer multiplier
+    added: 2026-10-26
+    revised: 2026-10-26
+    # Never below 3x on any display (ux C-R1)
+  - name: MIN_WINDOW
+    status: active
+    source: design/gdd/pixel-perfect-render-pipeline-camera.md
+    referenced_by: []
+    attributes:
+      value: 1280x720
+      unit: px
+    added: 2026-10-26
+    revised: 2026-10-26
+    # 2x world, 3x HUD fits
+  - name: LOOKAHEAD_PX
+    status: active
+    source: design/gdd/pixel-perfect-render-pipeline-camera.md
+    referenced_by: []
+    attributes:
+      value: 72
+      unit: base px (1.5 tiles)
+    added: 2026-10-26
+    revised: 2026-10-26
+    # Range 48-120
+  - name: FOLLOW_TAU
+    status: active
+    source: design/gdd/pixel-perfect-render-pipeline-camera.md
+    referenced_by: []
+    attributes:
+      value: 0.18
+      unit: s
+    added: 2026-10-26
+    revised: 2026-10-26
+    # Range 0.10-0.30
+  - name: LAG_CUT
+    status: active
+    source: design/gdd/pixel-perfect-render-pipeline-camera.md
+    referenced_by: []
+    attributes:
+      value: 48
+      unit: base px
+    added: 2026-10-26
+    revised: 2026-10-26
+    # Amended from 24 (decision log 2026-10-26)
+  - name: JOLT_PX
+    status: active
+    source: design/gdd/pixel-perfect-render-pipeline-camera.md
+    referenced_by: []
+    attributes:
+      value: 0
+      unit: base px (max 2)
+    added: 2026-10-26
+    revised: 2026-10-26
+    # Off for MVP; revisit VS-A
+  - name: FLASH_MAX_PER_S
+    status: active
+    source: design/gdd/pixel-perfect-render-pipeline-camera.md
+    referenced_by: []
+    attributes:
+      value: 3
+      unit: flashes per 1 s window
+    added: 2026-10-26
+    revised: 2026-10-26
+    # WCAG 2.3.1 general and red flash threshold
+  - name: TICK_RATE
+    status: active
+    source: design/gdd/command-simulation-layer.md
+    referenced_by:
+      - design/gdd/pixel-perfect-render-pipeline-camera.md
+    attributes:
+      value: 60
+      unit: Hz
+      set_once: true
+    added: 2026-10-25
+    revised: 2026-10-25
+    # Changing it invalidates every tick-expressed value; confirmed by the weld spike
+  - name: MAX_CMDS_PER_TICK
+    status: active
+    source: design/gdd/command-simulation-layer.md
+    referenced_by: []
+    attributes:
+      value: 128
+      unit: commands
+    added: 2026-10-25
+    revised: 2026-10-25
+    # Intake budget per tick
+  - name: QUEUE_CAPACITY
+    status: active
+    source: design/gdd/command-simulation-layer.md
+    referenced_by: []
+    attributes:
+      value: 1024
+      unit: commands
+    added: 2026-10-25
+    revised: 2026-10-25
+    # Global queue cap; QUEUE_CAPACITY >= max_issuers * PER_ISSUER_CAPACITY + SYSTEM_RESERVE
+  - name: PER_ISSUER_CAPACITY
+    status: active
+    source: design/gdd/command-simulation-layer.md
+    referenced_by: []
+    attributes:
+      value: 256
+      unit: commands
+    added: 2026-10-25
+    revised: 2026-10-25
+    # Per-issuer queue cap
+  - name: MAX_AGE_TICKS_INTENT
+    status: active
+    source: design/gdd/command-simulation-layer.md
+    referenced_by: []
+    attributes:
+      value: 30
+      unit: ticks
+    added: 2026-10-25
+    revised: 2026-10-25
+    # Default max_age for coalescing intents
+  - name: MAX_AGE_TICKS_ACTION
+    status: active
+    source: design/gdd/command-simulation-layer.md
+    referenced_by: []
+    attributes:
+      value: 120
+      unit: ticks
+    added: 2026-10-25
+    revised: 2026-10-25
+    # Default max_age for deliberate actions
+  - name: MAX_DIRTY_KEYS
+    status: active
+    source: design/gdd/command-simulation-layer.md
+    referenced_by: []
+    attributes:
+      value: 256
+      unit: keys per block per tick
+    added: 2026-10-25
+    revised: 2026-10-25
+    # Above this a notification collapses to ALL
+  - name: MAX_TICKS_PER_FRAME
+    status: active
+    source: design/gdd/command-simulation-layer.md
+    referenced_by: []
+    attributes:
+      value: 4
+      unit: ticks
+    added: 2026-10-25
+    revised: 2026-10-25
+    # Catch-up cap; simulated time lags rather than spirals
+  - name: STEP_BUDGET_MS
+    status: active
+    source: design/gdd/command-simulation-layer.md
+    referenced_by: []
+    attributes:
+      value: 4
+      unit: ms
+    added: 2026-10-25
+    revised: 2026-10-25
+    # Diagnostic alarm for P3; target is 2 ms
+  - name: MAX_PAYLOAD
+    status: active
+    source: design/gdd/command-simulation-layer.md
+    referenced_by: []
+    attributes:
+      value: 4096
+      unit: bytes
+    added: 2026-10-25
+    revised: 2026-10-25
+    # Command payload ceiling so any command fits one RPC
+  - name: HOST_PEER_ID
+    status: active
+    source: design/gdd/command-simulation-layer.md
+    referenced_by: []
+    attributes:
+      value: 1
+      unit: peer id
+    added: 2026-10-25
+    revised: 2026-10-25
+    # Single-player local player = host = peer 1; PlayerId 1 bound to it
+
 
 # Example:
 #

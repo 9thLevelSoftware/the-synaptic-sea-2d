@@ -127,14 +127,19 @@ formulas:
   - name: speed_ceiling
     status: active
     source: design/gdd/player-controller-input.md
-    referenced_by: []
+    referenced_by:
+      - design/gdd/pixel-perfect-render-pipeline-camera.md
     attributes:
-      expression: v_ceil = min(ceil(LAG_CUT/(FOLLOW_TAU*TICK_RATE)) - 1, floor((0.30*field_h - LOOKAHEAD_PX)/(FOLLOW_TAU*TICK_RATE)))
+      expression: v_ceil = min(ceil(LAG_CUT/(FOLLOW_TAU*TICK_RATE)) - 1, floor((INNER_BOX_FRAC*field_h - L_MAX_eff)/(FOLLOW_TAU_eff*TICK_RATE))) with FOLLOW_TAU_eff = FOLLOW_TAU*s, L_MAX_eff = LOOKAHEAD_PX*s, s = field_h / 360
       variables: LAG_CUT 48, FOLLOW_TAU 0.18, TICK_RATE 60, field_h 360, LOOKAHEAD_PX 72
-      output: 3 px/tick at defaults (inner-box inequality binds: v_max < 200 px/s)
+      output: 3 px/tick at defaults (inner-box inequality binds: 0.30*360 = 108 > 180*0.18 + 72 = 104.4; v_max < 200 px/s)
     added: 2026-10-26
     revised: 2026-10-26
     # Couples Player Controller speeds to the camera; with v_run 3, FOLLOW_TAU <= 0.20 and LOOKAHEAD_PX <= 75 are the operative ceilings
+    # asserted at every reachable field_h, not only the default (consistency check 2026-10-26)
+    # Scale-free: with every length knob scaled by s the inner-box inequality holds at every field iff it holds at 360 rows (consistency check 2026-10-26)
+    # re-run at V_RUN 3 = 180 px/s
+
   - name: locomotion_axis_step
     status: active
     source: design/gdd/player-controller-input.md
@@ -160,7 +165,8 @@ formulas:
   - name: chest_point
     status: active
     source: design/gdd/player-controller-input.md
-    referenced_by: []
+    referenced_by:
+      - design/gdd/pixel-perfect-render-pipeline-camera.md
     attributes:
       expression: chest = floor(lerp(pos_prev, pos_curr, tick_alpha)) + CHEST_POINT[facing][anim] * (flip_h ? (-1,1) : (1,1))
       variables: CHEST_POINT per facing and animation, |x| <= 2
@@ -193,14 +199,18 @@ formulas:
   - name: zoom_out_k
     status: active
     source: design/gdd/pixel-perfect-render-pipeline-camera.md
-    referenced_by: []
+    referenced_by:
+      - design/gdd/player-controller-input.md
     attributes:
-      expression: k_out = ceil(k/2); visible field = (W/k_out, H/k_out) base px
+      expression: k steps through the integer ladder [1, k_auto + 2] via zoom_in / zoom_out; visible field = (W/k, H/k) base px
       variables: k
-      output: integer step only, hold-to-step-back; steps to 1x on 2x worlds
+      output: integer ladder in both directions, persistent, cut per step, reset to default on re-wake
     added: 2026-10-26
     revised: 2026-10-26
     # Implemented by changing the viewport logical size, never Camera2D.zoom
+    # was: k_out = ceil(k/2) single step out — superseded by user decision 2026-10-26 (zoom ladder both directions)
+    # was: integer step only, hold-to-step-back
+
   - name: camera_follow
     status: active
     source: design/gdd/pixel-perfect-render-pipeline-camera.md
@@ -216,14 +226,18 @@ formulas:
   - name: camera_lookahead
     status: active
     source: design/gdd/pixel-perfect-render-pipeline-camera.md
-    referenced_by: []
+    referenced_by:
+      - design/gdd/player-controller-input.md
     attributes:
       expression: offset = aim_dir * LOOKAHEAD_PX, slewed at <= L_SLEW_MAX, eased over LOOKAHEAD_TAU
       variables: aim_dir (local raw aim, regardless of beam state), LOOKAHEAD_PX 72, L_SLEW_MAX 144 px/s, LOOKAHEAD_TAU 0.40 s
-      output: <= 72 px default; range 48-120
+      output: <= L_MAX_eff = LOOKAHEAD_PX * s (s = field_h / 360): 72 at 360 rows, 54 at 270, 43.2 at 216, 144 at 720; range 48-75 at the default field
     added: 2026-10-26
     revised: 2026-10-26
     # Player-owned input only; never world state
+    # L_MAX scales with the field so the inner-box invariant holds at every ladder step (consistency check 2026-10-26)
+    # All solver LENGTH parameters (L_MAX, L_SLEW_MAX, FOLLOW_TAU, LAG_CUT, JUMP_CUT) scale by s; the pan ceiling 1.25*v_max does not (consistency check 2026-10-26, systems-designer finding adopted)
+
   - name: camera_cut_predicates
     status: active
     source: design/gdd/pixel-perfect-render-pipeline-camera.md
@@ -231,11 +245,14 @@ formulas:
       - design/gdd/player-controller-input.md
     attributes:
       expression: cut if follow_speed > 1.25*v_max for T_PAN, or lag > LAG_CUT, or single-frame jump >= JUMP_CUT
-      variables: T_PAN 0.10 s, LAG_CUT 48 px, JUMP_CUT 48 px; invariant LAG_CUT > v_max*FOLLOW_TAU
+      variables: T_PAN 0.10 s, LAG_CUT 48 px, JUMP_CUT 48 px at 360 rows (both * s at other ladder steps, s = field_h / 360); invariants LAG_CUT > v_max*FOLLOW_TAU (48 > 32.4) and INNER_BOX_FRAC*field_h > v_max*FOLLOW_TAU_eff + L_MAX_eff, asserted at every reachable field_h
       output: bool -> CUT (never a fast pan)
     added: 2026-10-26
     revised: 2026-10-26
     # Evaluated on the unclamped follow term only
+    # second invariant added (consistency check 2026-10-26)
+    # length cut thresholds scale with the field; the 1.25*v_max pan ceiling does not (consistency check 2026-10-26)
+
   - name: flash_count
     status: active
     source: design/gdd/pixel-perfect-render-pipeline-camera.md
@@ -363,7 +380,8 @@ constants:
   - name: V_WALK
     status: active
     source: design/gdd/player-controller-input.md
-    referenced_by: []
+    referenced_by:
+      - design/gdd/pixel-perfect-render-pipeline-camera.md
     attributes:
       value: 2
       unit: base px per tick (120 px/s, 2.5 tiles/s)
@@ -373,7 +391,8 @@ constants:
   - name: V_RUN
     status: active
     source: design/gdd/player-controller-input.md
-    referenced_by: []
+    referenced_by:
+      - design/gdd/pixel-perfect-render-pipeline-camera.md
     attributes:
       value: 3
       unit: base px per tick (180 px/s, 3.75 tiles/s)
@@ -515,6 +534,9 @@ constants:
     added: 2026-10-26
     revised: 2026-10-26
     # Range 48-120
+    # with V_RUN 3 the operative ceiling is L <= 75 at the default field (controller D.2); range 48-120 is the pipeline's
+    # safe range 48-75 at the default field with V_RUN 3; L_MAX_eff = LOOKAHEAD_PX * s at other ladder steps
+
   - name: FOLLOW_TAU
     status: active
     source: design/gdd/pixel-perfect-render-pipeline-camera.md
@@ -526,6 +548,9 @@ constants:
     added: 2026-10-26
     revised: 2026-10-26
     # Range 0.10-0.30
+    # with V_RUN 3 the operative ceiling is tau <= 0.20 (controller D.2); the 0.10-0.30 range is the pipeline's
+    # safe range 0-0.20 s at the default field (inner box binds at 0.20, lag cut at 0.267); effective tau = FOLLOW_TAU * s at other ladder steps
+
   - name: LAG_CUT
     status: active
     source: design/gdd/pixel-perfect-render-pipeline-camera.md
@@ -537,6 +562,8 @@ constants:
     added: 2026-10-26
     revised: 2026-10-26
     # Amended from 24 (decision log 2026-10-26)
+    # at the 360-row field; LAG_CUT_eff = LAG_CUT * s at other ladder steps (consistency check 2026-10-26)
+
   - name: JOLT_PX
     status: active
     source: design/gdd/pixel-perfect-render-pipeline-camera.md
@@ -672,6 +699,30 @@ constants:
     # Single-player local player = host = peer 1; PlayerId 1 bound to it
 
 
+  - name: INNER_BOX_FRAC
+    status: active
+    source: design/gdd/pixel-perfect-render-pipeline-camera.md
+    referenced_by:
+      - design/gdd/player-controller-input.md
+    attributes:
+      value: 0.30
+      unit: fraction of the visible field per side (the crewmate stays inside the central 60 percent)
+    added: 2026-10-26
+    revised: 2026-10-26
+    # Inner-box speed invariant: INNER_BOX_FRAC * field_h > v_max * FOLLOW_TAU + L_MAX_eff, asserted at every reachable field_h (consistency check 2026-10-26)
+  - name: WALL_FOOTPRINT_DEPTH
+    status: active
+    source: design/art/art-bible.md
+    referenced_by:
+      - design/gdd/pixel-perfect-render-pipeline-camera.md
+      - design/gdd/player-controller-input.md
+      - design/gdd/command-simulation-layer.md
+    attributes:
+      value: 24
+      unit: base px (floor-grid depth of a wall strip; face 72 px, cap 24 px, tile 48 px)
+    added: 2026-10-26
+    revised: 2026-10-26
+    # Collision uses the 24-px footprint, not the 72-px face; Y-sort by the footprint's south edge under the up-screen convention (art bible 8.2, amended 2026-10-26)
 # Example:
 #
 # constants:

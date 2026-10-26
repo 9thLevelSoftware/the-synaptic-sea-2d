@@ -1,0 +1,14 @@
+; Engine configuration file.
+; Created by /setup-engine. Main scene is intentionally unset: /dev-story or the
+; developer sets run/main_scene once a scene exists.
+
+config_version=5
+
+[application]
+
+config/name="The Synaptic Sea 2D"
+config/features=PackedStringArray("4.7", "Forward Plus")
+
+[rendering]
+
+renderer/rendering_method="forward_plus"

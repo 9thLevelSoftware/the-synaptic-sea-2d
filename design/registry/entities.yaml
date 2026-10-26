@@ -513,6 +513,8 @@ constants:
     added: 2026-10-26
     revised: 2026-10-26
     # Never below 3x on any display (ux C-R1)
+    # alias: GDDs write this as `H_default >= 3` (pipeline PR-3 / criteria)
+
   - name: MIN_WINDOW
     status: active
     source: design/gdd/pixel-perfect-render-pipeline-camera.md
@@ -523,6 +525,8 @@ constants:
     added: 2026-10-26
     revised: 2026-10-26
     # 2x world, 3x HUD fits
+    # alias: GDDs write this as 'minimum window 1280x720' (pipeline PR-2)
+
   - name: LOOKAHEAD_PX
     status: active
     source: design/gdd/pixel-perfect-render-pipeline-camera.md
@@ -574,6 +578,8 @@ constants:
     added: 2026-10-26
     revised: 2026-10-26
     # Off for MVP; revisit VS-A
+    # alias: GDDs write this as `JOLT_MAX` (pipeline D.11); default 0, max 2 if adopted at VS-A
+
   - name: FLASH_MAX_PER_S
     status: active
     source: design/gdd/pixel-perfect-render-pipeline-camera.md
@@ -584,6 +590,8 @@ constants:
     added: 2026-10-26
     revised: 2026-10-26
     # WCAG 2.3.1 general and red flash threshold
+    # alias: GDDs write this as `F_MAX` (pipeline D.13 / criteria)
+
   - name: TICK_RATE
     status: active
     source: design/gdd/command-simulation-layer.md
@@ -716,7 +724,6 @@ constants:
     referenced_by:
       - design/gdd/pixel-perfect-render-pipeline-camera.md
       - design/gdd/player-controller-input.md
-      - design/gdd/command-simulation-layer.md
     attributes:
       value: 24
       unit: base px (floor-grid depth of a wall strip; face 72 px, cap 24 px, tile 48 px)

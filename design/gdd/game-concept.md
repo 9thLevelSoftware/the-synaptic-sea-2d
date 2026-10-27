@@ -468,7 +468,9 @@ life-support graph, is tense and absorbing for a 30+ minute solo session.
    abstracted pod hop between them.
 2. Visible O₂ / heat / power graph with propagating, physically rendered
    failures.
-3. One weld: attach one section and join its nodes to the graph.
+3. One weld, one player seam cut, and one install: attach one section and join
+   its nodes to the graph; cut a section free at a seam; install a salvaged
+   module. Co-op is still not in MVP. *(Amended 2026-10-27 — user rulings: X1 / D52, "Resolved 2026-10-27 — user ruling (design-review decisions)": weld + player seam cut + install are all MVP.)*
 4. Attention with one threshold and one horror behaviour.
 5. Sanity as a single hallucination class (false system state), falsifiable by
    the physical world.

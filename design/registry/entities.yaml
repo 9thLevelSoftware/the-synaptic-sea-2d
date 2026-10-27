@@ -95,6 +95,7 @@ entities:
       fields: campaign id, generation, kind (AUTO | EVENT | QUIT), T, playtime (T div TICK_RATE whole seconds), game_version, crew count, RISKY, depth label (provisional; derived from the node ring of web.view; Web Map publishes no depth-label field)
     # was: depth label (provisional) before 2026-10-27 (consistency pass)
       campaign_info: "campaign_info() also returns newest_failed_verification (bool): true when the newest generation failed the file stage at the last ring scan; lets the Chart Table show UI-7 on the main menu (ASK-CT-5)"
+      risky_note: "the risky field stays on the read for diagnostics and the Debug Overlay only; no player-facing line (the main-menu Continue line) shows it (user ruling D82)"
       rules: no thumbnail, no percentage or progress, no completion flag
     added: 2026-10-26
     revised: 2026-10-27
@@ -112,9 +113,10 @@ entities:
       kind: host-local read valid for the first RUNNING frame after LOADING
       values: "NEW_GAME | LOAD_GAME | DEATH_STUB | FAULT_RECOVERY"
       rules: no consumer may alter hallucination content from DEATH_STUB
+      mvp_consumer: "the HUD's death-restore line (UI-11, FIRST_FRAME_LINE) is keyed on DEATH_STUB (user ruling D15 / D84, option b); published after post_restore() (OQ-49)"
     added: 2026-10-26
-    revised: 2026-10-26
-    # Routed request; nothing in the MVP depends on a consumer
+    revised: 2026-10-27
+    # was: routed request, nothing in the MVP depended on a consumer, before 2026-10-27 (user rulings D15 / D84)
 
   - name: emitter_kind
     status: active
@@ -125,10 +127,11 @@ entities:
       - design/gdd/2d-lighting-and-occlusion.md
       - design/gdd/horror-entities.md
     attributes:
-      kinds: "BEAM (seat chest lamp, suit load, no Graph node, constant output), FIXTURE (switchable Graph LAMP LOAD; subkind EMERGENCY marks the declared self-powered cryo-bay lamp, Derelict Authoring DA-23 fixture_subkind_emergency; every other fixture carries no subkind), NODE_LANTERN (derived from a running node, switchless), DEPLOYABLE (subkind GLOWSTICK in the MVP), BEACON (pure function of time, SYSTEM-switched), FAULT_GLOW (derived from a Graph failure descriptor)"
+      kinds: "BEAM (seat chest lamp, suit load, no Graph node, constant output), FIXTURE (switchable Graph LAMP LOAD; two self-powered subkinds: EMERGENCY marks the declared cryo-bay lamp, Derelict Authoring DA-23 fixture_subkind_emergency, and DOCK_STATUS marks the dock-room status glow, fixture_subkind_dock_status, one per dock room, SYSTEM-switched only, node_ref 0; every other fixture carries no subkind), NODE_LANTERN (derived from a running node, switchless), DEPLOYABLE (subkind GLOWSTICK in the MVP), BEACON (pure function of time, SYSTEM-switched), FAULT_GLOW (derived from a Graph failure descriptor)"
       # was: FIXTURE (switchable Graph LAMP LOAD) with no subkind before 2026-10-27 (consistency pass)
       closed_list: true
-      gates_actions: "BEAM, FIXTURE, NODE_LANTERN, DEPLOYABLE, FAULT_GLOW true; BEACON false (provisional, user decision pending)"
+      gates_actions: "BEAM, FIXTURE, NODE_LANTERN, DEPLOYABLE, FAULT_GLOW true; BEACON false (user ruling 2026-10-27)"
+      # was: BEACON false (provisional, user decision pending) before 2026-10-27 (D20, user rulings)
       priority_default: "BEAM 255, BEACON 200, FIXTURE 120, DEPLOYABLE 100, FAULT_GLOW 80, NODE_LANTERN 60"
     added: 2026-10-26
     revised: 2026-10-27
@@ -143,11 +146,12 @@ entities:
       - design/gdd/2d-lighting-and-occlusion.md
       - design/gdd/suit-and-equipment.md
     attributes:
-      rows: "1 BEAM_WIDE 30deg/288px HARD; 2 BEAM_NARROW 12deg/384px HARD; 3 BEAM_SPLIT 10deg each/336px HARD, axes aim +-206 units; 4 BEAM_FAN 60deg/168px HARD; 5 POOL_DEPLOYABLE 360deg/120px SOFT (VS-A); 6 POOL_GLOWSTICK 360deg/96px SOFT; 7 FIXTURE 360deg/144px SOFT; 8 BEACON 20deg/384px HARD; 9 LANTERN 360deg/96px SOFT; 10 FAULT_GLOW 360deg/72px default SOFT"
+      rows: "1 BEAM_WIDE 30deg/288px HARD; 2 BEAM_NARROW 12deg/384px HARD; 3 BEAM_SPLIT 10deg each/336px HARD, axes aim +-206 units; 4 BEAM_FAN 60deg/168px HARD; 5 POOL_DEPLOYABLE 360deg/120px SOFT (VS-A); 6 POOL_GLOWSTICK 360deg/96px SOFT; 7 FIXTURE 360deg/144px SOFT; 8 BEACON 20deg/384px HARD; 9 LANTERN 360deg/96px SOFT; 10 FAULT_GLOW 360deg/72px default SOFT; 11 BEAM_SPILL 360deg/BEAM_SPILL_RADIUS_PX (24 default) SOFT, omnidirectional foot pool, present only while the beam is on, present in the table iff BEAM_SPILL_RADIUS_PX > 0, non-shadow, excluded from section_emission (conditional row, D24)"
       half_angle_units: "341, 137, 114, 683, -, -, -, 228 (1/4096 turn)"
-      note: "rows 1-8 are the art bible 8.3 rows verbatim; rows 9 and 10 are new; curve classes HARD and SOFT are new to 8.3"
+      note: "rows 1-8 are the art bible 8.3 rows verbatim; rows 9 to 11 are new; curve classes HARD and SOFT are new to 8.3"
     added: 2026-10-26
-    revised: 2026-10-26
+    revised: 2026-10-27
+    # was: rows 1-10 only before 2026-10-27 (D24, user rulings)
     # Placeholders: owner art bible 8.3 / game-designer, confirmed by the Lighting spike (art bible 8.12 step 2)
     # [PLACEHOLDER] registry status active; the value awaits the owner or confirming spike named above
   - name: layout_state_block
@@ -386,9 +390,10 @@ entities:
       - design/gdd/command-simulation-layer.md
       - design/gdd/sanity-and-hallucination-rules.md
     attributes:
-      description: "the only command type Suit registers: slot 1..6, origin PLAYER, OWNED_BY_ISSUER, coalesce NONE, max_age_ticks 120, not allowed_when_paused; reasons EMPTY_SLOT, NOT_ACTIONABLE, BUSY"
+      description: "the only command type Suit registers: payload slot 1..6, but slots 1-3 (cutter, welder, scanner) are bound at MVP and 4-6 answer EMPTY_SLOT (slot 4 was tool_suppressant, removed by OQ-34 Option A); origin PLAYER, OWNED_BY_ISSUER, coalesce NONE, max_age_ticks 120, not allowed_when_paused; reasons EMPTY_SLOT, NOT_ACTIONABLE, BUSY"
     added: 2026-10-26
-    revised: 2026-10-26
+    revised: 2026-10-27
+    # was: description without the MVP slot binding note; before 2026-10-27 (user rulings, OQ-34 Option A; Suit SE-11)
 
   - name: ALREADY_FULL
     status: active
@@ -493,8 +498,9 @@ entities:
       - design/gdd/horror-entities.md
       - design/gdd/command-simulation-layer.md
     attributes:
-      description: "state block: class SIM, persist true, persist_scope WORLD, scope SHARED, repl_hint SHARED_SUMMARY, schema_version 1, supported_versions [1], restore_after [graph.state, emitter.state]; one global level L (mAU), phase machine, tell timers, rng_counter, pending_noise_mAU (scalar, 0..L_CEIL), pending_ledger_mAU[section] (loaded sections only, sorted by section_id, bounded by the loaded-section count), ledger_mAU[section], nl_hist_w[section] (5 ints each), tell_occupants_at_entry (sorted seat ids); the source PlayerId tag is transient and never stored; schema_version stays 1 (design-time field additions); dirty keys ATT/L and ATT/P; restore returns ATTENTION_RESTORE_{SCHEMA, RANGE, PHASE_INCOHERENT, SECTION_UNKNOWN, RNG_COUNTER}, never clamps"
+      description: "state block: class SIM, persist true, persist_scope WORLD, scope SHARED, repl_hint SHARED_SUMMARY, schema_version 1, supported_versions [1], restore_after [graph.state, emitter.state]; one global level L (mAU), phase machine, tell timers, rng_counter, pending_noise_mAU (scalar, 0..L_CEIL), pending_ledger_mAU[section] (loaded sections only, sorted by section_id, bounded by the loaded-section count), ledger_mAU[section], nl_hist_w[section] (5 ints each), tell_occupants_at_entry (sorted seat ids), esc_ticks (0 to TELL_MAX_TICKS, a multiple of 6, 0 outside TELL, at most T - tell_start_T); the source PlayerId tag is transient and never stored; schema_version stays 1 (design-time field additions); dirty keys ATT/L and ATT/P; restore returns ATTENTION_RESTORE_{SCHEMA, RANGE, PHASE_INCOHERENT, SECTION_UNKNOWN, RNG_COUNTER}, never clamps; restore receives a read-only restore_epoch supplied by Save/Load and the kernel, host-local and NOT stored in the block (the round trip stays idempotent)"
     # was: pending and ledger arrays sorted by section_id before 2026-10-27 (design review)
+    # was: persisted fields without esc_ticks and no restore_epoch note before 2026-10-27 (user rulings X4, X8)
     added: 2026-10-26
     revised: 2026-10-27
   - name: attention.step
@@ -524,8 +530,9 @@ entities:
       - design/gdd/adaptive-audio-and-tells.md
       - design/gdd/debug-overlay-true-values.md
     attributes:
-      description: "SIM read view, integers only, never PERCEPTION_OUT: phase {CALM,TELL,BREACH,SUBSIDING}; breach_phase {CALM,BREACH,SUBSIDING} (TELL reported as CALM, Save/Load only); tell_active 0/1; tell_remaining 0..TELL_MAX_TICKS (0 outside TELL; Save/Load, SIM readers and the DIAGNOSTIC Debug Overlay only, at:379); tell_elapsed; tell_beat, tell_beat_T; tier 0..3; tell_outcome {NONE,ABORTED,BREACHED}; tell_epoch; phase_enter_T, breach_enter_T; level_pm 0..1000 (baseline-relative, quantised use only); locus_section_id; exogenous_permitted(section). tell_progress_pm is NOT published. Audio dedupe key is (tell_epoch, tell_beat) lexicographic"
+      description: "SIM read view, integers only, never PERCEPTION_OUT: phase {CALM,TELL,BREACH,SUBSIDING}; breach_phase {CALM,BREACH,SUBSIDING} (TELL reported as CALM, Save/Load only); tell_active 0/1; tell_remaining 0..TELL_MAX_TICKS (0 outside TELL; Save/Load, SIM readers and the DIAGNOSTIC Debug Overlay only, at:379); tell_elapsed (the escalation clock: equal to elapsed time while L >= theta_HOLD and frozen while under it; real elapsed time is T - phase_enter_T; no field added or removed); tell_beat, tell_beat_T; tier 0..3; tell_outcome {NONE,ABORTED,BREACHED}; tell_epoch; phase_enter_T, breach_enter_T; level_pm 0..1000 (baseline-relative, quantised use only); locus_section_id; exogenous_permitted(section). tell_progress_pm is NOT published. Audio dedupe key is (tell_epoch, tell_beat) lexicographic"
     # was: tell_remaining '(0 outside TELL; Save/Load and SIM readers only)' before 2026-10-27 (consistency pass)
+    # was: tell_elapsed undescribed (plain elapsed time) before 2026-10-27 (user rulings X4)
     added: 2026-10-26
     revised: 2026-10-27
   - name: push_stimulus
@@ -542,8 +549,9 @@ entities:
       - design/gdd/sanity-and-hallucination-rules.md
     # horror-entities, web-map-and-transit, adaptive-audio-and-tells and modular-ship-assembly are negative references: each asserts zero calls (HE-36, AC-HE-13, AC-HE-69; WM-26, AC-WM-26, AC-WM-61; AA-3, AC-AA-83; MSA-29, AC-MSA-47, AC-MSA-48 spy on push_stimulus); sanity-and-hallucination-rules asserts zero reads (SN-6, AC-SN-29)
     attributes:
-      description: "Class B mutator (clamp, never reject): push_stimulus(kind, source_ref, class); kind NOISE at MVP (others reserved, lint); class in {QUIET, WALK, RUN, CARRY, TOOL, LOUD}; unknown class is a counted no-op; callers Controller and Interaction (Horror never calls it and is not a declared caller, HE-36); Suit and Assembly push nothing at MVP; a push landing after attention.step in a tick integrates on the next run"
+      description: "Class B mutator (clamp, never reject): push_stimulus(kind, source_ref, class); kind NOISE at MVP (others reserved, lint); class in {QUIET, WALK, RUN, CARRY, TOOL, LOUD, BURDEN} (BURDEN is the per-tick carry-burden class pushed by the Controller while a HEAVY item is carried, U_BURDEN, F-26; the LOUD one-shots are cut completion, seam-cut DONE, vent apply, throw landing and the berth apply, IA-40); unknown class is a counted no-op; callers Controller and Interaction (unchanged; Horror never calls it and is not a declared caller, HE-36); Suit and Assembly push nothing at MVP; a push landing after attention.step in a tick integrates on the next run"
     # was: callers "Controller, Interaction, Horror (provisional)" before 2026-10-27 (consistency pass)
+    # was: class in {QUIET, WALK, RUN, CARRY, TOOL, LOUD} and LOUD one-shots without the berth apply before 2026-10-27 (user rulings X3, D59)
     added: 2026-10-26
     revised: 2026-10-27
   - name: attention_arm_tell
@@ -657,6 +665,7 @@ entities:
       home_loads: "11 (7 lamps, bcn_main, 2 door motors, 1 heater) against LS-26 about 8, passing the one-sided tolerance with no margin"
       node_ledger: "home 42, A 27, B 35, world 104 (<= 120); hardpoints 27 / 18 / 22, world 67 (OQ-DA-7 answered 2026-10-27: MAX_HARDPOINTS_PER_SECTION raised to 32)"
     # was: node_ledger "... world 67 (ask OQ-DA-7)" before 2026-10-27 (consistency pass)
+      dock_status_glow: "1 per dock room (airlock, a_dock, b_dock), 3 in the world, none in pod_cabin (DA-46, user ruling X2); conditional on the Emitter's classification (EM-3 / EM-11 amendment owed): if the glow is classed separately the fixture counts stay 8 / 14 / 15 / 15 / 21, if it counts as a fixture they become 9 / 16 / 17 / 17 / 24; both readings are <= 28 (D.3)"
     added: 2026-10-26
     revised: 2026-10-27
 
@@ -685,7 +694,8 @@ entities:
     attributes:
       kind: the five reachable MVP loaded sets (confirmed by Web Map and Transit WM-24 / D.9; S0 to S4, no fast-forward)
       sets: "S0 {home}; S1 {home, A}; S2 {home, B}; S3 {home+B welded}; S4 {home+B, A}"
-      interaction_subjects: "S_int 68 / 100 / 112 / 112 / 144 (S4 over INTERACT_FIXTURE_BUDGET 120 by 24; OQ-DA-20)"
+      interaction_subjects: "S_int 70 / 102 / 114 / 114 / 146 (S_total 100 / 132 / 144 / 144 / 176), now INFO upper bounds as loaded-set sums (DA-47 adds 2 home scrubber slots; user ruling D37, subjects register by adjacency or proximity); registered neighbourhoods {home} 70, {A} 50, {B} 62, {home+B} 114, every one <= INTERACT_FIXTURE_BUDGET 120 (D.17)"
+    # was: S_int 68 / 100 / 112 / 112 / 144 (S4 over INTERACT_FIXTURE_BUDGET 120 by 24; OQ-DA-20) before 2026-10-27 (user rulings DA-47, D37); the interaction_subjects_if_adopted line below is not revised by this request; world_tiles unchanged until the DA-48 geometry spike
       interaction_subjects_if_adopted: "if instruments and consoles are adopted (D.17), cumulative S_int 78 / 116 / 128 / 128 / 166 and S_total 108 / 146 / 158 / 158 / 196; a budget of about 166 needs MAX_EXPOSURE_SUBJECTS about 254; the authored-only 68 / 100 / 112 / 112 / 144 above stands"
       world_tiles: "182 / 300 / 331 / 331 / 449 (453 with a pod)"
     added: 2026-10-26
@@ -709,11 +719,13 @@ entities:
     # horror-entities.md depends on DEAD_END_NARROW by rule (E-HE-26 L856, AC-HE-54 L1575), not yet by lint id
     attributes:
       kind: "the CONTENT lint table (DA-40), rows {lint_id, severity, run point, reads, rule}; Layout's structural ids are cited, never redefined"
-      count: 76
+      count: 82
+    # was: count 76 before 2026-10-27 (user rulings: DA-46, DA-47, DA-48 add six rows to DA-40)
     # was: count 74 before 2026-10-27 (design review: EMPTY_WINDOW and COLD_WORK_BUDGET added to DA-40)
     # was: count 70; ids lacked DEAD_END_NARROW, INSTRUMENT_NO_BINDING, PATCH_OVER_OVERRIDE, LIE_SURFACE_FLOOR before 2026-10-27 (consistency pass)
       ids: "PLACEMENT_DEF_UNKNOWN, AUTHORED_NON_INTEGER, SPAWN_BLOCKED, KIT_PIECE_UNMAPPED, WEAR_TOKEN_MISMATCH, TUNING_SOURCE_DRIFT, SELF_POWERED_LAMP_COUNT, BEACON_COUNT, RESIDUAL_LIGHT_COUNT, RESIDUAL_LEDGER_CLOSED, WAKE_SINGLE_LIGHT, VISIBLE_UNKNOWN_NO_PORT, VISIBLE_UNKNOWN_COMPETITOR, FIXTURE_COUNT_ROOM, FIXTURE_COUNT_WORLD, LANTERN_COUNT, EMITTER_BUDGET, PD1_EXCEPTION_LOG, CONTAIN_COLOUR_REPORT, FAULT_COUNT_EIGHT, DEAD_FAULT_NOT_DRIED, FRAGILITY_SUM, HEATER_DELTA_T, FAULT_LEVER_UNREACHABLE, ORPHAN_LOW_HP, POWER_TREE_MISSING, OVERLOAD_WINDOW, FAULT_GLOW_BOUND, TRAIL_NO_SOURCE, TRAIL_COUNT_AREA, HOLE_WITHOUT_OPENING, TRUTH_WITNESS_MISSING, ESCAPE_ROUTE_OVER_BUDGET, ESCAPE_ROUTE_CARRY, RETURN_PATH_TRAVERSE, TRAVERSE_TOO_LONG, LETHAL_COLD_NO_TELL, COLD_ROOM_UNDECLARED, COLD_ROOM_DRIFT, FROZEN_ROOM_UNFORCED, THERMAL_INPUT_MISSING, RES_FLOOR, PART_COVER_BAND, PART_SUPPLY_EXCEEDS, LOOSE_DUPLICATES_START_KIT, PLACEMENT_NO_CONSUMER, LOOSE_ON_TRAIL_RUN, NODE_COUNT_DRIFT, TILE_BUDGET, SUBJECT_BUDGET_SET, EXPOSED_DRIFT, ROOM_GRAPH_CYCLE, STORY_SLOT_FILLED_IN_MVP, PROP_DENSITY_WALL, PROP_DENSITY_FLOOR, HERO_CAP, PIPE_DEAD_END, PIPE_BAND_BLOCKED, SEAM_NOT_AT_JOIN, INTRUSION_OUTSIDE_BREACH, FLOOR_PROP_TOO_BRIGHT, ROUND_ON_RECT_STACK, PALETTE_SANITY_BAND, OCCLUDER_BUDGET, TRAIL_LIGHT_COMPARTMENT, HEAT_ROOM_UNDECLARED, DERELICT_LOCUS_BODY_NO_FAULT, EMITTER_PRIORITY_NULL, PUMP_TELL_UNDER_FAIRNESS, PUMP_TELL_BELOW_TARGET"
       ids_added_2026_10_27: "DEAD_END_NARROW (ERROR, CI), INSTRUMENT_NO_BINDING (ERROR, CI), PATCH_OVER_OVERRIDE (ERROR, CI), LIE_SURFACE_FLOOR (WARN, CI), EMPTY_WINDOW (ERROR, CI), COLD_WORK_BUDGET (ERROR, CI)"
+      ids_added_2026_10_27_user_rulings: "DOCK_GLOW_MISSING (ERROR, CI), DOCK_GLOW_COUNT (ERROR, CI), DOCK_GLOW_LIT_AT_CONSOLE (ERROR, CI), DOCK_GLOW_LUMINANCE (ERROR, CI asset), SCRUBBER_SLOT_OVERLOAD (WARN, CI), REF_CARRY_LENGTH (WARN, ERROR once the DA-48 spike fixes the geometry)"
       lint_changes_2026_10_27: "ESCAPE_ROUTE_CARRY is ERROR (carry slack below 0) / WARN (slack under 120 ticks); FAULT_COUNT_EIGHT counts at world level (7 template faults plus one O2-ROOM seam instance per O2 socket pair)"
       boot_subset: "PLACEMENT_DEF_UNKNOWN, SELF_POWERED_LAMP_COUNT, BEACON_COUNT, STORY_SLOT_LIST (Layout's), RESIDUAL_LIGHT_COUNT, DEAD_FAULT_NOT_DRIED"
       run_points: "BOOT (six rules) | CI (full) | ASSET (PALETTE_SANITY_BAND, FLOOR_PROP_TOO_BRIGHT)"
@@ -819,12 +831,13 @@ entities:
       - design/gdd/ship-body-and-interior-physics.md
     # consumer hints (GDD exists, does not cite this name yet): design/gdd/interaction-system.md
     attributes:
-      own_reasons: "MSA.NOT_DOCKED (IMMEDIATE, sites 1 and 2), MSA.CUT_BLOCKED (IMMEDIATE, sites 1 to 3)"
+      own_reasons: "MSA.NOT_DOCKED (IMMEDIATE, sites 1 and 2), MSA.CUT_BLOCKED (IMMEDIATE, sites 1 to 3), MSA.CUT_STRANDS [VS-B] (IMMEDIATE, sites 2 and 3 only, never begin; reads detach_preview.leave_sections[], Body actor poses and Sanity harm_eligible; cue is the cut family's post-channel cue, the flame gutters and the seam holds)"
+    # was: own_reasons listed MSA.NOT_DOCKED and MSA.CUT_BLOCKED only before 2026-10-27 (user ruling D53)
       outcomes: "NOT_TAKEN; BLOCKED(PORT_ABSENT) weld, BLOCKED(SLOT_OCCUPIED) and defect-class BLOCKED(PORT_INCOMPAT) install (DEFERRED: module-body state, outcomes after cost, never read by a PLAYER-origin validate)"
-      namespaces: "Layout reasons surface as VALIDATION_FAILED(layout.<REASON>); Graph and Body keep their own namespaces"
+      namespaces: "Layout reasons surface as VALIDATION_FAILED(layout.<REASON>); Graph and Body keep their own namespaces; the MSA.<CODE> namespace holds Assembly's own codes only: CUT_BLOCKED, NOT_DOCKED, the install outcome SLOT_OCCUPIED and the [VS-B] CUT_STRANDS"
     added: 2026-10-26
-    revised: 2026-10-26
-    # MSA-8, T2. One cue per verb family, no reason text (P4).
+    revised: 2026-10-27
+    # MSA-8, T2, T2a; CUT_STRANDS added by user ruling D53. One cue per verb family, no reason text (P4).
 
   - name: assembly_diagnostics
     status: active
@@ -1105,7 +1118,8 @@ entities:
       persisted: "entity records (entity_id counter, type_id, body_id, section_id, pos_px, residue, last_octant, acc_mpx, state, state_enter_T, locked_pt, reach_end_T, cooldown_until_T, transit_until_T, from_body_id, transit_to_body_id, hold_runs, blocked_runs, last_seen_tell_epoch, per-epoch counts, epoch_id), the mark ring (kinds SMEAR, RIME, HAIRLINES, STRUCK) and mark_id counter, the 'horror.tell' RNG counter, fp_window and fp_count, the disturbance list and last_end_T map, lurk_dwell_index, unfold_scale_pct (block-level accessibility scale, HE-14, HE-41). NOT persisted: the target, any threat of any kind, the path cache, the non-hashed horror.view.debug record"
       # was: persisted list without from_body_id, transit_to_body_id, hold_runs, blocked_runs and unfold_scale_pct before 2026-10-27 (design review)
       restore_codes: "HORROR_RESTORE_SCHEMA, _RANGE, _STATE_INCOHERENT, _SECTION_UNKNOWN, _RNG_COUNTER (trigger undefined, C-HE-30), _MARK_RING; hard failure, never clamped"
-      rng: "rng_derive(world_seed, 'horror.tell', counter) for the REACH length only; every other choice is a pure integer hash of ids, the run index and HE_HASH_SEED"
+      rng: "rng_derive(threat_seed, 'horror.tell', counter) for the REACH length only, with threat_seed = rng_derive(world_seed, 'threat.epoch', threat_epoch); threat_epoch is Save/Load's read (HE-42) and is not persisted in this block, the persisted counter stays; every other choice is a pure integer hash of ids, the run index and HE_HASH_SEED"
+      # was: rng_derive(world_seed, 'horror.tell', counter) for the REACH length only before 2026-10-27 (user rulings, X8/D16)
     added: 2026-10-26
     revised: 2026-10-27
 
@@ -1170,8 +1184,9 @@ entities:
       reasons: BUSY, IN_TRANSIT, OUT_OF_RANGE, NOT_LIT, NOT_DOCKED_HERE, TARGET_UNKNOWN, TARGET_ABSORBED, TARGET_HERE, TARGET_BERTHED, BERTH_PENDING, FUEL_LOW, ARRIVAL_BLOCKED, CAPACITY, POD_NOT_READY (reserved, never returned at MVP); berth adds NOT_BOARDED, NO_MATE_SOCKET, SOCKET_NOT_FREE, ALREADY_BERTHED; unberth adds NOT_BERTHED, SOCKET_NOT_FREE and never FUEL_LOW
       restore_reasons: WEB_RESTORE_VERSION, WEB_RESTORE_UNKNOWN_RECORD, WEB_RESTORE_EPOCH, WEB_RESTORE_POD_BODY, WEB_RESTORE_STATE, WEB_RESTORE_LEG_INEXACT, WEB_RESTORE_BERTH_INEXACT, WEB_RESTORE_LOADED_SET
       defect_reasons: WEB_DORMANCY_HOME, WEB_DORMANCY_AVATAR (apply defects, never reachable game states), WEB_RECONCILE_GUARD (log-only; web_reconcile applies the rest)
-      noise_class: berth LOUD, unberth QUIET (pending OQ-WM-40, USER DECISION)
-      not_lit_note: NOT_LIT is returned for pod_hop, berth and unberth alike (pending OQ-WM-39, USER DECISION)
+      noise_class: berth LOUD, unberth QUIET (default applied 2026-10-27, pending user confirmation, OQ-WM-40)
+      not_lit_note: NOT_LIT is returned for pod_hop, berth and unberth alike; it is a backstop reason unreachable by construction at a pod console because the docked pod's self-powered status glow lights the console (WM-8b, OQ-WM-39 ruling)
+    # was: noise_class '(pending OQ-WM-40, USER DECISION)' and not_lit_note '(pending OQ-WM-39, USER DECISION)' before 2026-10-27 (user rulings)
       system_reject_reasons: STALE_EPOCH, NOT_IN_LEG, NOT_ARRIVING (stale or mismatched SYSTEM commands; counted at DEBUG as transit_stale_cmds; never FAULTED)
     # was: no SYSTEM-command reject reasons before 2026-10-27 (confirming consistency pass)
     # was: restore_reasons without WEB_RESTORE_LOADED_SET, and no defect_reasons, noise_class or not_lit_note, before 2026-10-27 (design review; WM-9, WM-24, WM-26, E-29)
@@ -1273,7 +1288,8 @@ entities:
       - design/gdd/boarding-and-salvage.md
     attributes:
       kind: open cross-system asks (provisional until each owner answers)
-      asks: "OPEN: ASK-G1b (Graph M19 as_of_tick), ASK-A3b (Attention and Interaction: berth verb noise_class LOUD, USER DECISION OQ-WM-40), ASK-L1 (Layout/Authoring: pod template kind and fixtures_min exemption, OQ-DA-17), ASK-L3 (pod console anchor, OQ-DA-39), ASK-EM-1 (Emitter State, Derelict Authoring, art-director: self-powered pod-console fixture, USER DECISION OQ-WM-39), ASK-I3 (Interaction, Chart Table: non-audio BERTHING witness, OQ-WM-45), ASK-G5 / ASK-A4 (Graph, Attention: companion rule of WM-26b), ASK-MSA-1 (Assembly: forbid seam cuts orphaning the dock or every payer FUEL_TANK, OQ-WM-44), ASK-PIPE (reduced to the WM-19 interior-content draw rule and the WM-18 exterior cull, OQ-WM-47), ASK-AD-6 (Pipeline camera impulse), ASK-AD-9 (art-director + Graph: reserve marks on the home FUEL_TANK). ACCEPTED or ANSWERED, removed from open: ASK-G1, ASK-G2, ASK-G3 (as static prop art carrying no state), ASK-B1, ASK-I1, ASK-S1, ASK-A1, ASK-C1, ASK-LT1, ASK-H1 (answered yes, HE-21), ASK-F1, ASK-K. DECLINED: ASK-I2 (IA-6), ASK-A3 as worded (replaced by ASK-A3b)"
+      asks: "OPEN: ASK-G1b (Graph M19 as_of_tick), ASK-A3b (Attention and Interaction: berth verb noise_class LOUD, default applied 2026-10-27 pending user confirmation (OQ-WM-40, D59)), ASK-L1 (Layout/Authoring: pod template kind and fixtures_min exemption, OQ-DA-17), ASK-L3 (pod console anchor, OQ-DA-39), ASK-EM-1 (RULED 2026-10-27 (user, OQ-WM-39 Option B), awaiting Emitter State, Derelict Authoring and the art-director: self-powered pod-console fixture), ASK-I3 (Interaction, Chart Table: non-audio BERTHING witness, OQ-WM-45), ASK-G5 / ASK-A4 (Graph, Attention: companion rule of WM-26b), ASK-MSA-1 (Assembly: forbid seam cuts orphaning the dock or every payer FUEL_TANK, OQ-WM-44), ASK-PIPE (reduced to the WM-19 interior-content draw rule and the WM-18 exterior cull, OQ-WM-47), ASK-AD-6 (Pipeline camera impulse), ASK-AD-9 (art-director + Graph: reserve marks on the home FUEL_TANK), ASK-S2 (Suit: narrow HOLD_ROOM for IN_POD to air and cell only; thermal and the hold counters run at a Suit-defined IN_POD band, D60 / OQ-WM-41), ASK-PC-1 (Player Controller: no IN_POD exemption from STAGGERED, DOWNED or DEAD, D60 / OQ-WM-41). ACCEPTED or ANSWERED, removed from open: ASK-G1, ASK-G2, ASK-G3 (as static prop art carrying no state), ASK-B1, ASK-I1, ASK-S1, ASK-A1, ASK-C1, ASK-LT1, ASK-H1 (answered yes, HE-21), ASK-F1, ASK-K. DECLINED: ASK-I2 (IA-6), ASK-A3 as worded (replaced by ASK-A3b). Boarding ASK-BS-W2 is reversed (OQ-WM-39 ruling) and ASK-BS-W3 is accepted (2026-10-27)"
+    # was: ASK-A3b 'USER DECISION OQ-WM-40' and ASK-EM-1 'USER DECISION OQ-WM-39'; no ASK-S2 or ASK-PC-1; no ASK-BS-W2 / W3 note, before 2026-10-27 (user rulings)
     # was: asks list without ASK-L1 and with ASK-H1 unanswered (Horror TRANSIT toward unloaded body) before 2026-10-27 (consistency pass)
     # was: asks listing ASK-G1, G2, G3, B1, I1, I2, S1, A1, A3, C1, LT1, H1, F1, K as open before 2026-10-27 (design review, Interactions section 6 reconciliation)
     added: 2026-10-26
@@ -1523,7 +1539,7 @@ entities:
     # was: pull() returning a plain data snapshot before 2026-10-27 (design review)
       fault_model: "no exception semantics (GDScript has none; aligned to kernel CR-19): the Overlay validates each pull() result and registration against the closed enum DIAG_ERR (NULL_RESULT | NOT_A_DICTIONARY | SCHEMA_MISMATCH | LIMIT_EXCEEDED | INVALID_CALLABLE | INCOMPLETE); a failing channel shows one DEFECT row naming channel_id and the DIAG_ERR value"
       naming: snake_case <system>_<noun> or the owner's existing prefix (PC_*, IA_*, BDY_*, graph_*, diag.*); units in the declaration never in the name
-      limits: "DIAG_CHANNELS_MAX 64 channels (14 expected in MVP, counted from the data-driven expected_channels list, pending OQ-DO-24) and DIAG_ROWS_PER_CHANNEL_MAX 64 rows per channel (PLACEHOLDER, a dev knob)"
+      limits: "DIAG_CHANNELS_MAX 64 channels (14 expected in MVP, ruled 2026-10-27 (user ruling, D98: Boarding registers no channel), counted from the data-driven expected_channels list) and DIAG_ROWS_PER_CHANNEL_MAX 64 rows per channel (PLACEHOLDER, a dev knob)"
     # was: 15 expected in MVP (13 designed siblings, In-World Instruments, HUD & Suit Layer) before 2026-10-27 (design review)
       channel_status: OK | PENDING | STALE | ERROR | SUSPENDED | REJECTED
     # save-load-and-versioned-format.md: channel `save_load` declared 2026-10-27 (its Interactions Debug Overlay row, AC-SL-127)
@@ -1585,7 +1601,7 @@ entities:
       observer_strip_fields: "T, kernel state, Attention phase, the viewer's sanity stage, hash status, defects-seen count (no ref, no ledger field, no true/perceived pair)"
     # was: strip fields without the defects-seen count before 2026-10-27 (design review)
       transitions: "FULL or OBSERVER_STRIP to OFF needs a confirm: a second toggle within DIAG_OFF_CONFIRM_S (3 s) of accumulated process delta; HIDDEN to OBSERVER_STRIP and OBSERVER_STRIP to FULL via the reveal chord, history preserved; HIDDEN and the strip collect the observer set only; mark is accepted silently in HIDDEN and echoed to the observer log"
-      rule: the playtest preset (release template plus the custom tag 'playtest') forces HIDDEN at launch whatever the command line says and registers two actions only (debug_overlay_reveal, debug_overlay_mark); the dev preset launches OFF, or HIDDEN with --overlay=hidden (PLACEHOLDER); pending user decision OQ-DO-25; FULL and the strip are tester-hostile and must never appear on a tester's screen or stream (X-BS-11, AC-BS-122)
+      rule: the playtest preset (release template plus the custom tag 'playtest') forces HIDDEN at launch whatever the command line says and registers two actions only (debug_overlay_reveal, debug_overlay_mark); the dev preset launches OFF, or HIDDEN with --overlay=hidden (PLACEHOLDER); confirmed by the user 2026-10-27 (D97), release template as base; spike S-2 still checks the kernel diagnostics accessor there; FULL and the strip are tester-hostile and must never appear on a tester's screen or stream (X-BS-11, AC-BS-122)
     # was: a playtest build is a dev build launched HIDDEN (launch option --overlay=hidden, PLACEHOLDER) before 2026-10-27 (design review)
     added: 2026-10-26
     revised: 2026-10-27
@@ -1599,11 +1615,12 @@ entities:
       - design/gdd/in-world-instruments-and-inspect-view.md
     attributes:
       kind: "one resource of presentation hooks consumed by the HUD; anchors (art bible HR-6): no game state reads or writes any field"
-      fields: "ui_scale_step (H_default..2*H_default, only steps where bottom_row_fit holds) | reading_face_scale (21/15 px tier default, 24/18 tier) | reduced_motion (off) | reduce_flashing (off) | hud_opacity (100, hidden at MVP) | pattern_strength (0, range 0-3) | captions (off)"
+      fields: "ui_scale_step (H_default..2*H_default, only steps where bottom_row_fit holds) | reading_face_scale (21/15 px tier default, 24/18 tier) | reduced_motion (off) | reduce_flashing (ON at first launch, user ruling D79) | aim_indicator (off, opt-in, never set by game state, user ruling D9) | hud_opacity (100, hidden at MVP) | pattern_strength (0, range 0-3) | captions (off)"
       consumed_not_owned: the Perception Filter's three published scalars (reduced_motion_glide_pm, breath_depth_pm, lie_tick_min_ms)
       screens_owned_by: Accessibility Settings and Settings & Input Rebinding (undesigned, Alpha)
     added: 2026-10-26
-    revised: 2026-10-26
+    revised: 2026-10-27
+    # was: fields reduce_flashing (off), no aim_indicator before 2026-10-27 (user rulings D79, D9; HS-50, AC-HS-110)
   - name: HudLayout
     status: active
     source: design/gdd/hud-and-suit-layer.md
@@ -1611,11 +1628,12 @@ entities:
       - design/gdd/pixel-perfect-render-pipeline-camera.md
     attributes:
       kind: pure function of (picture rect, H); the pipeline root is its only caller
-      surfaces: hud_strip (centre-bottom) | hud_suit_panel (bottom-left) | hud_rail (bottom-right) | hud_prompt and hud_bar (at world_to_hud of the focused anchor) | hud_notice (suit panel edge)
+      surfaces: hud_strip (centre-bottom) | hud_suit_panel (bottom-left; carries the ship-alarm mark slot) | hud_rail (bottom-right; three drawn tool slots in a four-slot geometry) | hud_aim_indicator (conditional, exists only while aim_indicator is on, default off) | hud_prompt and hud_bar (at world_to_hud of the focused anchor) | hud_notice (suit panel edge)
       reserved_anchors: "crew_strip (top-left) | chat (left edge below it) | caption (plate slot, Adaptive Audio AAV-38) | own_identity (suit panel); nothing drawn at MVP; Vertical Slice B"
-      defect_behaviour: returns a defect flag when fit is false, counts hud_layout_overlap, and the pipeline root keeps the previous valid layout
+      defect_behaviour: returns a defect flag when fit is false, counts hud_layout_overlap, and the pipeline root falls back to the layout at H_default (HS-54)
     added: 2026-10-26
-    revised: 2026-10-26
+    revised: 2026-10-27
+    # was: surfaces without the alarm mark slot and hud_aim_indicator, rail without the three-in-four geometry; defect_behaviour 'keeps the previous valid layout' (stale) before 2026-10-27 (user rulings HS-10, HS-22, HS-32, HS-52; HS-54 fallback)
   - name: ui_theme_main
     status: active
     source: design/gdd/hud-and-suit-layer.md
@@ -1741,9 +1759,9 @@ entities:
     attributes:
       kind: data-driven list of expected diagnostics channels, kept with the composition root's dev registration code; every count and acceptance criterion reads the list, never a literal
       default_entries: "14: Horror, Body, Lighting, Emitter, Layout, Save/Load, Interaction, Controller, Web Map, Audio, Assembly, Suit, In-World Instruments, HUD & Suit Layer"
-      rule: an expected channel that is absent shows NOTE absent; Boarding is absent by default (OQ-DO-24); reversing that decision is one list entry; Graph, Perception Filter, Pixel-Perfect Render Pipeline, Sanity, Attention and Chart Table are read through dedicated pages or views, not registered channels
-    # PROVISIONAL: count 14 pending the user decision OQ-DO-24 (does Boarding register a channel; the earlier count was 15)
+      rule: an expected channel that is absent shows NOTE absent; Boarding is absent, ruled 2026-10-27 (user ruling D98); reversal is one list entry; Graph, Perception Filter, Pixel-Perfect Render Pipeline, Sanity, Attention and Chart Table are read through dedicated pages or views, not registered channels
     added: 2026-10-27
+    revised: 2026-10-27
     # DO-12, E-DO-38; AC-DO-66, AC-DO-69, AC-DO-116
   - name: observer_event_log
     status: active
@@ -1765,10 +1783,10 @@ entities:
     referenced_by: []
     attributes:
       kind: autosave event name (member of the EVENT_TRIGGERS set, alongside ASSEMBLY_WELD / ASSEMBLY_CUT)
-      value: "raised when Interaction's last_salvage_T() advances (a module cut, the tick of the last begin_cut DONE); polled by Save/Load at tick boundaries (SL-13); an event whose owner read is absent never fires"
+      value: "shipped in the MVP EVENT_TRIGGERS set (user ruling D17); raised when Interaction's last_salvage_T() advances (a module cut, the tick of the last begin_cut DONE); polled by Save/Load at tick boundaries (SL-13); an event whose owner read is absent never fires"
     added: 2026-10-27
     revised: 2026-10-27
-    # Label minted by Save/Load; remains provisional in the GDD until registered. Read owner: last_salvage_T (interaction-system.md)
+    # Label minted by Save/Load; registered (user ruling D17). Read owner: last_salvage_T (interaction-system.md)
   - name: quit_held
     status: active
     source: design/gdd/save-load-and-versioned-format.md
@@ -1781,6 +1799,78 @@ entities:
     added: 2026-10-27
     revised: 2026-10-27
     # SL-6 / SL-21; one failure outcome for a held quit
+  - name: fixture_subkind_dock_status
+    status: active
+    source: design/gdd/emitter-state-and-light-exposure-query.md
+    referenced_by:
+      - design/gdd/derelict-authoring-handmade-kits.md
+      - design/gdd/web-map-and-transit.md
+    attributes:
+      value: "DOCK_STATUS (a FIXTURE subkind value: the small, dim, steady status glow on the docked pod's dock-room prop, one per dock room)"
+      class: "self-powered fixture class, node_ref 0 (no Graph LOAD, no M14 call, no ARMING); fixed base_pm DOCK_STATUS_BASE_PM; sibling of fixture_subkind_emergency"
+      effect: "an ordinary lit fixture, not a fourth act_gate exception; set_switch is SYSTEM origin only (Web Map berth apply on, unberth apply off), a PLAYER set_switch is rejected NOT_SWITCHABLE; it makes the pod console's lit gate always satisfied (I-DOCK)"
+    added: 2026-10-27
+    # Name proposed by Emitter State (EM-3, EM-11), for Derelict Authoring and Web Map to confirm; user ruling X2, 2026-10-27
+    # Consequence flagged to Derelict Authoring (not edited here): mvp_fixture_counts needs +1 per dock room, and the SELF_POWERED_LAMP_COUNT lint meaning becomes exactly one EMERGENCY plus one DOCK_STATUS per dock room
+    # [PLACEHOLDER] registry status active; the value awaits the owner or confirming spike named above
+  - name: give_up
+    status: active
+    source: design/gdd/player-controller-input.md
+    referenced_by: []
+    attributes:
+      description: "PLAYER-origin command type give_up {actor} (PC-2 View / Backspace, hold-to-confirm D.10, two-tap with confirm_mode TAP); allowed_origins {PLAYER}, coalesce NONE, max_age_ticks 120; valid only in DOWNED (solo MVP), else rejected NOT_DOWNED; the apply handler sets death_tick := min(death_tick, T_apply), after which controller.step reads cap first and takes DOWNED -> DEAD on that tick (same path as the timer, one request_restore)"
+    added: 2026-10-27
+    # Registered by the Controller Sim; user ruling D7 (solo give up and reload), 2026-10-27. Save/Load's loss floor uses GIVE_UP_MIN_TICKS, not DOWN_TO_DEATH_TICKS + 1
+  - name: suit.alarm
+    status: active
+    source: design/gdd/suit-and-equipment.md
+    referenced_by:
+      - design/gdd/hud-and-suit-layer.md
+    # consumer hints (GDD exists, does not cite this name yet): design/gdd/perception-filter.md [SUIT_KEY ref union, the HUD calls perceived(SUIT_KEY(k), viewer)]; design/gdd/life-support-graph.md [alarm_eligible over the seat's loop set, the exact read and loop-set definition are the Graph owner's]
+    attributes:
+      description: "Suit-owned one-bit TRUTH-class reading, true_value key suit.alarm (the sixth key beside the five lie-capable readings suit.o2, suit.reserve, suit.integrity, suit.warmth, suit.charge): a ship alarm is sounding for the loops this seat is on; derived from the Graph's alarm_eligible over the seat's loop set; reaches the HUD through the Filter's perceived but is never lie-capable (lie stage pinned never); never saved; never names a loop or a place; not a body cue and not an Attention indicator (SE-26, SE-29, OQ-37)"
+    added: 2026-10-27
+  - name: stowed_heavy
+    status: active
+    source: design/gdd/suit-and-equipment.md
+    referenced_by:
+      - design/gdd/player-controller-input.md
+    attributes:
+      description: "Suit read stowed_heavy(player_id) -> bool: the stowed weight class is HEAVY (reserved parts excluded, SE-41); the D.10 back_frame bit; derived on read, never saved; consumer is the Player Controller run-disable rule (user ruling D18). PROPOSED Suit side of D18 (the ruling text only says the Controller's run rule changes); the Controller may instead read the D.10 back_frame via view()"
+    added: 2026-10-27
+    # naming drift: player-controller-input.md calls this read view heavy_stowed (D.5 variable and PC-9 row); Suit publishes stowed_heavy; reconcile in the next consistency check
+  - name: AMP_FLOOR_S3_PM
+    status: active
+    source: design/gdd/perception-filter.md
+    referenced_by: []
+    attributes:
+      value: 250
+      unit: "per mille - stage-3 gleam floor; floor_eff = AMP_FLOOR_PM - (AMP_FLOOR_PM - AMP_FLOOR_S3_PM) x r_FLOOR (D.5)"
+      range: "250 to AMP_FLOOR_PM"
+    added: 2026-10-27
+    # [PLACEHOLDER - verify at spike]; user ruling X11/D74 (OQ-PF-37 lever a); value and range derived in perception-filter.md D.5
+  - name: FLOOR_STAGE_GAIN_PM
+    status: active
+    source: design/gdd/perception-filter.md
+    referenced_by: []
+    attributes:
+      value: "[0, 0, 500, 1000]"
+      unit: "per mille per stage 0..3 - envelope gain of the FLOOR stage effect; derived = 1000 x (AMP_FLOOR_PM - floor(stage)) / (AMP_FLOOR_PM - AMP_FLOOR_S3_PM) (D.5, D.7)"
+      range: "derived, monotone; not a tuning knob"
+    added: 2026-10-27
+    # derived from AMP_FLOOR_PM and AMP_FLOOR_S3_PM; user ruling X11/D74
+  - name: risky_cause
+    status: active
+    source: design/gdd/save-load-and-versioned-format.md
+    referenced_by: []
+    attributes:
+      kind: header field of the save container (SL-1)
+      type: string list
+      values: "closed set {GRAPH_TELL, ATTENTION_TELL, BREACH_PHASE, SEAT_STATE, VITALS, ASSEMBLY_BREACH}; empty exactly when risky is false"
+      consumers: generation_select (SL-8, F-3); output of autosave_gate
+      rules: a member outside the set, or a non-empty list with risky false, is refused (SL_PRECHECK_HEADER_FIELD_TYPE)
+    added: 2026-10-27
+    # Introduced by X7 (b) to replace the QUIT exclusion in the step-back rule
 
 # ─── ITEMS ───────────────────────────────────────────────────────────────────
 # Named collectables, equipment, consumables, crafting materials, currency.
@@ -2025,12 +2115,13 @@ items:
       - design/gdd/attention-system.md
       - design/gdd/horror-entities.md
     # consumer hint (GDD exists, does not cite this name yet): design/gdd/derelict-authoring-handmade-kits.md
+    # DORMANT [CUT-FIRST], reserved type_id 2004, not in the MVP roster (23 defs, 3 tools) or the start kit; user ruling 2026-10-27 X6/D19 (IDB-4 ledger, F-8). Entry kept, never deleted. suit-and-equipment.md (SE-14) and attention-system.md (AT-19) still cite the name as a dormant interface, so they stay in referenced_by.
     attributes:
       weight: 3000
       stackable: false
       category: tool
     added: 2026-10-26
-    revised: 2026-10-26
+    revised: 2026-10-27
 
   - name: cons_glowstick
     status: active
@@ -2448,6 +2539,7 @@ items:
       range: false / true
     added: 2026-10-26
     revised: 2026-10-27
+    # User-ruled (D31, 2026-10-27): the residual bounds of the C0 containment mechanism (PD-1 / PD-1b) are accepted as scoped MVP exceptions until VS-B, owner technical-artist; still active, no value change
     # Default true in the single-player MVP (false once a remote seat binds) so the vacant seat slots are lent (LEND_SLOTS_MAX, C0 of LO-33) and the composition measured at spike step 3 is the one that ships
     # [PLACEHOLDER] registry status active; the value awaits the owner or confirming spike named above
   - name: CUT_FADE_FRAMES
@@ -2773,7 +2865,7 @@ items:
     added: 2026-10-26
     revised: 2026-10-27
     # [PLACEHOLDER]; per-install settings store (host-local, not a state block)
-    # applies to display mode ONLY (design review 2026-10-27, CT-19): the safety toggles (reduced motion, reduce flashing) and notice_seen are written synchronously, before the next presented frame
+    # debounces display mode and master volume (D85, 2026-10-27; was display mode ONLY, design review CT-19): the safety toggles (reduced motion, reduce flashing) and notice_seen are written synchronously, before the next presented frame
   - name: UI_NAV_REPEAT_MS
     status: active
     source: design/gdd/chart-table-web-map-and-menus.md
@@ -2962,11 +3054,12 @@ formulas:
     referenced_by:
       - design/gdd/player-controller-input.md
     attributes:
-      expression: offset = aim_dir * LOOKAHEAD_PX, slewed at <= L_SLEW_MAX, eased over LOOKAHEAD_TAU
-      variables: aim_dir (local raw aim, regardless of beam state), LOOKAHEAD_PX 72, L_SLEW_MAX 144 px/s, LOOKAHEAD_TAU 0.40 s
+      expression: "L_target = L_MAX_eff*((1-w)*m*u(aim) + w*u_v), w = LOOKAHEAD_RUN_WEIGHT*smoothstep(V_WALK, V_RUN, |v|); offset slewed at <= L_SLEW_MAX, eased over LOOKAHEAD_TAU"
+      # was: offset = aim_dir * LOOKAHEAD_PX, slewed at <= L_SLEW_MAX, eased over LOOKAHEAD_TAU (pure-aim form) before 2026-10-27 (D6 option B, user rulings)
+      variables: aim_dir (local raw aim, regardless of beam state), u_v (unit direction of movement), LOOKAHEAD_PX 72, LOOKAHEAD_RUN_WEIGHT 0.50, L_SLEW_MAX 144 px/s, LOOKAHEAD_TAU 0.40 s
       output: "<= L_MAX_eff = LOOKAHEAD_PX * s (s = field_h / 360): 72 at 360 rows, 54 at 270, 43.2 at 216, 144 at 720; range 48-75 at the default field"
     added: 2026-10-26
-    revised: 2026-10-26
+    revised: 2026-10-27
     # Player-owned input only; never world state
     # L_MAX scales with the field so the inner-box invariant holds at every ladder step (consistency check 2026-10-26)
     # All solver LENGTH parameters (L_MAX, L_SLEW_MAX, FOLLOW_TAU, LAG_CUT, JUMP_CUT) scale by s; the pan ceiling 1.25*v_max does not (consistency check 2026-10-26, systems-designer finding adopted)
@@ -2998,7 +3091,8 @@ formulas:
       - design/gdd/2d-lighting-and-occlusion.md
       - design/gdd/perception-filter.md
     attributes:
-      expression: "F(window) = floor(n_transitions / 2) over any sliding 1 s window; a transition is |Y_i - Y_ref| >= 0.10 * Y_scale that reverses the sign of the previous transition; a flash is one pair of opposing transitions"
+      expression: "F(window) = ceil(n_transitions / 2) over any sliding 1 s window; a transition is |Y_i - Y_ref| >= 0.10 * Y_scale that reverses the sign of the previous transition; a flash is one pair of opposing transitions; a region or frame-mean transition counts on area-weighted change >= 10 % (dM_r = (a_e/A_r)*dY_e); sub-threshold digit swaps and prompt show-starts are exempt from the element-level count only; strict set (no exemption): the Alarm Red mark and every source under reduce flashing"
+      # was: F(window) = floor(n_transitions / 2) ... (no area weighting or exemptions stated) before 2026-10-27 (X9 / D91, user rulings)
       # was: flashes_per_s = count of opposing >= 10% relative-luminance changes in any 1 s window before 2026-10-27 (consistency pass)
       variables: "per light, per region = a ninth of the displayed picture at the current field (3x3 grid; 213x120 base px only at the default 640x360 field), and on the frame mean; red flash included"
       # was: per light, per 213x120 base px region, frame mean; red flash included before 2026-10-27 (consistency pass)
@@ -3021,6 +3115,7 @@ formulas:
       output: int ticks; 10-30 s tell window = 600-1800 ticks at 60 Hz
     added: 2026-10-25
     revised: 2026-10-25
+    # RATIFIED 2026-10-27 (user ruling X13 / D1, R-1): round(seconds * TICK_RATE) is round half-up; owners needing a guaranteed-minimum wait use ceil and say so
     # Every duration in every GDD is expressed in ticks via this formula
   - name: hook_runs_this_tick
     status: active
@@ -3068,6 +3163,7 @@ formulas:
       output: total order of commands; G1 determinism guarantee
     added: 2026-10-25
     revised: 2026-10-25
+    # host_order stamping RATIFIED 2026-10-27 (user ruling X13 / D1, R-2/R-9/R-18/R-19/R-20 batch); no value change
     # Single-player = submission order
   - name: is_stale
     status: active
@@ -3112,7 +3208,7 @@ formulas:
       expression: "state_hash(scope, T) = H64(T || world_seed || concat over b in scope sorted by block_id of (len(block_id) || block_id || schema_version || len(canonical_bytes(b)) || block_hash(b))); block_hash(b) = H64(canonical_bytes(b)), cached per block and invalidated by the dirty bit"
     # was: expression H64( T || world_seed || concat over b in scope, sorted by block_id, of (block_id || schema_version || canonical_bytes(b)) ) before 2026-10-27 (design review)
     # was: expression hash(canonical_snapshot(blocks)) before 2026-10-27 (consistency pass)
-      variables: "scope in {PERSIST (G4): persist and persist_scope WORLD only, never PROFILE; ALL_SIM (G3): every SIM block}, both excluding kernel.clock (T and world_seed are the hash prefix) and never including PERCEPTION_OUT; canonical_bytes (dictionary keys sorted bytewise, arrays in order, ints 64-bit LE, floats IEEE-754 bits with -0.0 -> +0.0 and one canonical NaN, strings UTF-8 length-prefixed, booleans one byte, Packed*Array fields as raw bytes behind an element-type tag and a length); H64 proposed = first 8 bytes (little-endian) of SHA-256 via HashingContext (ADR; Godot has no native xxHash64)"
+      variables: "scope in {PERSIST (G4): persist and persist_scope WORLD only, never PROFILE; ALL_SIM (G3): every SIM block}, both excluding kernel.clock (T and world_seed are the hash prefix) and never including PERCEPTION_OUT; canonical_bytes (dictionary keys sorted bytewise, arrays in order, ints 64-bit LE, floats IEEE-754 bits with -0.0 -> +0.0 and one canonical NaN, strings UTF-8 length-prefixed, booleans one byte, Packed*Array fields as raw bytes behind an element-type tag and a length); H64 ratified (R-17, user ruling X13 / D1, 2026-10-27) = first 8 bytes (little-endian) of SHA-256 via HashingContext (ADR; Godot has no native xxHash64)"
     # was: H64 xxHash64 / FNV-1a 64 (ADR) before 2026-10-27 (design review)
     # was: variables 'blocks (persist or all SIM), canonical ordering, -0.0 == +0.0, NaN normalised' before 2026-10-27 (consistency pass)
       output: u64; equality is the G3/G4 determinism and save-equivalence test
@@ -3151,6 +3247,7 @@ formulas:
       output: u64 / unit [0,1); pure and deterministic
     added: 2026-10-25
     revised: 2026-10-27
+    # RATIFIED 2026-10-27 (user ruling X13 / D1): mix64 = SplitMix64, fnv64 = FNV-1a 64, H64 = SHA-256 low 64 bits via HashingContext (R-17)
     # No global randf() anywhere in simulation (H9)
 
 
@@ -3274,11 +3371,12 @@ formulas:
       - design/gdd/modular-ship-assembly.md
       - design/gdd/web-map-and-transit.md
     attributes:
-      expression: elapsed = T - last_save_T; interval_due = elapsed >= AUTOSAVE_INTERVAL_TICKS; event_due = event_pending AND elapsed >= AUTOSAVE_MIN_GAP_TICKS; due = interval_due OR event_due; kind = EVENT if event_due else AUTO
-      variables: T (int ticks, kernel.clock), last_save_T (int, capture T of the newest durable generation), event_pending (bool, owner notifications, provisional), AUTOSAVE_INTERVAL_TICKS, AUTOSAVE_MIN_GAP_TICKS
+      expression: elapsed = T - last_save_T; interval_due = elapsed >= AUTOSAVE_INTERVAL_TICKS; event_due = event_pending AND elapsed >= AUTOSAVE_MIN_GAP_TICKS AND NOT (event_kind == ASSEMBLY_CUT AND ragged_breach_open()); due = interval_due OR event_due; kind = EVENT if event_due else AUTO
+      variables: T (int ticks, kernel.clock), last_save_T (int, capture T of the newest durable generation), event_pending (bool, owner notifications, provisional; stays latched while withheld), event_kind (the latched EVENT_TRIGGERS member), ragged_breach_open() (Assembly pure read, bool), AUTOSAVE_INTERVAL_TICKS, AUTOSAVE_MIN_GAP_TICKS
       output: due (bool) and kind in {AUTO, EVENT}; QUIT is a separate path; no interval save while the kernel is PAUSED
+    # was: event_due = event_pending AND elapsed >= AUTOSAVE_MIN_GAP_TICKS; variables without event_kind and ragged_breach_open() before 2026-10-27 (user ruling D54; mirrors Assembly D.9)
     added: 2026-10-26
-    revised: 2026-10-26
+    revised: 2026-10-27
     # Worked example: last_save_T 432000, weld at 437400 -> elapsed 5400 >= 1800 -> EVENT; latch at 438700 due 439200
   - name: autosave_gate
     status: active
@@ -3287,11 +3385,12 @@ formulas:
       - design/gdd/attention-system.md
     # consumer hints (GDD exists, does not cite this name yet): design/gdd/life-support-graph.md [W_MIN_WARNING_S fairness constant reused by tell_block; read_view.failures() fields cause / sev / warn_elapsed and W_MIN_STEPS read by graph_tell_block; routed request OQ-38 loaded-section filter or soonest_warning_remaining]; design/gdd/player-controller-input.md [loco_state DOWNED/DEAD hard block; GATE_SOFT_STATES]
     attributes:
-      expression: "hard_block = (EXISTS seat IN bound_seats: loco_state IN {DOWNED, DEAD}) OR kernel_state NOT IN {RUNNING, PAUSED} OR writer_busy (abandoned write jobs excluded, SL-10) OR restore_pending; graph_tell_block = EXISTS d IN graph.failures(): d.subject_kind IN {NODE, EDGE, SEAM} AND d.cause == ENDOGENOUS AND d.sev >= 1 AND d.warn_elapsed < W_MIN_STEPS; attention_tell_block = tell_active AND (gate_tell_mode == STRICT OR tell_remaining < W_MIN_WARNING_S * TICK_RATE); tell_block = graph_tell_block OR attention_tell_block; soft_block = tell_block OR breach_phase != CALM OR (EXISTS seat: loco_state IN GATE_SOFT_STATES); waited = T - due_first_T; next_retry_T = (fail_n == 0 ? 0 : last_fail_T + min(AUTOSAVE_RETRY_TICKS * 2^(fail_n - 1), AUTOSAVE_FAIL_BACKOFF_MAX_TICKS)); fire = due AND waited mod AUTOSAVE_RETRY_TICKS == 0 AND T >= next_retry_T AND NOT hard_block AND (NOT soft_block OR waited >= AUTOSAVE_MAX_DEFER_TICKS); risky = fire AND soft_block; quit_write = kernel_state IN {RUNNING, PAUSED} AND NOT (EXISTS seat: loco_state IN {DOWNED, DEAD}); quit_risky = quit_write AND soft_block"
+      expression: "hard_block = (EXISTS seat IN bound_seats: loco_state IN {DOWNED, DEAD}) OR kernel_state NOT IN {RUNNING, PAUSED} OR writer_busy (abandoned write jobs excluded, SL-10) OR restore_pending OR refractory_block; refractory_block = (last_recover_T != none) AND (T - last_recover_T) < W_MIN_WARNING_S * TICK_RATE; graph_tell_block = EXISTS d IN graph.failures(): d.subject_kind IN {NODE, EDGE, SEAM} AND d.cause == ENDOGENOUS AND d.sev >= 1 AND d.warn_elapsed < W_MIN_STEPS; attention_tell_block = tell_active AND (gate_tell_mode == STRICT OR tell_remaining < W_MIN_WARNING_S * TICK_RATE); tell_block = graph_tell_block OR attention_tell_block; vitals_block = EXISTS seat: vitals_state >= CRITICAL; assembly_breach_block = ragged_breach_open(); soft_block = tell_block OR breach_phase != CALM OR (EXISTS seat: loco_state IN GATE_SOFT_STATES) OR vitals_block OR assembly_breach_block; waited = T - due_first_T; next_retry_T = (fail_n == 0 ? 0 : last_fail_T + min(AUTOSAVE_RETRY_TICKS * 2^(fail_n - 1), AUTOSAVE_FAIL_BACKOFF_MAX_TICKS)); fire = due AND waited mod AUTOSAVE_RETRY_TICKS == 0 AND T >= next_retry_T AND NOT hard_block AND (NOT soft_block OR waited >= AUTOSAVE_MAX_DEFER_TICKS); risky = fire AND soft_block; risky_cause = the true members of {GRAPH_TELL = graph_tell_block, ATTENTION_TELL = attention_tell_block, BREACH_PHASE = (breach_phase != CALM), SEAT_STATE = (EXISTS seat: loco_state IN GATE_SOFT_STATES), VITALS = vitals_block, ASSEMBLY_BREACH = assembly_breach_block}; quit_write = kernel_state IN {RUNNING, PAUSED} AND NOT (EXISTS seat: loco_state IN {DOWNED, DEAD}); quit_risky = quit_write AND soft_block (includes the vitals and breach inputs; the refractory is a hard_block term and never reaches quit_risky)"
     # was: expression lacked 'waited = T - due_first_T' and 'quit_risky = quit_write AND soft_block' before 2026-10-27 (consistency pass)
-      variables: loco_state per bound seat (Controller), graph.failures() descriptors subject_kind / cause / sev / warn_elapsed (Graph LS-14, LS-19, designed; required at MVP), W_MIN_STEPS and GRAPH_STEP_TICKS (Graph D.11, cited), tell_active / tell_remaining / breach_phase (Attention SIM view, provisional - Attention half only), W_MIN_WARNING_S 10 (Graph), TICK_RATE 60, AUTOSAVE_RETRY_TICKS 300, AUTOSAVE_MAX_DEFER_TICKS 7200, gate_tell_mode FAIR|STRICT (Attention half only; the Graph half defers for the whole open window), GATE_SOFT_STATES {CHANNELLING, STAGGERED, IN_POD}, fail_n (consecutive failed writes, reset by a WRITTEN), last_fail_T (tick of the last failed write), next_retry_T (earliest tick the next attempt may fire), AUTOSAVE_FAIL_BACKOFF_MAX_TICKS (cap of the failure backoff)
-    # was: expression lacked the failure backoff 'next_retry_T' and the 'T >= next_retry_T' fire term, and writer_busy did not exclude abandoned write jobs, before 2026-10-27 (design review); the vitals term is NOT added (pending OQ-40)
-      output: fire (bool), risky (bool), quit_write (bool), quit_risky (bool); invariant - no generation file ever holds a seat in DOWNED or DEAD; GATE_SOFT_STATES never contains DOWNED or DEAD
+      variables: loco_state per bound seat (Controller), graph.failures() descriptors subject_kind / cause / sev / warn_elapsed (Graph LS-14, LS-19, designed; required at MVP), W_MIN_STEPS and GRAPH_STEP_TICKS (Graph D.11, cited), tell_active / tell_remaining / breach_phase (Attention SIM view, provisional - Attention half only), W_MIN_WARNING_S 10 (Graph), TICK_RATE 60, AUTOSAVE_RETRY_TICKS 300, AUTOSAVE_MAX_DEFER_TICKS 7200, gate_tell_mode FAIR|STRICT (Attention half only; the Graph half defers for the whole open window), GATE_SOFT_STATES {CHANNELLING, STAGGERED, IN_POD}, fail_n (consecutive failed writes, reset by a WRITTEN), last_fail_T (tick of the last failed write), next_retry_T (earliest tick the next attempt may fire), AUTOSAVE_FAIL_BACKOFF_MAX_TICKS (cap of the failure backoff), last_recover_T (tick of the last DOWNED to non-DOWNED recovery, or none), vitals_state (Suit suit.state summary field, per seat), ragged_breach_open (Assembly pure read, bool)
+    # was: expression lacked the failure backoff 'next_retry_T' and the 'T >= next_retry_T' fire term, and writer_busy did not exclude abandoned write jobs, before 2026-10-27 (design review)
+    # was: expression without refractory_block, vitals_block, assembly_breach_block and risky_cause; output without risky_cause before 2026-10-27 (user rulings X7 D14 D42 D54)
+      output: fire (bool), risky (bool), risky_cause (set drawn from the closed SL-1 set, empty exactly when risky is false), quit_write (bool), quit_risky (bool); invariant - no generation file ever holds a seat in DOWNED or DEAD; GATE_SOFT_STATES never contains DOWNED or DEAD
     # was: output 'fire (bool), risky (bool)'; variables lacked due_first_T (session memory, the first tick due was true since the last fire, not reset by gate flicker; save-load L539) before 2026-10-27 (consistency pass)
     added: 2026-10-26
     revised: 2026-10-27
@@ -3302,13 +3401,14 @@ formulas:
     referenced_by: []
     # consumer hints (GDD exists, does not cite this name yet): design/gdd/player-controller-input.md [DOWN_TO_DEATH_TICKS / T_downed observation]
     attributes:
-      expression: loop_hit = g_r != none AND g_r.risky AND g_r.save_kind != QUIT AND g_r == g_0 AND (T_downed - g_r.T) <= DEATH_LOOP_WINDOW_TICKS; selected = g_1 if (loop_hit AND |C| >= 2) else g_0; demote = g_r if (loop_hit AND |C| >= 2) else none
-      variables: C (non-demoted candidates passing the pre-check, by header generation descending), g_r (generation last restored from), T_downed (start tick of the DOWNED episode that ended in DEAD; = T_dead if none observed), DEATH_LOOP_WINDOW_TICKS 3600, g.save_kind (header enum AUTO | EVENT | QUIT; a deliberate QUIT generation is never stepped back past by an unrelated death)
+      expression: window_hit = g_r.risky AND (g_r.save_kind != QUIT OR VITALS in g_r.risky_cause) AND (T_downed - g_r.T) <= DEATH_LOOP_WINDOW_TICKS; fair_hit = (T_downed - g_r.T) < W_MIN_WARNING_S x TICK_RATE; loop_hit = g_r != none AND g_r == g_0 AND (window_hit OR fair_hit); selected = g_1 if (loop_hit AND |C| >= 2) else g_0; demote = g_r if (loop_hit AND |C| >= 2) else none
+      variables: C (non-demoted candidates passing the pre-check, by header generation descending), g_r (generation last restored from), T_downed (start tick of the DOWNED episode that ended in DEAD; = T_dead if none observed), DEATH_LOOP_WINDOW_TICKS 3600, g.save_kind (header enum AUTO | EVENT | QUIT; a QUIT generation keeps the RISKY-window step-back only when VITALS is in its risky_cause), g.risky_cause (header string list, SL-1), W_MIN_WARNING_S 10 (Graph), TICK_RATE 60
       output: g_0, g_1 or none (SL_LOAD_NO_LOADABLE_SAVE); default is always the newest verified non-demoted generation; a reproduction mismatch is never an input
     # was: loop_hit = g_r != none AND g_r.risky AND g_r == g_0 AND (T_downed - g_r.T) <= DEATH_LOOP_WINDOW_TICKS before 2026-10-27 (design review)
+    # was: loop_hit = g_r != none AND g_r.risky AND g_r.save_kind != QUIT AND g_r == g_0 AND (T_downed - g_r.T) <= DEATH_LOOP_WINDOW_TICKS before 2026-10-27 (user rulings, X7 (b) fairness step-back)
     added: 2026-10-26
     revised: 2026-10-27
-    # The MVP death stub (replaced by Failure Contract & Re-wake at VS-A). Window measured at DOWNED so it is independent of DOWN_TO_DEATH_TICKS (owner range 600-3600)
+    # Note: the fairness route (fair_hit) demotes a non-RISKY generation too, independent of risky and of kind. The MVP death stub (replaced by Failure Contract & Re-wake at VS-A). Window measured at DOWNED so it is independent of DOWN_TO_DEATH_TICKS (owner range 600-3600)
   - name: save_verification
     status: active
     source: design/gdd/save-load-and-versioned-format.md
@@ -3354,13 +3454,14 @@ formulas:
     # modular-ship-assembly is a negative reference: its fault_loss_ticks (D.16) is named distinct from this death-rule loss (MSA L871)
     # consumer hints (GDD exists, does not cite this name yet): design/gdd/player-controller-input.md [DOWN_TO_DEATH_TICKS enters the floor and the ceiling]
     attributes:
-      expression: loss_ticks = T_dead - T_g; loss_min = DOWN_TO_DEATH_TICKS + 1; loss_max = AUTOSAVE_INTERVAL_TICKS + AUTOSAVE_MAX_DEFER_TICKS + DOWN_TO_DEATH_TICKS; loss_max_stepback = loss_max + DEATH_LOOP_WINDOW_TICKS; loss_mean ~ AUTOSAVE_INTERVAL_TICKS/2 + DOWN_TO_DEATH_TICKS + E[defer]; discard_per_restore = loss_ticks; net_progress_lost = T_peak - T_g_final over one restore chain; net_progress_lost_max = (AUTOSAVE_INTERVAL_TICKS + AUTOSAVE_MAX_DEFER_TICKS) + loss_max
+      expression: loss_ticks = T_dead - T_g; loss_min = GIVE_UP_MIN_TICKS + 1 (loss_min_timer = DOWN_TO_DEATH_TICKS + 1 = 1801); R_g = AUTOSAVE_RETRY_TICKS x ceil(W_MIN_WARNING_S x TICK_RATE / AUTOSAVE_RETRY_TICKS) = 600; loss_max = AUTOSAVE_INTERVAL_TICKS + AUTOSAVE_MAX_DEFER_TICKS + R_g + DOWN_TO_DEATH_TICKS; loss_max_stepback = AUTOSAVE_INTERVAL_TICKS + AUTOSAVE_MAX_DEFER_TICKS + R_g + DEATH_LOOP_WINDOW_TICKS + DOWN_TO_DEATH_TICKS; loss_mean ~ AUTOSAVE_INTERVAL_TICKS/2 + DOWN_TO_DEATH_TICKS + E[defer]; discard_per_restore = loss_ticks; net_progress_lost = T_peak - T_g_final over one restore chain; net_progress_lost_max = (AUTOSAVE_INTERVAL_TICKS + AUTOSAVE_MAX_DEFER_TICKS + R_g) + loss_max
     # was: expression without discard_per_restore, net_progress_lost and net_progress_lost_max before 2026-10-27 (design review)
-      variables: AUTOSAVE_INTERVAL_TICKS 10800, AUTOSAVE_MAX_DEFER_TICKS 7200, DEATH_LOOP_WINDOW_TICKS 3600, DOWN_TO_DEATH_TICKS 1800, T_peak (furthest T a restore chain reached), T_g_final (T of the generation the last restore returned to)
-      output: ticks lost on death; defaults min 1801, max 19800, max with one step-back 23400, mean ~7200; the only cost of death in the MVP; net_progress_lost_max 37800 at defaults; the bounds hold on a healthy writer only (failed writes and step-back chains can exceed them)
+    # was: loss_min = DOWN_TO_DEATH_TICKS + 1 (1801); loss_max 19800 (no R_g); loss_max_stepback 23400; net_progress_lost_max 37800 before 2026-10-27 (user rulings X7 (c) refractory, D7 give_up)
+      variables: AUTOSAVE_INTERVAL_TICKS 10800, AUTOSAVE_MAX_DEFER_TICKS 7200, DEATH_LOOP_WINDOW_TICKS 3600, DOWN_TO_DEATH_TICKS 1800, GIVE_UP_MIN_TICKS 48 (Controller), W_MIN_WARNING_S 10 (Graph), TICK_RATE 60, AUTOSAVE_RETRY_TICKS 300, T_peak (furthest T a restore chain reached), T_g_final (T of the generation the last restore returned to)
+      output: ticks lost on death; defaults min 49 (1801 on the timer path), max 20400, max with one step-back 24000, mean ~7200 on the timer path; the only cost of death in the MVP; net_progress_lost_max 39000 at defaults; the bounds hold on a healthy writer only (failed writes and step-back chains can exceed them)
     added: 2026-10-26
     revised: 2026-10-27
-    # The tuning surface of how much death hurts; boot invariant I9 (a release-build boot refusal, a logged diagnostic in dev and test) checks a configuration whose loss_max_stepback exceeds LOSS_CEILING_TICKS 23400
+    # The tuning surface of how much death hurts; boot invariant I9 (a release-build boot refusal, a logged diagnostic in dev and test) checks a configuration whose loss_max_stepback exceeds LOSS_CEILING_TICKS 24000 (was 23400 before the refractory term, registered as a constant)
   - name: load_budget
     status: active
     source: design/gdd/save-load-and-versioned-format.md
@@ -3394,10 +3495,11 @@ formulas:
       - design/gdd/horror-entities.md
     # consumer hints (GDD exists, does not cite this name yet): design/gdd/pixel-perfect-render-pipeline-camera.md [PIPE:1081 item 15 routed the tell-window requirement to this formula]
     attributes:
-      expression: "trail_extent_px = min(edge_len_px, max(MIN_EXTENT_PX, min(GROW_PX_PER_STEP[sev] x min(grow_steps, SINCE_CLAMP), reach_px))) with reach_px = frost_reach(T) for 1 LEAK/COOLANT and 4 FREEZE rows else edge_len_px (20 ATMO_COLD is removed, it uses surface_patch_count and reads no age); grow_steps = max(0, (isolated_at_step if isolated else step_no) - mode_since_step) (GA-T, fallback since_steps until granted); a sev change restarts grow_steps at 0; isolation freezes grow_steps; integer, floored base px"
-      # was: age = since_steps, GROW_PX_PER_STEP[max(sev,1)] (sev_g), reach_px = frost_reach(T) for COOLANT/FREEZE/ATMO_COLD rows, before 2026-10-27 (design review)
+      expression: "trail_extent_px = min(edge_len_px, max(MIN_EXTENT_PX, min(GROW_PX_PER_STEP[sev] x min(grow_steps, SINCE_CLAMP), reach_px))) with reach_px = frost_reach(T) for 4 FREEZE rows only, else edge_len_px (1 LEAK/COOLANT included: its extent has no temperature term, frost_reach bounds only its frost_px split, D.2d) (20 ATMO_COLD is removed, it uses surface_patch_count and reads no age); grow_steps = max(0, (isolated_at_step if isolated else step_no) - mode_since_step) (GA-T, fallback since_steps until granted); a sev change restarts grow_steps at 0; isolation freezes grow_steps; integer, floored base px"
+      # was: reach_px = frost_reach(T) for 1 LEAK/COOLANT and 4 FREEZE rows before 2026-10-27 (user rulings: D26 Option A)
+    # was: age = since_steps, GROW_PX_PER_STEP[max(sev,1)] (sev_g), reach_px = frost_reach(T) for COOLANT/FREEZE/ATMO_COLD rows, before 2026-10-27 (design review)
       variables: sev 1-4, grow_steps (GA-T, fallback since_steps), edge_len_px 48-1152 (Layout, provisional), GROW_PX_PER_STEP[sev] 2/3/6/15 [PLACEHOLDER], MIN_EXTENT_PX 48 [PLACEHOLDER], SINCE_CLAMP 20000 [PLACEHOLDER], reach_px (frost_reach)
-      output: base px min(edge_len_px, MIN_EXTENT_PX)..edge_len_px (extent at grow_steps 0 is min(edge_len_px, MIN_EXTENT_PX)); monotone non-decreasing in grow_steps for a fixed sev; non-increasing in T while the reach bound binds; six-tile room (288 px) crossed in at most 288 steps counted from grow_steps (28.8 s) at every sev (144/96/48/20 steps at the placeholders); sev 4 front 150 px/s is > V_WALK x 6 (12 px/step) and <= V_RUN x 6 (18 px/step)
+      output: base px min(edge_len_px, MIN_EXTENT_PX)..edge_len_px (extent at grow_steps 0 is min(edge_len_px, MIN_EXTENT_PX)); monotone non-decreasing in grow_steps for a fixed sev; non-increasing in T while the reach bound binds (4 FREEZE only; a coolant leak's extent is flat in T, so its gradient is followable at COMFORT); six-tile room (288 px) crossed in at most 288 steps counted from grow_steps (28.8 s) at every sev (144/96/48/20 steps at the placeholders); sev 4 front 150 px/s is > V_WALK x 6 (12 px/step) and <= V_RUN x 6 (18 px/step)
     added: 2026-10-26
     revised: 2026-10-27
     # Readers: Pixel-Perfect Render Pipeline (tell-window), Onboarding (cryo-bay fixture needs fail_since_step >= 56 steps before wake), Layout (edge_len_px content bound TRAIL_EDGE_MAX_PX), Co-op (MIRROR degradation to whole-edge extent), Horror Entities (each non-player source owes a 10-30 s tell)
@@ -3415,6 +3517,7 @@ formulas:
     added: 2026-10-26
     revised: 2026-10-26
     # Readers: Onboarding (the cryo-bay far-wall frost of ART:142 needs >= 336 px at -2000 mC), Layout (room frost patches via surface_patch_count)
+    # Role note (2026-10-27, user ruling D26 Option A): for 1 LEAK/COOLANT frost_reach bounds frost_px (the appearance split), not trail_extent; values, knots, output range, examples and FROST_REACH_PX unchanged
     # If Graph LS-7 band edges move, the knots move with them (cited by position)
   - name: trail_size
     status: active
@@ -3435,10 +3538,11 @@ formulas:
     referenced_by: []
     # consumer hints (GDD exists, does not cite this name yet): design/gdd/life-support-graph.md [LS-25 dead faults authored with large since_steps]
     attributes:
-      expression: "dull_pm = min(1000, floor(mode_steps x 1000 / DRIED_AFTER_STEPS)); dull_step = DULL_STEPS - 1 if mode_steps >= DRIED_AFTER_STEPS else floor(mode_steps x (DULL_STEPS - 1) / DRIED_AFTER_STEPS); glow_step = max(0, 4 - floor(dull_pm x 4 / EMISSIVE_OFF_DULL_PM)); fuel_dried = (dull_step = DULL_STEPS - 1) (palette swap, no intermediate stop)"
+      expression: "dull_pm = min(1000, floor(mode_steps x 1000 / DRIED_AFTER_STEPS)); dull_step = DULL_STEPS - 1 if mode_steps >= DRIED_AFTER_STEPS else floor(mode_steps x (DULL_STEPS - 1) / DRIED_AFTER_STEPS); glow_step = max(0, 4 - floor(dull_pm x 4 / EMISSIVE_OFF_DULL_PM)); dull_step_shown = min(dull_step, DULL_STEPS - 2) while the descriptor is LIVE (intensity_pm > 0, or the row's LIVE predicate true), else dull_step; fuel_dried = (dull_step_shown = DULL_STEPS - 1) (palette swap, no intermediate stop); glow_step stays on the uncapped dull_pm"
+      # was: fuel_dried = (dull_step = DULL_STEPS - 1), no LIVE cap; before 2026-10-27 (user rulings; D29 default applied, pending user confirmation)
       # was: age since_steps; dull_step = min(DULL_STEPS - 1, floor(dull_pm x DULL_STEPS / 1000)); fuel_dried = dull_step >= DULL_STEPS / 2; before 2026-10-27 (design review)
       variables: mode_steps (GA-T, fallback since_steps), DRIED_AFTER_STEPS 12000 [PLACEHOLDER] (>= 7500), DULL_STEPS 4 [PLACEHOLDER] (4-8, any integer), EMISSIVE_OFF_DULL_PM 500 [PLACEHOLDER]
-      output: dull_step 0..DULL_STEPS-1, monotone non-decreasing in mode_steps, DULL_STEPS - 1 reached only at mode_steps >= DRIED_AFTER_STEPS; no LIVE term (a live and an isolated leak of equal age match); applies to static stamps only; stops at the defaults (12000, 4) change at 4000/8000/12000 steps (were 3000/6000/9000 under the old rule)
+      output: dull_step 0..DULL_STEPS-1, monotone non-decreasing in mode_steps, DULL_STEPS - 1 reached only at mode_steps >= DRIED_AFTER_STEPS; no LIVE term in dull_step (a live and an isolated leak of equal age match in dull_step; dull_step_shown caps a LIVE descriptor at DULL_STEPS - 2, released on the frame it stops being LIVE); applies to static stamps only; stops at the defaults (12000, 4) change at 4000/8000/12000 steps (were 3000/6000/9000 under the old rule)
     added: 2026-10-26
     revised: 2026-10-27
     # Readers: Derelict Authoring (a dead fault must be authored since_steps >= DRIED_AFTER_STEPS and intensity_pm 0), Life-Support Graph D.15 (DRIED_AFTER_STEPS >= 7500 = the longest live MVP clock, 12.5 min)
@@ -3449,7 +3553,8 @@ formulas:
       - design/gdd/2d-lighting-and-occlusion.md
     # consumer hints (GDD exists, does not cite this name yet): design/gdd/pixel-perfect-render-pipeline-camera.md [PR-13 flash clamp, formula flash_count]
     attributes:
-      expression: "ARC_FLICKER_PER_S = floor(TRAIL_ANIM_FPS / (2 x ARC_HOLD_FRAMES)); all live arcs share one world phase and one rate (no division by an arc count); arc_rate_eff = 0 (held glow at ARC_HELD_GLOW_PM, 600 permille of peak, the one hold level and also the reduced-motion arc pose) under reduce flashing, else ARC_FLICKER_PER_S; amplitude swing_i_pm = min(ARC_SWING_PM, floor(FLASH_REGION_FRACTION_PM x REGION_MIN_PX x 1000 / (n_arcs_room x A_emis_i x Y_PEAK_PM))) with REGION_MIN_PX 9216 and n_arcs_room the world-fixed live arc count per compartment_id"
+      expression: "ARC_FLICKER_PER_S = ceil(floor(TRAIL_ANIM_FPS / ARC_HOLD_FRAMES) / 2) (the ruled flash unit ceil(n_transitions / 2), user ruling D91 ii, the same count as flash_count; default value stays 2); all live arcs share one world phase and one rate (no division by an arc count); arc_rate_eff = 0 (held glow at ARC_HELD_GLOW_PM, 600 permille of peak, the one hold level and also the reduced-motion arc pose) under reduce flashing, else ARC_FLICKER_PER_S; amplitude swing_i_pm = min(ARC_SWING_PM, floor(FLASH_REGION_FRACTION_PM x REGION_MIN_PX x 1000 / (n_arcs_room x A_emis_i x Y_PEAK_PM))) with REGION_MIN_PX 9216 and n_arcs_room the world-fixed live arc count per compartment_id"
+      # was: ARC_FLICKER_PER_S = floor(TRAIL_ANIM_FPS / (2 x ARC_HOLD_FRAMES)) (under-counted odd transition counts); before 2026-10-27 (user ruling D91 ii; knob invariant 5 updated in the GDD)
       # was: arc_rate_eff = min(ARC_FLICKER_PER_S, floor(FLASH_MAX_PER_S / n_arcs_region)); swing cap sum(A_emis x Y_peak x swing) / REGION_PX < 0.09 with REGION_PX 25560; before 2026-10-27 (design review)
       variables: FLASH_MAX_PER_S 3 (locked), TRAIL_ANIM_FPS 12 [PLACEHOLDER], ARC_HOLD_FRAMES 3 [PLACEHOLDER] (2-6; 1 forbidden), ARC_SWING_PM 240 [PLACEHOLDER] (0-240), ARC_PER_REGION_MAX 2 [PLACEHOLDER] (now arcs per compartment), REGION_MIN_PX 9216 (smallest ladder region, 1080p k_auto+2, 128 x 72; REGION_PX 25560 is no longer the worst case), FLASH_REGION_FRACTION_PM 90, ARC_HELD_GLOW_PM 600 [PLACEHOLDER] (400-800), n_arcs_room 1-8, A_emis 922/3686/8294 px (s/m/l), Y_peak 0.577 (Power Amber)
       output: flashes per second per arc 0..3 (the same for every arc); swing_i_pm 0..240, worked l-arc amplitudes 173/86/57 for 1/2/3 arcs; a (TRAIL_ANIM_FPS, ARC_HOLD_FRAMES) pair deriving > 3 is REJECTED by the knob lint (never clamped)
@@ -3469,6 +3574,8 @@ formulas:
       variables: k 1..k_auto+2 (Pipeline), D_FT_MAX 38 [PLACEHOLDER] (60 under the Filter silhouette mask route), TRAIL_MAX_STAMPS 640 [PLACEHOLDER] (128-1024; also the node-pool pre-size), L_sets 1-3 default 1 [PLACEHOLDER], I_wall 0-4 budgeted 2 [PLACEHOLDER] (L_sets and I_wall measured by spike S2), WALL_ROWS_MAX 16 [PLACEHOLDER] (Layout), TRAIL_OVERDRAW_MAX 4
       output: draw calls independent of k and resolution; MVP worst cascade stamps_world 565 (room frost 12 x 24 = 288), draws 38 against D_FT_MAX 38 (no margin); fx_design_max 618 stamps; fx_steady 17 stamps
       # was: MVP worst cascade 325 stamps, 36 draws; TRAIL_MAX_STAMPS 384; before 2026-10-27 (design review)
+      # note (user ruling D26, no number change): the coolant wet run replaces frost slots one for one (n_frost + n_wet <= ceil(extent / 48)), so TRAIL_MAX_STAMPS 640 and the fixture counts 565 and 618 stand
+      # note (D5, default applied 2026-10-27, pending user confirmation): a ladder step that fails its caps on the reference machine is withheld by the Pipeline, never fixed by culling trail content (FT-19)
     added: 2026-10-26
     revised: 2026-10-27
     # Readers: Pixel-Perfect Render Pipeline (this system share of D_BUDGET 1000), Layout (WALL_ROWS_MAX host-face rows), Perception Filter (the 38 -> 60 draw delta under a second silhouette pass)
@@ -3480,12 +3587,14 @@ formulas:
       - design/gdd/suit-and-equipment.md
       - design/gdd/sanity-and-hallucination-rules.md
       - design/gdd/boarding-and-salvage.md
+      - design/gdd/player-controller-input.md
     attributes:
       expression: "LIGHT if m < WEIGHT_MEDIUM_G; MEDIUM if m < WEIGHT_HEAVY_G; else HEAVY"
       variables: "m (int g, 1..500000); WEIGHT_MEDIUM_G; WEIGHT_HEAVY_G"
       output: "enum LIGHT | MEDIUM | HEAVY; the resolution the Suit body cue must at least have"
     added: 2026-10-26
     revised: 2026-10-26
+    # The HEAVY class also gates the run rule: run is disabled while the holder has any STOWED instance of weight_class HEAVY (IDB-13, D18; applied in player-controller-input.md RUN row). A class threshold edit now has a movement consequence.
 
   - name: instance_mass_g
     status: active
@@ -3767,6 +3876,7 @@ formulas:
       output: "a retimed start time, never a brighter or darker pair; only Lighting-originated transitions are governed (a committed switch, the beacon aim and a FAULT_GLOW onset pass untouched)"
     added: 2026-10-26
     revised: 2026-10-27
+    # Counting unit ceil(N / 2) is ratified by user ruling (X9 / D91 ii, 2026-10-27). The governor stays strict per light, per region and on the frame mean, including under reduce_flashing; the HUD's weighted-per-area exemptions do not apply to lights. No value change
     # Registered as a formula because it has three bounds; arc_flash_share is a consumer rate it backstops. Confirmed by the Lighting spike step 3
     # [PLACEHOLDER] registry status active; the value awaits the owner or confirming spike named above
   - name: modifier_stack
@@ -3901,6 +4011,7 @@ formulas:
       output: "the unlit hull's brightest channel is HULL_FLOOR_GAP_STEPS (1-2) 8-bit codes above black as a >= 32x32 px mean; measurement target: Graphite mid #2A303A, unlit, blue channel, mean encoded code over >= 32x32 px, read in whole codes"
     added: 2026-10-26
     revised: 2026-10-27
+    # floor_scale 0.066 (reading S) is a default applied 2026-10-27 pending user confirmation (D33 row 2); art-director review point 2026-11-10; no value change
     # [PLACEHOLDER] registry status active; the value awaits the owner or confirming spike named above
   - name: warmup_ramp
     status: active
@@ -4058,10 +4169,12 @@ formulas:
       - design/gdd/suit-and-equipment.md
       - design/gdd/sanity-and-hallucination-rules.md
     attributes:
-      expression: "HARM_BP_PER_STEP = ceil(HARM_TOTAL_BP * B / HARM_CHANNEL_TICKS); applied only at a credited block end after reach, lit and Sanity tests pass; steps_landed = min(n_h, floor((t_react + floor((REACH_PX - d0) / v)) / B)) (free-running count, valid only while it stays below k_trap); k_trap = floor((SUIT_HP_FULL - SUIT_LEAK_HP) / HARM_BP_PER_STEP) + 1; t_trap = B * k_trap; t_last = t_react + floor((REACH_PX - d0) / v); guaranteed escape iff t_last < t_trap (steps_landed = min(k_trap - 1, floor(t_last / B))); guaranteed trap iff t_last >= t_trap + B (at least min(n_h, k_trap + floor(STAGGER_TICKS / B)) steps); t_react_max = t_trap - 1 - floor((REACH_PX - d0) / v)"
+      expression: "n_h = ceil(HARM_TOTAL_BP / HARM_BP_PER_STEP); HARM_CHANNEL_TICKS = B * n_h; HARM_BP_PER_STEP is the tuned input, range 250-312; applied only at a credited block end after reach, lit and Sanity tests pass; steps_landed = min(n_h, floor((t_react + floor((REACH_PX - d0) / v)) / B)) (free-running count, valid only while it stays below k_trap); k_trap = floor((SUIT_HP_FULL - SUIT_LEAK_HP) / HARM_BP_PER_STEP) + 1; t_trap = B * k_trap; t_last = t_react + floor((REACH_PX - d0) / v); guaranteed escape iff t_last < t_trap (steps_landed = min(k_trap - 1, floor(t_last / B))); guaranteed trap iff t_last >= t_trap + B (at least min(n_h, k_trap + floor(STAGGER_TICKS / B)) steps); t_react_max = t_trap - 1 - floor((REACH_PX - d0) / v)"
     # was: expression ended at the free-running steps_landed (no k_trap, t_trap, stagger term) before 2026-10-27 (design review)
-      variables: "HARM_TOTAL_BP; HARM_CHANNEL_TICKS; B; d0 (px); v (V_CARRY|V_WALK|V_RUN); t_react (ticks); k_trap (first step that leaves integrity below SUIT_LEAK_HP); t_trap (ticks); STAGGER_TICKS (Controller, 30); SUIT_HP_FULL 10000 and SUIT_LEAK_HP 5000 (Suit)"
-      output: "HARM_BP_PER_STEP 500 bp/step at defaults; k_trap 11, t_trap 66 at the defaults; steps_landed 0..20; stationary victim takes all 10000 bp; a runner from d0 = 0 takes 2000 bp only if t_last < t_trap"
+      variables: "HARM_TOTAL_BP; HARM_BP_PER_STEP (300, range 250-312); n_h; HARM_CHANNEL_TICKS (derived); B; d0 (px); v (V_CARRY|V_WALK|V_RUN); t_react (ticks); k_trap (first step that leaves integrity below SUIT_LEAK_HP); t_trap (ticks); STAGGER_TICKS (Controller, 30); SUIT_HP_FULL 10000 and SUIT_LEAK_HP 5000 (Suit)"
+      output: "HARM_BP_PER_STEP 300 bp/step at defaults; n_h 34, 10200 bp delivered; k_trap 17, t_trap 102; t_react_max 65 walking / 77 running / 29 carrying (d0 = 0); steps_landed 0..34; a trapped victim takes at least 22 steps and is not FAILED by the stagger alone (FAILED at step 26); stationary victim takes all 10200 bp; a runner from d0 = 0 is not trapped iff t_last < t_trap"
+    # was: HARM_BP_PER_STEP = ceil(HARM_TOTAL_BP * B / HARM_CHANNEL_TICKS) = 500 (derived); k_trap 11, t_trap 66; steps_landed 0..20; HARM_CHANNEL_TICKS 120 before 2026-10-27 (user rulings: D36)
+    # "x"
     added: 2026-10-26
     revised: 2026-10-27
 
@@ -4143,11 +4256,13 @@ formulas:
       - design/gdd/emitter-state-and-light-exposure-query.md
       - design/gdd/in-world-instruments-and-inspect-view.md
     attributes:
-      expression: "S_total = F + L_seed + C + P + Y + A + H <= MAX_EXPOSURE_SUBJECTS; lint F + L_seed + C <= INTERACT_FIXTURE_BUDGET 120 and P + Y <= PLAYER_DROP_RESERVE 24; I-7 INTERACT_FIXTURE_BUDGET + PLAYER_DROP_RESERVE <= 144"
+      expression: "S_total = F + L_seed + C + P + Y + A + H <= MAX_EXPOSURE_SUBJECTS, summed over the registration window (F, L_seed and C count only candidates inside the window plus its one-hop ring, SUBJECT_WINDOW_HOPS); lint W_int(p) = F + L_seed + C <= INTERACT_FIXTURE_BUDGET 120 at every authored body position p, and P + Y <= PLAYER_DROP_RESERVE 24; I-7 INTERACT_FIXTURE_BUDGET + PLAYER_DROP_RESERVE <= 144"
       variables: "F fixtures; L_seed seeded loose items; C cap stubs; P player drops; Y ITEM subjects created by salvage yield (begin_cut completion; shares the PLAYER_DROP_RESERVE pool with P, 0..24); A actors (<= 4); H horrors (<= HORROR_SUBJECTS_MAX 2, Horror Entities); the last two are other owners' numbers quoted as a lint budget"
     # was: H horrors (<= 16) before 2026-10-27 (consistency pass)
     # was: S_total = F + L_seed + C + P + A + H and lint P <= PLAYER_DROP_RESERVE 24 (no Y term) before 2026-10-27 (design review); S4 total unchanged at 174
-      output: "content lint, not a runtime state. Per registered legal_loaded_sets: ERROR when S_int > INTERACT_FIXTURE_BUDGET on S0-S3, WARN with the shortfall on S4. S3 (home+B welded) S_int 112 + P 24 + A 4 + H 2 = 142. S4 (home+B, A) S_int 144 (WARN, 24 over; OQ-DA-20; IA OQ 30) + 30 = 174 <= 192. A dormant section must unregister its subjects (S4 to S3 falls by 32)"
+      # was: S3 142, S4 S_int 144 / S_total 174 before 2026-10-27 (user rulings: DA-47 adds two home scrubber slots)
+      output: "content lint, not a runtime state. Per registered legal_loaded_sets: ERROR when W_int(p) > INTERACT_FIXTURE_BUDGET at an authored body position of any registered set; the S4 WARN is retired and the S4 verdict is the measured worst window [PLACEHOLDER]. S3 (home+B welded) S_int 114 + P 24 + A 4 + H 2 = 144. S4 (home+B, A) loaded S_int 146 (windowed by W_int, measured at spike; OQ-DA-20; IA OQ 30) + 30 = 176 <= 192 (S_total bounded by the loaded sum). A dormant section must unregister its subjects (S4 to S3 falls by 32)"
+    # was: lint F + L_seed + C <= 120 over each whole loaded set, ERROR on S0-S3 and WARN on S4 (24 over) before 2026-10-27 (user rulings: D37 route (a))
     # was: estimate 98 + 20 + 18 + 4 + 16 = 156 for home ship plus derelict B (unmeasured) before 2026-10-27 (consistency pass)
     added: 2026-10-26
     revised: 2026-10-27
@@ -4159,9 +4274,10 @@ formulas:
     attributes:
       expression: "AIR_OK=(band_o2 in {NORMAL,THIN}) and (band_p in {NORMAL,LOW}); AIR_POOR=(band_o2==HYPOXIC) and (band_p in {NORMAL,LOW}); AIR_NONE=(band_o2==ANOXIC) or (band_p in {DECOMP,VACUUM}); source = ROOM if AIR_OK; RESERVE if (AIR_POOR or AIR_NONE) and reserve_mgu>0; GASP if AIR_POOR and reserve_mgu==0; NONE if AIR_NONE and reserve_mgu==0"
       variables: "band_o2, band_p (Graph enums via compartment(cid)); reserve_mgu (int, 0..RESERVE_MAX_MGU)"
-      output: "enum ROOM | RESERVE | GASP | NONE; a pure function of band enums and the reserve, never of a grant"
+      output: "enum ROOM | RESERVE | GASP | NONE; a pure function of band enums and the reserve, never of a grant; an IN_POD seat supplies (band_o2, band_p) = (ANOXIC, NORMAL) by the pod cabin rule (D60), so its source is RESERVE then NONE, never ROOM and never GASP"
     added: 2026-10-26
-    revised: 2026-10-26
+    revised: 2026-10-27
+    # note (user ruling D60, expression unchanged): statuses run in the pod, no draw_air; Suit SE-3, D.1
     # GDD section D.1
 
   - name: respiration_request
@@ -4170,7 +4286,7 @@ formulas:
     referenced_by: []
     attributes:
       expression: "granted_prev=draw_grant(crew).granted; bgrant=min(granted_prev,pending_draw_mgu); extra_credit=granted_prev-bgrant; shortfall=pending_draw_mgu-bgrant (breath-only); debit_sf=min(shortfall,reserve_mgu); reserve_1=min(RESERVE_MAX_MGU,reserve_mgu-debit_sf+extra_credit); source=suit_breath_source(...,reserve_1); request=R_BREATH if source in {ROOM,GASP} else 0 (Graph draw_air); spend=min(R_BREATH,reserve_1) if source==RESERVE; leak=LEAK_MGU_PER_RUN if integrity_bp<SUIT_LEAK_HP; reserve_next=reserve_1-spend-min(leak,reserve_1-spend)"
-      variables: "pending_draw_mgu, pending_extra_mgu (0..TOPUP_PASSIVE_MGU_PER_RUN, 0 in VERB mode), granted_prev (mGU); R_BREATH; LEAK_MGU_PER_RUN; integrity_bp"
+      variables: "pending_draw_mgu (0 while IN_POD, no draw_air is called, so shortfall and breath_starved are 0), pending_extra_mgu (0..TOPUP_PASSIVE_MGU_PER_RUN, 0 in VERB mode, the shipped TOPUP_MODE configuration), granted_prev (mGU); R_BREATH; LEAK_MGU_PER_RUN; integrity_bp"
       output: "request 0 or R_BREATH per run; reserve in 0..RESERVE_MAX_MGU; max single-run loss 750 mGU at defaults"
     added: 2026-10-26
     revised: 2026-10-27
@@ -4198,7 +4314,7 @@ formulas:
       - design/gdd/derelict-authoring-handmade-kits.md
     attributes:
       expression: "insul_eff_mc=INSUL_MC*min(integrity_bp,SUIT_LEAK_HP)/SUIT_LEAK_HP; onset_cold=COLD_DMG_ONSET_MC-insul_eff_mc; e_cold=max(0,onset_cold-T); e_heat=max(0,T-HEAT_DMG_ONSET_MC); gain=0 if e==0 else TL_GAIN_MIN+(TL_GAIN_MAX-TL_GAIN_MIN)*min(e,TL_DEPTH_CAP_MC)/TL_DEPTH_CAP_MC; relax by band_t when e==0 (TL_RELAX_EDGE also for band_t FREEZING above the shifted onset; none in DEEP_COLD or SCORCH); re-entry refractory rf = HOLD_12 when the warmth rung falls from >=2 to <2, else rf = max(0,rf-1), and no 1-to-2 climb while rf>0 (first entries not delayed); rungs by abs(L) vs TL_STRAINED/TL_CRITICAL/TL_MAX with TL_HYST descent; ascent at most one rung per run"
-      variables: "T (milli-degC raw), band_t, integrity_bp, thermal_load L (int, -TL_MAX..TL_MAX), rf (runs, 0..HOLD_12); COLD_DMG_ONSET_MC and HEAT_DMG_ONSET_MC by registry name only"
+      variables: "T (milli-degC raw), band_t, integrity_bp, thermal_load L (int, -TL_MAX..TL_MAX), rf (runs, 0..HOLD_12); COLD_DMG_ONSET_MC and HEAT_DMG_ONSET_MC by registry name only; for an IN_POD seat e = 0 and band_t = COMFORT by rule (no raw T read), so the load relaxes at TL_RELAX_COMFORT (user ruling D60; assumption flagged, Suit OQ-48 (c))"
       output: "L in -12000..12000, changes by at most 40 per run (gain) or 12 (relax); warmth rung 0..3"
     added: 2026-10-26
     revised: 2026-10-27
@@ -4359,9 +4475,10 @@ formulas:
     referenced_by:
       - design/gdd/interaction-system.md
     attributes:
-      expression: "IR-1: 2 <= U_TOOL <= 6; IR-2: U_LOUD >= 30 * U_TOOL; IR-3: PARTIAL_TTL_TICKS <= 2 * TAU_ATT_TICKS"
-      variables: "U_TOOL 4; U_LOUD 180 (= 30 x 6; range 30 x U_TOOL .. ATT_THRESHOLD / 10, a range lint and not a fourth relation); PARTIAL_TTL_TICKS 600 (Interaction); TAU_ATT_TICKS 1800"
+      expression: "IR-1: 2 <= U_TOOL <= 6; IR-2: U_LOUD >= 30 * U_TOOL; IR-3: PARTIAL_TTL_TICKS <= 2 * TAU_ATT_TICKS; IR-4: carry_decision (K1 and K2 of F-26 hold for the reference derelict's Lc at U_BURDEN, else ATT_CARRY_NOT_LIVE)"
+      variables: "U_BURDEN 7 (range 7..10; IR-4); Lc 1344 (reference derelict carry ticks); U_TOOL 4; U_LOUD 180 (= 30 x 6; range 30 x U_TOOL .. ATT_THRESHOLD / 10, a range lint and not a fourth relation); PARTIAL_TTL_TICKS 600 (Interaction); TAU_ATT_TICKS 1800"
     # was: U_LOUD 180 (= 30 x 6) with no range note before 2026-10-27 (design review)
+    # was: three relations IR-1..IR-3 and no U_BURDEN or Lc variables before 2026-10-27 (user rulings X3, IR-4 appended)
       output: "boolean per relation; 180 satisfies IR-2 across the whole legal U_TOOL range 2..6"
     added: 2026-10-26
     revised: 2026-10-27
@@ -4404,12 +4521,13 @@ formulas:
     referenced_by:
       - design/gdd/derelict-authoring-handmade-kits.md
     attributes:
-      expression: "x_dark = B_table[ring] + (unswitchable inputs: cryo EMERGENCY lamp, FAULT_GLOW emitters (N_GLOW_DARK), DARK_FLOOR_LOAD_W through W_P) * TAU_ATT_TICKS / 1000; require x_dark <= theta_HOLD - ATT_MARGIN (trivial bound) and the F-15 decay bound"
-      variables: "DARK_FLOOR_LOAD_W 1500 W; N_GLOW_DARK = the FAULT_GLOW emitters authored active at wake: 1 under the closed-valve staging, 2 under the OQ-DA-18 valve-OPEN fallback that ships until ASK-G1 is accepted (DA-16; the shipped rows use 2); 0 on a clean ship; EMERGENCY lamp (1000, 144); r_home_lit = r_dark + 432 (three fixtures) + 40 (extra 400 W non-lamp draw) = 766 clean / 838 with two glows, used by abortability_play's home-lit row"
+      expression: "x_dark = B_table[ring] + (unswitchable inputs: cryo EMERGENCY lamp, FAULT_GLOW emitters (N_GLOW_DARK), the DOCK_STATUS pod glow as + (W_L[FIXTURE] x g_dock) div 1000, DARK_FLOOR_LOAD_W through W_P) * TAU_ATT_TICKS / 1000; require x_dark <= theta_HOLD - ATT_MARGIN (trivial bound) and the F-15 decay bound"
+      variables: "DARK_FLOOR_LOAD_W 1500 W; N_GLOW_DARK = the FAULT_GLOW emitters authored active at wake: 1 under the closed-valve staging, 2 under the OQ-DA-18 valve-OPEN fallback that ships until ASK-G1 is accepted (DA-16; the shipped rows use 2); 0 on a clean ship; EMERGENCY lamp (1000, 144); r_home_lit = r_dark + 432 (three fixtures) + 40 (extra 400 W non-lamp draw) = 766 clean / 838 with two glows, used by abortability_play's home-lit row; g_dock = floor(output_pm_D x reach_px_D / 1000) is the unswitchable DOCK_STATUS pod glow term, [PLACEHOLDER] until Emitter and Derelict Authoring publish their knobs, budget g_dock <= DOCK_GLOW_TERM_MAX 24 mAU per tick (see DOCK_GLOW_TERM_MAX)"
     # was: N_GLOW_DARK = the glows authored active at wake (2 at MVP, DA-16; 0 on a clean ship) before 2026-10-27 (consistency pass)
       output: "x_dark about 829 AU at ring 1 on a clean ship (959 with the two wake glows); the binding cap is about 1,253 AU at the placeholders (against 4,750 for the trivial bound); re-run when Assembly, Authoring or the Graph change the unswitchable set"
     added: 2026-10-26
     revised: 2026-10-27
+    # was: expression without the + (W_L[FIXTURE] x g_dock) div 1000 DOCK_STATUS glow term before 2026-10-27 (user rulings, X2)
   - name: weld_quality
     status: active
     source: design/gdd/modular-ship-assembly.md
@@ -4523,12 +4641,13 @@ formulas:
       - design/gdd/web-map-and-transit.md
       - design/gdd/save-load-and-versioned-format.md
     attributes:
-      expression: last_shape_change_T = max over welds[] of max(welded_at_T, cut_at_T), or NONE when welds[] is empty; consumer event_due = event_pending AND (T - last_save_T) >= AUTOSAVE_MIN_GAP_TICKS
-      variables: welded_at_T and cut_at_T (int64 ticks, Layout welds[]), AUTOSAVE_MIN_GAP_TICKS 1800
+      expression: "last_shape_change_T = max over welds[] of max(welded_at_T, cut_at_T), or NONE when welds[] is empty; consumer event_due = event_pending AND (T - last_save_T) >= AUTOSAVE_MIN_GAP_TICKS AND NOT (event_kind = ASSEMBLY_CUT AND ragged_breach_open())"
+    # was: consumer event_due = event_pending AND (T - last_save_T) >= AUTOSAVE_MIN_GAP_TICKS (no withhold conjunct) before 2026-10-27 (user rulings X7 / D54)
+      variables: "welded_at_T and cut_at_T (int64 ticks, Layout welds[]), AUTOSAVE_MIN_GAP_TICKS 1800, event_kind (enum: ASSEMBLY_WELD iff the maximum is a welded_at_T, ASSEMBLY_CUT iff it is a cut_at_T; only ASSEMBLY_CUT is subject to the withhold)"
       output: NONE or an int64 tick; two 32-bit parts or a string at the serialisation boundary (SL-2)
     added: 2026-10-26
-    revised: 2026-10-26
-    # D.9. Pure read polled by Save/Load (SL-13); event names ASSEMBLY_WELD / ASSEMBLY_CUT fixed (2026-10-27).
+    revised: 2026-10-27
+    # D.9. Pure read polled by Save/Load (SL-13); event names ASSEMBLY_WELD / ASSEMBLY_CUT fixed (2026-10-27). MVP ships both events enabled (D17).
 
   - name: cascade_defer_deadline
     status: active
@@ -4628,10 +4747,11 @@ formulas:
     referenced_by: []
     attributes:
       expression: "return stage while stage_dwell < STAGE_DWELL_RUNS; else step target deeper while level < STAGE_ENTER[target + 1], and only if unmoved step shallower while level > STAGE_ENTER[target] + STAGE_HYST"
-      variables: STAGE_ENTER 70000 / 45000 / 25000, STAGE_HYST 2000, STAGE_DWELL_RUNS 25
+      variables: STAGE_ENTER 70000 / 55000 / 25000, STAGE_HYST 2000, STAGE_DWELL_RUNS 25
       output: stage 0..3; strictly below to enter, strictly above to exit; dwell resets to 0 on a change
     added: 2026-10-26
-    revised: 2026-10-26
+    revised: 2026-10-27
+    # was: STAGE_ENTER 70000 / 45000 / 25000 before 2026-10-27 (user rulings, OQ-SN-38)
 
   - name: harm_gate
     status: active
@@ -4657,6 +4777,7 @@ formulas:
     revised: 2026-10-27
     # was: four assertions (i) to (iv), all anchored at 70000, outputs 222.4/83.4/305.6/113.4 s before 2026-10-27 (design review: routine play starts from the ring floors; the ring-3 floor lead is only 185.6 s)
     # the sanity twin of W_MIN_WARNING_S; any retune of a threshold, the cap, the divisor or an exposure rate re-runs all four
+    # 2026-10-27 (user rulings): reading-only ring-1 lead is now 241.2 s (was 291.2 s) after the AMBIENT_FLOOR[1] and STAGE_ENTER[2] changes; it is not asserted, and bounds (i) to (v) re-ran unchanged
 
   - name: ambient_floor_invariant
     status: active
@@ -4664,10 +4785,11 @@ formulas:
     referenced_by: []
     attributes:
       expression: "(a) min(AMBIENT_FLOOR) >= SAN_TELL_OFF + AMBIENT_MARGIN; (b) every floor >= STAGE_HYST from every stage threshold; (c) AMBIENT_FLOOR non-increasing with ring; (d) max(RING_EXPOSURE) < REC_SETTLED; (e) max(RING_EXPOSURE) + ABOARD_EXPOSURE - REC_IDLE < DRIFT_MAX_PER_RUN"
-      variables: AMBIENT_FLOOR 62000 / 52000 / 43000, AMBIENT_MARGIN 5000, RING_EXPOSURE 0 / 4 / 8, ABOARD_EXPOSURE 20, REC_SETTLED 12, REC_IDLE 1
-      output: calm waiting can never set tell_on, enter stage 3 or reach harm_eligible; (e) is 27 < 36
+      variables: AMBIENT_FLOOR 53000 / 52000 / 43000, AMBIENT_MARGIN 5000, RING_EXPOSURE 0 / 4 / 8, ABOARD_EXPOSURE 20, REC_SETTLED 12, REC_IDLE 1
+      output: calm waiting can never set tell_on, enter stage 3 or reach harm_eligible; (e) is 27 < 36; nearest clearance pair is ring-1 floor 53000 vs stage-2 entry 55000 (exactly STAGE_HYST); stage at every floor is 2
     added: 2026-10-26
-    revised: 2026-10-26
+    revised: 2026-10-27
+    # was: AMBIENT_FLOOR 62000 / 52000 / 43000 before 2026-10-27 (user rulings, OQ-SN-38)
 
   - name: harm_hysteresis_margin
     status: active
@@ -4686,11 +4808,12 @@ formulas:
     referenced_by: []
     attributes:
       expression: "precondition: the legal-kind set K is computed before any draw and sum_W = sum of KIND_W over K >= 1, else the event makes no draw; p_pm = min(1000, ONSET_PM[s] x w) with w = REPAIR_BIAS_W if repaired within REPAIR_BIAS_S else 1; x = rng_int(1, 1000) at counter c on stream sanity.lie/<PlayerId>/<stable_id>; accept iff x <= p_pm; on accept kind by KIND_W via rng_int(1, sum_W) at c+1, life rng_int(200, 600) runs at c+2, delay rng_int(10, 25) runs at c+3, visit = c+4, and the accepted entry stores direction; on reject visit = c+1"
-      variables: ONSET_PM 150 / 300 / 550, REPAIR_BIAS_S 60, REPAIR_BIAS_W 2, KIND_W rows 45/25/30/0, 40/25/30/5, 25/30/15/30
+      variables: ONSET_PM 150 / 300 / 550, REPAIR_BIAS_S 60, REPAIR_BIAS_W 1 (MVP default; p_pm range at MVP 150-550), KIND_W rows 45/25/30/0, 40/25/30/5, 25/30/15/30
       output: exactly 0, 1 (reject) or 4 (accept) draws per event; a failed gate or sum_W == 0 draws nothing (no rng_int(1, 0))
     added: 2026-10-26
     revised: 2026-10-27
     # was: output exactly 1 (reject) or 4 (accept) draws per gated event; no sum_W >= 1 precondition and no stored direction before 2026-10-27 (design review)
+    # was: REPAIR_BIAS_W 2 before 2026-10-27 (user rulings, OQ-SN-40)
 
   - name: lure_dressing
     status: active
@@ -4801,11 +4924,13 @@ formulas:
     referenced_by: []
     # consumer hints (GDD exists, does not cite this name yet): design/gdd/player-controller-input.md [V_WALK], design/gdd/ship-body-and-interior-physics.md [V_CARRY, BDY-13], design/gdd/derelict-authoring-handmade-kits.md [DA-29]
     attributes:
-      expression: "UNFOLD_LO >= ceil5(t_out_max(V_WALK) + REACT_ALLOW_TICKS_HORROR + INPUT_LATENCY_TICKS + 1); UNFOLD_LO mod 5 = 0; UNFOLD_HI >= UNFOLD_LO; UNFOLD_TICKS = ceil5(5 x rng_int(UNFOLD_LO / 5, UNFOLD_HI / 5) x UNFOLD_SCALE_PCT / 100) from rng_derive(world_seed, 'horror.tell', counter)"
+      expression: "UNFOLD_LO >= ceil5(t_out_max(V_WALK) + REACT_ALLOW_TICKS_HORROR + INPUT_LATENCY_TICKS + 1); UNFOLD_LO mod 5 = 0; UNFOLD_HI >= UNFOLD_LO; UNFOLD_TICKS = ceil5(5 x rng_int(UNFOLD_LO / 5, UNFOLD_HI / 5) x UNFOLD_SCALE_PCT / 100) from rng_derive(threat_seed, 'horror.tell', counter), threat_seed = rng_derive(world_seed, 'threat.epoch', threat_epoch) (HE-42)"
+      # was: draw source rng_derive(world_seed, 'horror.tell', counter) before 2026-10-27 (user rulings, X8/D16)
       # was: UNFOLD_LO >= ceil5(ceil(R_SNAP_PX / V_WALK) + REACT_ALLOW_TICKS_HORROR + 1); UNFOLD_TICKS = 5 x rng_int(...); before 2026-10-27 (design review)
       variables: "t_out_max(V_WALK) 37 (slowest of Body's 8 octants, the diagonal; HE-F2, AC-HE-130); R_SNAP_PX 72; V_WALK 2; REACT_ALLOW_TICKS_HORROR 54 [PH, unsourced C-HE-27]; INPUT_LATENCY_TICKS 0 [PH, unmeasured] (0..3 fit UNFOLD_LO 95); UNFOLD_SCALE_PCT 100..200 default 100 (accessibility, lengthens only); the +1 is the kernel's T+1 command application (KRN D.4)"
       output: "t_out_max(V_WALK) = 37 (diagonal), bound 37 + 54 + 0 + 1 = 92, rounded to UNFOLD_LO 95 (3 ticks of slack); UNFOLD_TICKS takes 18 values 95..180, mean 137.5 at UNFOLD_SCALE_PCT 100; a carrier needs 130, so is clear on 11 of 18 draws and struck on 7 of 18 (38.9 percent)"
       # was: bound 36 + 54 + 1 = 91 (4 ticks of slack), carrier needs 127, clear on 11 of 18 (61.1 percent); before 2026-10-27 (design review)
+      # lever worked example (D63): R_SNAP_PX 72 gives 7 of 18 carrier-struck draws; the ruled lever R_SNAP_PX 48 gives 2 of 18 (struck draws 95 and 100)
     added: 2026-10-26
     revised: 2026-10-27
 
@@ -5124,20 +5249,22 @@ formulas:
     attributes:
       expression: "route_ticks(px, mode, n_closed) = ceil(px / v[mode]) + n_closed * DOOR_ATTEMPT_TICKS; route_noise_AU(px, mode) = ceil(px / v[mode]) * NOISE_PER_TICK[mode]; T_sortie_floor = 2 * (HOP_LEG_TICKS + ARRIVE_SETTLE_TICKS) + route_ticks(px_in, walk, n_in) + SALVAGE_CHANNEL_TICKS + route_ticks(px_out, carry, 0) + route_ticks(px_home, carry, n_home)"
       variables: "V_WALK 2, V_RUN 3, V_CARRY 1 (px/tick); DOOR_ATTEMPT_TICKS 30 [PLACEHOLDER]; SALVAGE_CHANNEL_TICKS 240 [PLACEHOLDER]; HOP_LEG_TICKS and ARRIVE_SETTLE_TICKS (Web Map, [PLACEHOLDER], 945 per leg); route px are ASSUMED anchors until Layout publishes route_length_px"
-      output: "design-time (not hashed); reference sortie htr_a: walk-in 372, carry out 624, at-home 486, T_sortie_floor 3612 ticks (60.2 s), a lower bound (T_EQUIP unregistered); carry = 48 ticks and 48 AU per tile whatever the mass (IDB F-13)"
+      output: "design-time (not hashed); reference sortie htr_a: walk-in 372, carry out 624, at-home 486, T_sortie_floor 3612 ticks (60.2 s), a lower bound (T_EQUIP unregistered); carry = 48 ticks and 48 AU per tile whatever the mass (IDB F-13); ruled decision-route table (X3, carry lengthened to N tiles; carry px 48 N): N 13 (pre-ruling anchor) / 21 / 24 (provisional design value) / 28 gives T_sortie_floor 3612 / 4188 / 4404 / 4692 ticks and W_ABOARD floor 1236 / 1812 / 2028 / 2316 ticks; D73 discretionary-dwell budget: 300 s less the W_ABOARD floor is 209.8 / 200.2 / 196.6 / 191.8 s, about 200 s in every case (Default applied 2026-10-27 pending user confirmation); the expression is unchanged"
+    # was: output had no decision-route table or D73 discretionary-dwell budget before 2026-10-27 (user rulings X3, D73; description only)
     added: 2026-10-26
-    revised: 2026-10-26
+    revised: 2026-10-27
 
   - name: sortie_noise_budget
     status: active
     source: design/gdd/boarding-and-salvage.md
     referenced_by: []
     attributes:
-      expression: "L' = clamp(L + I_run - ceil((L - B) * 6 / TAU_ATT_TICKS), B, L_CEIL) per 6-tick run (attention_integrator with the full intake I_run = I_noise + I_light + I_power; the noise-only trace with I_light = I_power = 0 is the labelled lower bound); I_noise = 1000 * sum(NOISE_PER_TICK) + 1000 * U_TOOL * accrued_tool_ticks + 1000 * U_LOUD * [run holds the cut completion tick] mAU; I_light = W_L[BEAM] * floor(output_pm * reach_px / 1000) * 6 div 1000 plus every lit fixture of every loaded section (Attention F-3); I_power = W_P * max(0, draw_w - lamps_lit_w) * 6 div 1000 of the lit home ship while loaded (Attention F-4)"
+      expression: "L' = clamp(L + I_run - ceil((L - B) * 6 / TAU_ATT_TICKS), B, L_CEIL) per 6-tick run (attention_integrator with the full intake I_run = I_noise + I_light + I_power + I_carry; the noise-only trace with I_light = I_power = 0 is the labelled lower bound); I_noise = 1000 * sum(NOISE_PER_TICK) + 1000 * U_TOOL * accrued_tool_ticks + 1000 * U_LOUD * [run holds the cut completion tick] mAU; I_light = W_L[BEAM] * floor(output_pm * reach_px / 1000) * 6 div 1000 plus every lit fixture of every loaded section, including the docked pod's status glow (Attention F-3, BS-19; its output is the Emitter's [PLACEHOLDER]); I_carry = r_carry * (ticks of the run with a carried instance held), r_carry about 7000 mAU per tick [PLACEHOLDER, Attention registers it; class-blind, not a mass term] (user ruling X3, option B); I_power = W_P * max(0, draw_w - lamps_lit_w) * 6 div 1000 of the lit home ship while loaded (Attention F-4)"
     # was: attention_integrator with I_light = I_power = 0 (I_run = noise terms only) before 2026-10-27 (consistency pass)
       variables: "B 300000 mAU (ring 1); U_TOOL 4 [PLACEHOLDER]; U_LOUD 180 [PLACEHOLDER]; TAU_ATT_TICKS 1800 [PLACEHOLDER]; ATT_THRESHOLD 6000 [PLACEHOLDER]; L_CEIL 6120000; W_L[BEAM] 1000; W_P 100; beam 288 mAU per tick and lit idle home ship 766 mAU per tick (576 light, 190 power from 1,900 W) are part of the push in every lit row"
     # was: beam 288 and home 766 mAU per tick only in labelled envelope rows before 2026-10-27 (consistency pass)
-      output: "design-time; golden schedule (walk-in 312 at 1 AU, doors 60 idle, cut 240 at U_TOOL + U_LOUD, pickup 12 idle, carry 624 at 1 AU, console 30 idle); headline (lit: noise + beam + home) from L0 = 1,678,501: peak 3,394,795 mAU (57 percent of ATT_THRESHOLD), 3,374,965 after the console; lower bound (noise only) from L0 = B: peak 1,756,600 mAU (29 percent), 1,732,482 after the console; a cut is 1140 AU raw; chained cut-and-walk cycles cross the threshold on the tenth (noise only) or fifth (beam+home); continuous running crosses in 2820 / 1476 ticks"
+      output: "design-time; golden schedule (walk-in 312 at 1 AU, doors 60 idle, cut 240 at U_TOOL + U_LOUD, pickup 12 idle, carry 624 at 1 AU, console 30 idle); headline (lit: noise + beam + home) from L0 = 1,678,501: peak 3,394,795 mAU (57 percent of ATT_THRESHOLD), 3,374,965 after the console; lower bound (noise only) from L0 = B: peak 1,756,600 mAU (29 percent), 1,732,482 after the console; a cut is 1140 AU raw; chained cut-and-walk cycles cross the threshold on the tenth (noise only) or fifth (beam+home); continuous running crosses in 2820 / 1476 ticks; the figures above are the pre-ruling values without I_carry and are regenerated by REF_GOLDEN under the ruling (D.2 K1 to K5: K1 the crossing falls inside the carry, K3 the tell opens about 400 ticks into the carry whatever N is, K5 freezing with a carried instance is priced because the level never falls under theta_HOLD); acceptance is the re-derived REF_GOLDEN shape, with oracle O-5 added"
+    # was: output ended at 'continuous running crosses in 2820 / 1476 ticks' with no I_carry term, K1 to K5 derivation or oracle O-5 before 2026-10-27 (user rulings X3, X2)
     # was: output headline peak 1,756,600 (noise only) with the lit 3,394,795 secondary before 2026-10-27 (consistency pass)
     added: 2026-10-26
     revised: 2026-10-27
@@ -5147,11 +5274,13 @@ formulas:
     source: design/gdd/boarding-and-salvage.md
     referenced_by: []
     attributes:
-      expression: "carry_tiles(T) = floor(T * V_CARRY / TILE_PX); run_tiles(T) = floor(T * V_RUN / TILE_PX); T_after_cut = T - SALVAGE_CHANNEL_TICKS; t_abort(L_cancel) = t_decay(L_cancel) + ABORT_HOLD_TICKS - GRAPH_STEP_TICKS; partial_alive <=> t_abort <= PARTIAL_TTL_TICKS (inclusive)"
-      variables: "T in TELL_DRAW_LO 900 .. TELL_DRAW_HI 1800 [PLACEHOLDER] (fixture floor TELL_MIN_TICKS 600); ABORT_HOLD_TICKS 120 [PLACEHOLDER]; PARTIAL_TTL_TICKS 600 [PLACEHOLDER]; GRAPH_STEP_TICKS 6"
-      output: "design-time; T 600/900/1200/1800 -> carry/run tiles 12/37, 18/56, 25/75, 37/112; after a cut 7/22, 13/41, 20/60, 32/97; htr_a carry (624) fits T 900 after a cut with 36 spare; abort at tick 594 from theta, 630 from L_CEIL"
+      expression: "carry_tiles(T) = floor(T * V_CARRY / TILE_PX); run_tiles(T) = floor(T * V_RUN / TILE_PX); T_after_cut = T - SALVAGE_CHANNEL_TICKS; t_abort(L_cancel) = t_decay(L_cancel) + ABORT_HOLD_TICKS - GRAPH_STEP_TICKS; partial_alive <=> t_abort <= PARTIAL_TTL_TICKS (inclusive); live_tell(N, t_x) <=> 48 N - t_x >= TELL_DRAW_LO + F_LIVE * (TELL_DRAW_HI - TELL_DRAW_LO) (K3: 48 N - t_x is the carry still ahead, in ticks, at the tick the tell opens, N carry tiles, t_x ticks into the carry); freeze is priced: a held instance never aborts a tell, abort fires only after a drop at the AC-BS-18 ticks; with a HEAVY item stowed run is disabled and run_tiles uses V_WALK 2 (D18)"
+    # was: expression ended at partial_alive <=> t_abort <= PARTIAL_TTL_TICKS (inclusive), with no liveness condition, no priced-freeze text and run_tiles at V_RUN only, before 2026-10-27 (user rulings X3, D46, D18, X8, X4)
+      variables: "T in TELL_DRAW_LO 900 .. TELL_DRAW_HI 1800 [PLACEHOLDER] (fixture floor TELL_MIN_TICKS 600); F_LIVE 0.25 [PLACEHOLDER — derive at spike]; ABORT_HOLD_TICKS 120 [PLACEHOLDER]; PARTIAL_TTL_TICKS 600 [PLACEHOLDER]; GRAPH_STEP_TICKS 6"
+      output: "design-time; T 600/900/1200/1800 -> carry/run tiles 12/37, 18/56, 25/75, 37/112; after a cut 7/22, 13/41, 20/60, 32/97; htr_a carry (624) fits T 900 after a cut with 36 spare; abort at tick 594 from theta, 630 from L_CEIL; walk tiles (HEAVY stowed, D18) 25 / 37 / 50 / 75 at T 600 / 900 / 1200 / 1800; liveness K3 holds only at 28 tiles (needs t_x <= 219 for F_LIVE 0.25; 21 and 24 tiles give no live choice); a held instance never aborts (freeze is priced), abort after a drop at 594 from theta and 630 from L_CEIL; a hop that leaves a derelict locus voids the due-run breach if every seat recorded at tell entry has left (D46; a home-ship locus is not voidable); threat draws re-key per restore epoch (X8)"
+    # was: output ended at 'abort at tick 594 from theta, 630 from L_CEIL' before 2026-10-27 (user rulings)
     added: 2026-10-26
-    revised: 2026-10-26
+    revised: 2026-10-27
 
   - name: hazard_dwell_budget
     status: active
@@ -5210,7 +5339,8 @@ formulas:
       expression: "runs_aboard = floor(t_aboard_s * TICK_RATE / SANITY_DRIFT_DIVISOR); net_aboard = RING_EXPOSURE[ring] + ABOARD_EXPOSURE - REC_IDLE (0 ring term at ring 1, figures unchanged); dwell_msu = runs_aboard * net_aboard; t_stage1_s = ceil((SAN_MAX - STAGE_ENTER[1]) / net_aboard) / 5 defined only for net_aboard > 0, sentinel UNBOUNDED otherwise; second sortie: L_start(2) = L_end(1) + settled_runs * (REC_SETTLED - RING_EXPOSURE[ring]), t_stage1_s(2) = ceil((L_start(2) - STAGE_ENTER[1]) / net_aboard) / 5; envelopes nest iff t_target_s <= t_stage1_s"
     # was: dwell_msu = runs_aboard * (ABOARD_EXPOSURE - REC_IDLE); t_stage1_s = ceil((SAN_MAX - STAGE_ENTER[1]) / (ABOARD_EXPOSURE - REC_IDLE)) / 5, no guard, first sortie only, before 2026-10-27 (design review)
       variables: "SANITY_DRIFT_DIVISOR 12; ABOARD_EXPOSURE 20 mSU/run [PLACEHOLDER]; REC_IDLE 1; STAGE_ENTER[1] (Sanity)"
-      output: "design-time; stage 1 after 1579 runs (315.8 s) standing aboard in ring 1; a 300 s sortie spends 28,500 mSU (95 percent of the way); ordering 300 s <= 315.8 s < 480 s (T_SORTIE_SAFE_TICKS) < 1200 s (CELL_S); second sortie straight back out reaches stage 1 after 15.8 s (31.0 s if the pod leg and home walk count as settled, [UNV: Sanity]); full restoration takes 2,375 settled runs = 475 s; t_target_s is the W_ABOARD median upper bound, 180 to 300 s"
+      output: "design-time; stage 1 after 1579 runs (315.8 s) standing aboard in ring 1; a 300 s sortie spends 28,500 mSU (95 percent of the way); ordering 300 s <= 315.8 s < 480 s (T_SORTIE_SAFE_TICKS) < 1200 s (CELL_S); second sortie straight back out reaches stage 1 after 15.8 s (31.0 s if the pod leg and home walk count as settled, [UNV: Sanity]); full restoration takes 2,375 settled runs = 475 s; t_target_s is the W_ABOARD median upper bound, 180 to 300 s; a long sortie that enters stage 1 is intended (Default applied 2026-10-27 pending user confirmation, D73 part c, X11); 315.8 s is marked [UNV: Sanity re-runs D.4 and D.8 under the X11 band change]"
+    # was: output had no D73 part (c) intent note and no [UNV] mark on 315.8 s before 2026-10-27 (user rulings; description only, the expression is unchanged)
     # was: output had no second-sortie row and compared a fixed 300 s target against the stage-1 time before 2026-10-27 (design review)
     added: 2026-10-26
     revised: 2026-10-27
@@ -5223,18 +5353,21 @@ formulas:
       expression: "t_eligible = max(t_cut_done, t_last_gen + AUTOSAVE_MIN_GAP_TICKS); t_save = first AUTOSAVE_RETRY_TICKS poll at or after t_eligible with the SL-5 gate open, never later than t_eligible + AUTOSAVE_MAX_DEFER_TICKS; lost_cut_window = t_save - t_cut_done"
       variables: "AUTOSAVE_MIN_GAP_TICKS 1800, AUTOSAVE_RETRY_TICKS 300, AUTOSAVE_MAX_DEFER_TICKS 7200, AUTOSAVE_INTERVAL_TICKS 10800, DEATH_LOOP_WINDOW_TICKS 3600 (Save/Load)"
       output: "design-time; cut at 10,000 with the last generation at 7600 saves at the next 300-tick poll; cut 600 ticks after a generation waits 1200; depends on an Interaction-published salvage-completion derived read (name not minted here)"
+      gate_state: "the SL-5 gate: hard DOWNED, DEAD; soft endogenous Graph tell, an Attention tell with fewer than W_MIN_WARNING_S * TICK_RATE = 600 ticks left, GATE_SOFT_STATES (CHANNELLING, STAGGERED, IN_POD), and any bound seat's vitals_state at CRITICAL or worse (X7); a death restore steps back one generation when T_downed - g_r.T < W_MIN_WARNING_S x TICK_RATE; a 600-tick post-DOWNED refractory applies; the expression is unchanged"
+    # was: no gate_state attribute (vitals_state soft input, step-back and post-DOWNED refractory) before 2026-10-27 (user ruling X7)
     added: 2026-10-26
-    revised: 2026-10-26
+    revised: 2026-10-27
 
   - name: lamp_cell_budget
     status: active
     source: design/gdd/boarding-and-salvage.md
     referenced_by: []
     attributes:
-      expression: "cell_share_pm = min(1000, floor(1000 * lit_ticks / (CELL_S * TICK_RATE))); sorties_per_cell = floor(CELL_S * TICK_RATE / lit_ticks) for lit_ticks >= 1 and the sentinel UNBOUNDED for lit_ticks = 0; sorties_to_strand = ceil(CELL_S * TICK_RATE / lit_ticks)"
+      expression: "cell_share_pm = min(1000, floor(1000 * lit_ticks / (CELL_S * TICK_RATE))); sorties_per_cell = floor(CELL_S * TICK_RATE / lit_ticks) for lit_ticks >= 1 and the sentinel UNBOUNDED for lit_ticks = 0; sorties_to_empty = ceil(CELL_S * TICK_RATE / lit_ticks) (the sortie in which the cell reaches 0, no refill between sorties; renamed from sorties_to_strand because an empty cell no longer strands, BS-19); cell_after_refill = min(CELL_S * TICK_RATE, cell_left + refill_ticks)"
+    # was: sorties_to_strand = ceil(CELL_S * TICK_RATE / lit_ticks), and no cell_after_refill term, before 2026-10-27 (user rulings X5, X2)
     # was: cell_share_pm = floor(1000 * lit_ticks / (CELL_S * TICK_RATE)); sorties_per_cell = floor(CELL_S * TICK_RATE / lit_ticks) (no clamp, no lit_ticks = 0 guard) before 2026-10-27 (design review)
-      variables: "CELL_S 1200 s [PLACEHOLDER]; RESERVE_S 90 s [PLACEHOLDER]; GLOWSTICK_START_COUNT 2 [PLACEHOLDER]; lit_ticks 0 to 28,800 safe, 1,278 to 18,000 realistic"
-      output: "design-time; reference line lit 1278 ticks (21.3 s) = 17 permille of CELL_S, 56 sorties per cell (28 to 112 across CELL_S 600 to 2400); a 300 s survey sortie = 250 permille, 4 per cell and sorties_to_strand 4; a 28,800-tick safe sortie = 400 permille, 2 per cell"
+      variables: "CELL_S 1200 s [PLACEHOLDER]; RESERVE_S 90 s [PLACEHOLDER]; GLOWSTICK_START_COUNT 2 [PLACEHOLDER]; refill_ticks 0 to the deficit per lit bare-hand top_up TAP at a home BATTERY port (cited from Suit D.9, cell_deficit_ticks and CELL_STOCK_PER_KTICK, not defined here); lit_ticks 0 to 28,800 safe, 1,278 to 18,000 realistic, and counts ticks with the lamp left on during a pod leg (945 per leg) because the statuses run in the pod (D60; whether the leg drains the cell is Suit's and Web Map's to state, OQ-BS-32)"
+      output: "design-time; reference line lit 1278 ticks (21.3 s) = 17 permille of CELL_S, 56 sorties per cell (28 to 112 across CELL_S 600 to 2400); a 300 s survey sortie = 250 permille, 4 per cell and sorties_to_empty 4 (campaign reading: the cell empties in about four survey sorties between refills; no choice strands the player because the dock console is lit by the pod's status glow, BS-19; the player refills with top_up, goes dark or spends sticks); a 28,800-tick safe sortie = 400 permille, 2 per cell"
     # was: output range 1 to about 56 and lit_ticks bound 18,000 before 2026-10-27 (design review)
     added: 2026-10-26
     revised: 2026-10-27
@@ -5265,10 +5398,11 @@ formulas:
       - design/gdd/adaptive-audio-and-tells.md
       - design/gdd/debug-overlay-true-values.md
     attributes:
-      expression: "g(d) = clamp((d - LEAK_EPS_DEG)/(LEAK_D_FULL_DEG - LEAK_EPS_DEG), 0, 1); ACTIVE: amp = AMP_FLOOR_PM + (AMP_MAX_PM - AMP_FLOOR_PM)*g(disc); RETURN (one rule for every disc_end): amp(t+dt) = min(amp(t), AMP_MAX_PM, max(amp_cand, amp(t) - R_AMP*dt)), amp_cand = amp_end*min(1, g(disc)/g(disc_end)) (0 if g(disc_end) = 0), R_AMP = AMP_FLOOR_PM/LEAK_FADE_S; static-pair and STALE BREATH form: amp = AMP_FLOOR_PM + (AMP_MAX_PM - AMP_FLOOR_PM)*g(nu)*breath01(phi); CLEAR = later of disc < LEAK_EPS_DEG, amp = 0, t_ret >= WANDER_BLEND_S"
+      expression: "g(d) = clamp((d - LEAK_EPS_DEG)/(LEAK_D_FULL_DEG - LEAK_EPS_DEG), 0, 1); ACTIVE: amp = floor_eff + (AMP_MAX_PM - floor_eff)*g(disc), floor_eff = AMP_FLOOR_PM - (AMP_FLOOR_PM - AMP_FLOOR_S3_PM)*r_FLOOR (400/325/250 at stages 0-1/2/3); RETURN (one rule for every disc_end): amp(t+dt) = min(amp(t), AMP_MAX_PM, max(amp_cand, amp(t) - R_AMP*dt)), amp_cand = amp_end*min(1, g(disc)/g(disc_end)) (0 if g(disc_end) = 0), R_AMP = floor_eff(t_removal)/LEAK_FADE_S latched at removal; static-pair and STALE BREATH form: amp = floor_eff + (AMP_MAX_PM - floor_eff)*g(nu)*breath01(phi); CLEAR = later of disc < LEAK_EPS_DEG, amp = 0, t_ret >= WANDER_BLEND_S"
     # was: RETURN amp = amp_end*g(disc)/g(disc_end), with a separate linear fade over LEAK_FADE_S when disc_end <= 2*LEAK_EPS_DEG, no BREATH form before 2026-10-27 (design review)
-      variables: "AMP_FLOOR_PM 400, AMP_MAX_PM 1000, LEAK_EPS_DEG 0.25, LEAK_D_FULL_DEG 20, LEAK_FADE_S 1.5, coupling AMP_FLOOR_PM <= 343*LEAK_FADE_S"
-      output: "amp per mille 400..1000 while ACTIVE, monotone non-increasing in RETURN, 0 at CLEAR; identical for EXPIRED, INVALIDATED and DEBUNKED; also the SOUND LEVEL (D.15)"
+    # was: ACTIVE amp = AMP_FLOOR_PM + (AMP_MAX_PM - AMP_FLOOR_PM)*g(disc), R_AMP = AMP_FLOOR_PM/LEAK_FADE_S, single floor at every stage before 2026-10-27 (user ruling X11/D74)
+      variables: "AMP_FLOOR_PM 400, AMP_FLOOR_S3_PM 250, AMP_MAX_PM 1000, LEAK_EPS_DEG 0.25, LEAK_D_FULL_DEG 20, LEAK_FADE_S 1.5, coupling AMP_FLOOR_PM <= 343*LEAK_FADE_S"
+      output: "amp per mille floor_eff (250..400) up to 1000 while ACTIVE, monotone non-increasing in RETURN, 0 at CLEAR; identical for EXPIRED, INVALIDATED and DEBUNKED; also the SOUND LEVEL (D.15)"
     added: 2026-10-26
     revised: 2026-10-27
     # D.5, D.6, D.15. Peak channel bounded by LEAK_MAX_CH := DECOY_MAX_CH (0.85) and 0.9 x GLOW_HDR_THRESHOLD
@@ -5280,13 +5414,14 @@ formulas:
       - design/gdd/sanity-and-hallucination-rules.md
       - design/gdd/pixel-perfect-render-pipeline-camera.md
     attributes:
-      expression: "target_e = GAIN_e[stage]/1000; r_e(t+dt) = r_e(t) + clamp(target_e - r_e(t), -rate_s*dt, +rate_s*dt), rate_s = |target_e - r_e(t_s)| / STAGE_RAMP_S latched at each target change t_s (stage step or reversal), on present_time; hard_start: r_e := target_e; effective_amplitude = r_e x amplitude_e"
-      variables: "RIM_STAGE_GAIN_PM [0,0,600,1000], BLEED_STAGE_GAIN_PM [0,0,0,1000], STAGE_RAMP_S 8, TELL_RAMP_S 8; floor = max(ramp_min, BREATH_MAX_MS/1000 + RAMP_BREATH_MARGIN_S) = max(3.91, 6.5)"
+      expression: "target_e = gate_e x GAIN_e[stage]/1000 (gate_RIM = 1 in LIE_BOUND only while a reach lie is ACTIVE for the viewer; gate_BLEED = AMBIENT_FRINGES_ENABLED; gate = 1 for FLOOR and OUTLINE); r_e(t+dt) = r_e(t) + clamp(target_e - r_e(t), -rate_s*dt, +rate_s*dt), rate_s = |target_e - r_e(t_s)| / STAGE_RAMP_S latched at each target change t_s (stage step or reversal), on present_time; hard_start: r_e := target_e; effective_amplitude = r_e x amplitude_e"
+      variables: "RIM_STAGE_GAIN_PM [0,0,600,1000], BLEED_STAGE_GAIN_PM [0,0,0,1000], GAIN_FLOOR (FLOOR_STAGE_GAIN_PM) [0,0,500,1000], STAGE_RAMP_S 8, TELL_RAMP_S 8; floor = max(ramp_min, BREATH_MAX_MS/1000 + RAMP_BREATH_MARGIN_S) = max(3.91, 6.5)"
       output: "r_e in [0,1], monotone between reversals, never a pulse, no flash pair; every transition (0->0.6, 0.6->1.0, any reversal) lasts exactly STAGE_RAMP_S; slope <= 1/STAGE_RAMP_S"
     added: 2026-10-26
     revised: 2026-10-27
     # D.7, D.11; stage count confirmed 0..3 (answers PIPE:1048 and PC:1092). Hard start on the first RUNNING frame and on force_stage/force_level (no clean frame)
     # was: fixed clamp -dt/STAGE_RAMP_S..+dt/STAGE_RAMP_S before 2026-10-27 (consistency pass)
+    # 2026-10-27 (user rulings X11/D74/D75/D76): the D.7 envelope family now includes the FLOOR effect (GAIN_FLOOR [0, 0, 500, 1000]); the RIM target is gated by gate_RIM (RIM_MODE, LIE_BOUND default) and the BLEED target by AMBIENT_FRINGES_ENABLED (false default)
 
   - name: presentation_hash
     status: active
@@ -5389,12 +5524,13 @@ formulas:
     referenced_by:
       - design/gdd/life-support-graph.md
     attributes:
-      expression: silent if iota == 0 only for flow-fraction descriptors (LEAK, hole-area BREACH flow, AIRFLOW, SEVERED, SEAL_STRAIN in its GAS/CREAK branch only; the HEAT/TICK branch is driven by sev like the no-intensity_pm modes); for the mode-5 STRUCT pre-stage and the nine ids without intensity_pm (SHORT, OVERLOAD, OVERHEAT, SCRAM, FREEZE, ATMO_COLD/HOT/THIN/DECOMP) L_w(sev) = G_SEV1_FLOOR_DB + (WIT_CEIL_DB - G_SEV1_FLOOR_DB) * (sev - 1) / 3, never silent while sev >= 1 and medium != NONE; else L_w = G_SEV1_FLOOR_DB + (WIT_CEIL_DB - G_SEV1_FLOOR_DB) * (iota - 1) / 999; floors relation in two clauses, a data load that violates either is refused, (i) budget FLOOR_BUDGET_DB = G_SEV1_FLOOR_DB - WIT_AUDIBLE_FLOOR_DB - TRANSMISSION_MAX_DB - FLOOR_RELATION_MARGIN_DB >= 0 and WIT_AUDIBLE_FLOOR_DB >= AUDIBLE_CULL_DB, (ii) per class c R_AUDIBLE_PX[c] <= R_AUDIBLE_MAX_PX = NEAR_PX + TILE_PX * FLOOR_BUDGET_DB / FALLOFF_DB_PER_TILE (equivalently G_SEV1_FLOOR_DB - (FALLOFF_DB_PER_TILE * max(0, R_AUDIBLE_PX[c] - NEAR_PX) / TILE_PX + TRANSMISSION_MAX_DB) >= WIT_AUDIBLE_FLOOR_DB + FLOOR_RELATION_MARGIN_DB); DRIP, TICK and CREAK events start by a hash-predicate recurrence (M_c = floor(TICK_RATE / rate_hz), G_c = floor(M_c / 2)), never a countdown
+      expression: silent if iota == 0 only for flow-fraction descriptors (LEAK, hole-area BREACH flow, AIRFLOW, SEVERED, SEAL_STRAIN in its GAS/CREAK branch only; the HEAT/TICK branch is driven by sev like the no-intensity_pm modes); for the mode-5 STRUCT pre-stage and the nine ids without intensity_pm (SHORT, OVERLOAD, OVERHEAT, SCRAM, FREEZE, ATMO_COLD/HOT/THIN/DECOMP) L_w(sev) = G_SEV1_FLOOR_DB + (WIT_CEIL_DB - G_SEV1_FLOOR_DB) * (sev - 1) / 3, never silent while sev >= 1 and medium != NONE; else L_w = G_SEV1_FLOOR_DB + (WIT_CEIL_DB - G_SEV1_FLOOR_DB) * (iota - 1) / 999; floors relation in two clauses, a data load that violates either is refused, (i) budget FLOOR_BUDGET_DB = G_SEV1_FLOOR_DB - WIT_AUDIBLE_FLOOR_DB - TRANSMISSION_MAX_DB - FLOOR_RELATION_MARGIN_DB >= 0 and WIT_AUDIBLE_FLOOR_DB >= AUDIBLE_CULL_DB, (ii) per class c R_AUDIBLE_PX[c] <= R_AUDIBLE_MAX_PX = floor(NEAR_PX * 2^(FLOOR_BUDGET_DB / DIST_SLOPE_DB)) = 609 at the defaults (equivalently G_SEV1_FLOOR_DB - (DIST_SLOPE_DB * log2(max(R_AUDIBLE_PX[c], NEAR_PX) / NEAR_PX) + TRANSMISSION_MAX_DB) >= WIT_AUDIBLE_FLOOR_DB + FLOOR_RELATION_MARGIN_DB); DRIP, TICK and CREAK events start by a hash-predicate recurrence (M_c = floor(TICK_RATE / rate_hz), G_c = floor(M_c / 2)), never a countdown
     # was: single-clause floors relation G_SEV1_FLOOR_DB - (FALLOFF_DB_PER_TILE * max(0, R_AUDIBLE_PX[c] - NEAR_PX) / TILE_PX + TRANSMISSION_MAX_DB) >= WIT_AUDIBLE_FLOOR_DB >= AUDIBLE_CULL_DB before 2026-10-27 (design review)
     # was: flow-fraction list "(LEAK, hole-area BREACH flow, AIRFLOW, SEVERED, SEAL_STRAIN)" with no SEAL_STRAIN branch qualifier before 2026-10-27 (consistency pass)
-      variables: iota 0..1000, G_SEV1_FLOOR_DB -21 (L_w(sev) = -21/-17/-13/-9 for sev 1 to 4), WIT_CEIL_DB -9, WIT_AUDIBLE_FLOOR_DB -54, AUDIBLE_CULL_DB -56, NEAR_PX 96, FALLOFF_DB_PER_TILE 3, TRANSMISSION_MAX_DB 18, FLOOR_RELATION_MARGIN_DB 3 (FLOOR_BUDGET_DB 12 at the defaults)
+      variables: iota 0..1000, G_SEV1_FLOOR_DB -21 (L_w(sev) = -21/-17/-13/-9 for sev 1 to 4), WIT_CEIL_DB -9, WIT_AUDIBLE_FLOOR_DB -54, AUDIBLE_CULL_DB -56, NEAR_PX 96, DIST_SLOPE_DB 4.5 (replaces FALLOFF_DB_PER_TILE 3), TRANSMISSION_MAX_DB 18, FLOOR_RELATION_MARGIN_DB 3 (FLOOR_BUDGET_DB 12 at the defaults); class radii R_AUDIBLE_PX 576, 576, 576, 576, 480, 384, 288, 288 (HISS, WIND, HUM_DROP, CLANK, CREAK, SIZZLE, DRIP, TICK)
     # was: G_SEV1_FLOOR_DB -24 and no FLOOR_RELATION_MARGIN_DB before 2026-10-27 (design review)
-      output: R_AUDIBLE_MAX_PX 288; a sev >= 1 witness inside its class radius is never culled and never removed by geometry (LSG:1110); R_AUDIBLE_MAX_PX stays 288 (96 + 48 * 12 / 3); the HISS radius 288 gives -51, 3 dB above WIT_AUDIBLE_FLOOR_DB
+    # was: ceiling R_AUDIBLE_MAX_PX = NEAR_PX + TILE_PX * FLOOR_BUDGET_DB / FALLOFF_DB_PER_TILE = 288 (96 + 48 * 12 / 3), and the HISS radius 288 giving -51 before 2026-10-27 (user rulings)
+      output: R_AUDIBLE_MAX_PX 609 (was 288); a sev >= 1 witness inside its class radius is never culled and never removed by geometry (LSG:1110); the HISS radius 576 gives -50.63, 0.37 dB over the required -51 (WIT_AUDIBLE_FLOOR_DB + FLOOR_RELATION_MARGIN_DB)
     added: 2026-10-26
     revised: 2026-10-27
   - name: transmission_attenuation
@@ -5403,8 +5539,9 @@ formulas:
     referenced_by:
       - design/gdd/life-support-graph.md
     attributes:
-      expression: A_d = FALLOFF_DB_PER_TILE * max(0, d - NEAR_PX) / TILE_PX; open_pm(e) = clamp(floor(1000 * area / area_max), 0, 1000), and 1000 for an unknown door state; A_air = DOOR_ATTEN_DB * sum((1000 - open_pm)/1000) + HULL_ATTEN_DB * sum over hull boundaries b of (1000 - hole_pm(b))/1000, with hole_pm(b) = max over hole openings e on b of open_pm(e) and 0 where b has no hole (an intact hull costs the full HULL_ATTEN_DB, a fully open hole 0 dB); A_str = HULL_ATTEN_DB * STRUCT_FACTOR_PM / 1000 * sum over hull boundaries b of (1000 - hole_pm(b))/1000; A_t = clamp(min over room-graph paths of A_class(P), 0, TRANSMISSION_MAX_DB); L = L_src - A_d - A_t
-      variables: DOOR_ATTEN_DB 9, HULL_ATTEN_DB 15, STRUCT_FACTOR_PM 250, TRANSMISSION_MAX_DB 18, area and area_max from the Graph opening(edge_id) read (published, LSG:206), unknown door counts as open
+      expression: "A_d = DIST_SLOPE_DB * log2(max(d, NEAR_PX) / NEAR_PX); open_pm(e) = clamp(floor(1000 * area / area_max), 0, 1000), and 1000 for an unknown door state; A_air = DOOR_ATTEN_DB * sum((1000 - open_pm)/1000) + HULL_ATTEN_DB * sum over hull boundaries b of (1000 - hole_pm(b))/1000, with hole_pm(b) = max over hole openings e on b of open_pm(e) and 0 where b has no hole (an intact hull costs the full HULL_ATTEN_DB, a fully open hole 0 dB); A_str = HULL_ATTEN_DB * STRUCT_FACTOR_PM / 1000 * sum over hull boundaries b of (1000 - hole_pm(b))/1000; A_t = clamp(min over room-graph paths of A_class(P), 0, TRANSMISSION_MAX_DB); L = L_src - A_d - A_t; for a running loop (D.7 audible) with d <= R_RUN_AUDIBLE_PX: L := max(L, RUN_AUDIBLE_FLOOR_DB), applied after the D.7 set is ranked"
+    # was: A_d = FALLOFF_DB_PER_TILE * max(0, d - NEAR_PX) / TILE_PX (3 dB per tile, linear) and no running-loop floor before 2026-10-27 (user rulings)
+      variables: DIST_SLOPE_DB 4.5 dB per doubling (range 3 to 6, replaces FALLOFF_DB_PER_TILE), RUN_AUDIBLE_FLOOR_DB -54, R_RUN_AUDIBLE_PX 576, NEAR_PX 96, DOOR_ATTEN_DB 9, HULL_ATTEN_DB 15, STRUCT_FACTOR_PM 250, TRANSMISSION_MAX_DB 18, area and area_max from the Graph opening(edge_id) read (published, LSG:206), unknown door counts as open
       output: A_t in 0..18 dB; the tell bed is exempt; no zoom or camera-lead term exists; pan = clamp(dx / (PAN_SPAN_TILES * TILE_PX), -1, 1) is horizontal only, so a source's y position reaches the ear through level alone
     added: 2026-10-26
     revised: 2026-10-27
@@ -5529,10 +5666,11 @@ formulas:
       - design/gdd/life-support-graph.md
     attributes:
       expression: "dirty_load_pm(b, T) = floor(1000 * keys(b, T) / MAX_DIRTY_KEYS); an ALL collapse sets collapse(b, T) = true and dirty_load_pm = 1000"
-      variables: "keys(b, T) from the P5 batch (block_id, tick, change_keys); MAX_DIRTY_KEYS 256 (registry, never altered); DIAG_DIRTY_WARN_PM 500, DIAG_DIRTY_ALERT_PM 750 [PLACEHOLDER]"
-      output: "0..1000 per mille per (block, tick) plus an ALL flag; WARN at or above DIAG_DIRTY_WARN_PM (inclusive); an ALL collapse is WARN, never DEFECT; peak-held across the ticks folded into one refresh"
+      variables: "keys(b, T) is per delivered batch (block_id, tick, change_keys); in a catch-up frame one merged batch per block, stamped with the frame's last tick, carries the union of the frame's change keys (kernel R-12, ratified 2026-10-27); a union-induced ALL is WARN, never DEFECT; MAX_DIRTY_KEYS 256 (registry, never altered); DIAG_DIRTY_WARN_PM 500, DIAG_DIRTY_ALERT_PM 750 [PLACEHOLDER]"
+      output: "0..1000 per mille per delivered batch (not per tick) plus an ALL flag; WARN at or above DIAG_DIRTY_WARN_PM (inclusive); an ALL collapse is WARN, never DEFECT; peak-held across the batches folded into one refresh; example: 150+150 different keys -> union 300 -> ALL; 100+100 different keys -> union 200 -> 781 (WARN, pinned); 100 shared keys -> 390 (OK)"
+    # was: keys(b, T) per tick and output per (block, tick) before 2026-10-27 (user rulings); the expression is unchanged
     added: 2026-10-26
-    revised: 2026-10-26
+    revised: 2026-10-27
     # F-4; examples 38 -> 148, 128 -> 500, 192 -> 750
   - name: queue_load_pm
     status: active
@@ -5618,13 +5756,14 @@ formulas:
       - design/gdd/interaction-system.md
       - design/gdd/pixel-perfect-render-pipeline-camera.md
     attributes:
-      expression: "admit(e,t) iff for every window end w in W(t): N(w) + [e counts in w] <= FLASH_MAX_PER_S, windows (w-TICK_RATE, w] ; honest_tick_floor_ms(u) = ceil_div(1000*BEACON_SWEEP_TICKS, FLASH_MAX_PER_S*BEACON_SWEEP_TICKS - u*TICK_RATE)"
-      variables: "u = 1 (leading-edge unit, default) or 2 (edge unit), ruled by the accessibility-specialist and the Filter (OQ-PF-12); HONEST_TICK_MS pinned 500, HONEST_GRID_TICKS 30 (= HONEST_TICK_MS * TICK_RATE div 1000); the grid is tick-anchored (a boundary at T mod HONEST_GRID_TICKS == 0) and skip-only (admitted at its own tick or skipped, never delayed); the arbiter clock is the committed tick T with windows (T - TICK_RATE, T]"
+      expression: "admit(e,t) iff for every window end w in W(t): N(w) + [e counts in w] <= FLASH_MAX_PER_S, windows (w-TICK_RATE, w] ; honest_tick_floor_ms = ceil_div(1000*BEACON_SWEEP_TICKS, FLASH_MAX_PER_S*BEACON_SWEEP_TICKS - TICK_RATE) (u fixed at 1) ; flash_weight_pm(e) = ceil_div(1000*9*area_px(e), canvas_w_int*canvas_h_int) ; exempt(e,t) = (flash_mode == WEIGHTED) AND (class(e) in {DIGIT_SWAP, PROMPT_SHOW_START}) AND (flash_weight_pm(e) + X(t) < FLASH_AREA_EXEMPT_PM) ; X(t) = sum of flash_weight_pm over the exempt events with tick in (t - TICK_RATE, t] ; an exempt event is admitted at once and added to no N(w)"
+      variables: "counting unit ruled as ceil(n_transitions/2) (user ruling D91 (ii)), u fixed at 1 and u=2 retired; flash_mode = STRICT while reduce_flashing is on, else WEIGHTED; exempt classes are digit swaps and prompt show-starts only, the Alarm Red mark is never exempt, Filter lying ticks stay counted, hides are never counted; FLASH_AREA_EXEMPT_PM 100 (cumulative guard X(t) < FLASH_AREA_EXEMPT_PM); HONEST_TICK_MS pinned 500, HONEST_GRID_TICKS 30 (= HONEST_TICK_MS * TICK_RATE div 1000); the grid is tick-anchored (a boundary at T mod HONEST_GRID_TICKS == 0) and skip-only (admitted at its own tick or skipped, never delayed); the arbiter clock is the committed tick T with windows (T - TICK_RATE, T]"
     # was: HONEST_TICK_MS 500 in [floor, 500] before 2026-10-27 (design review)
-      output: boolean; honest_tick_floor_ms 396/485 at BEACON_SWEEP_TICKS 128, 400/500 at 120, 375/429 at 180, these are the average-rate floor only (necessary, not sufficient); window feasibility is the validator rule, a 60-tick window holds ceil(60/g) boundaries (3 if g < 30, 2 if g = 30) plus the mark's counted edges (1 under u=1; at most 1 under u=2 only if ON and OFF are at least 60 ticks apart) and the total must not exceed FLASH_MAX_PER_S, so g=30 passes (2+1=3) and g=24 fails (3+1=4); HONEST_TICK_MS is pinned 500 and the validator recomputes the check at the live BEACON_SWEEP_TICKS and u; priority among HUD-owned deferrable events prompt show-start > honest grid boundary > notice show-start > lamp-glyph change; hides (counted only under u=2), mark leading edges, Filter lying ticks, source-state hue cuts and input-driven events never deferred or rescheduled
+      output: boolean; honest_tick_floor_ms 396/400/375 ms at BEACON_SWEEP_TICKS 128/120/180, these are the average-rate floor only (necessary, not sufficient); window feasibility is the validator rule, a 60-tick window holds ceil(60/g) boundaries (3 if g < 30, 2 if g = 30) plus the mark's counted edges (1, u fixed at 1) and the total must not exceed FLASH_MAX_PER_S, so g=30 passes (2+1=3) and g=24 fails (3+1=4); HONEST_TICK_MS is pinned 500 and the validator recomputes the check at the live BEACON_SWEEP_TICKS (kept as a live validator guard for the rare counted-numeral-plus-pulsing-mark case); priority among HUD-owned deferrable events prompt show-start > honest grid boundary > notice show-start > lamp-glyph change; hides (never counted), mark leading edges, Filter lying ticks, source-state hue cuts and input-driven events never deferred or rescheduled
     # was: safe HONEST_TICK_MS range 400-500 before 2026-10-27 (design review)
     added: 2026-10-26
     revised: 2026-10-27
+    # was: u = 1 or 2 (edge unit), honest_tick_floor_ms(u) 396/485, 400/500, 375/429, hides counted under u=2, no flash_mode, weighting or exempt() before 2026-10-27 (user rulings D91 (ii), (iv), D79)
     # HS-14, HS-47, D.2 revised in the design review; the 400-500 range is withdrawn (the 334 floor of Instruments' earlier draft ignores the mark)
   - name: reserve_seconds
     status: active
@@ -5976,10 +6115,11 @@ formulas:
     referenced_by: []
     attributes:
       expression: "P_bed_end = rho * P_bed with rho = BED_END_TICKS / (3 * 24) for BED_END_TICKS <= 24 (P_bed_end = BED_END_TICKS/72 * P_bed, the mean power left in the 400 ms window by a bed that fades out linearly over BED_END_TICKS); LU_step = 10 * log10((P_entry + P_bed_end + P_amb) / (P_beat + P_bed + P_amb)) must be <= BREACH_ENTRY_STEP_LU_MAX; P_entry_max = 10^(BREACH_ENTRY_STEP_LU_MAX / 10) * (P_beat + P_bed + P_amb) - (P_bed_end + P_amb); trim_dB = min(0, 10 * log10(P_entry_max / P_entry)) applied as gain on the entry event"
-      variables: "BED_END_TICKS 12 (range 6..24), BREACH_ENTRY_STEP_LU_MAX (registered), P_beat, P_bed, P_amb, P_entry (linear K-weighted powers from asset metadata), 24 ticks = the 400 ms momentary window"
+      variables: "BED_END_TICKS 12 (range 6..24), BREACH_ENTRY_STEP_LU_MAX (registered), P_beat, P_bed (the tier 1, 2 and 3 bed states, because the escalation can freeze before tier 2), P_amb, P_entry (linear K-weighted powers from asset metadata), 24 ticks = the 400 ms momentary window"
       output: "trim_dB is 0 or negative; worked example P_bed 1.0, P_amb 0.1, P_beat 2.0, P_entry 5.0, BED_END_TICKS 12 gives rho 0.167 and LU_step 2.30 LU (inside 8); P_entry 25 gives LU_step 9.11 and trim_dB -1.13"
     added: 2026-10-27
     revised: 2026-10-27
+    # was: P_bed bed states evaluated were tier 2 or 3 before 2026-10-27 (user rulings, X4 / D88 / D48)
     # [PLACEHOLDER] evaluated offline per (beat, bed, entry) triple by lint L-11
   - name: bed_ducking
     status: active
@@ -6030,11 +6170,12 @@ formulas:
     source: design/gdd/adaptive-audio-and-tells.md
     referenced_by: []
     attributes:
-      expression: "dBr 0 = DBR0_DBFS dBFS; L_room = 10 * log10(10^(INTEGRITY_TONE_DB/10) + 10^(AMB_TONE_DB/10) + 10^(SUIT_FAN_CEIL_DB/10)); R-a (refused) for every class c G_SEV1_FLOOR_DB - A_d(R_AUDIBLE_PX[c]) >= L_room + AUDIBILITY_MARGIN_DB; R-b (diagnostic) RUN_FLOOR_DB >= L_room + AUDIBILITY_MARGIN_DB - TONAL_ADVANTAGE_DB; R-c (diagnostic) HAL_CEIL_DB <= G_SEV1_FLOOR_DB + HAL_OVER_TRUE_MAX_DB; R-d (refused) BEAT_REF_DB >= FOOT_REF_DB + FOOT_RUN_DELTA_DB - FOOT_BED_BAND_REJECT_DB + AUDIBILITY_MARGIN_DB and BEAT_REF_DB >= L_nc,b + AUDIBILITY_MARGIN_DB for each bed band; R-e (refused) DBR0_DBFS + 10 * log10(sum over PEAK_SET of 10^(PEAK_DB[i]/10)) <= PEAK_BUDGET_DBFS; R-f (footfall masking) is recorded, not relaxed"
+      expression: "dBr 0 = DBR0_DBFS dBFS; L_room = 10 * log10(10^(INTEGRITY_TONE_DB/10) + 10^(AMB_TONE_DB/10) + 10^(SUIT_FAN_CEIL_DB/10)); R-a (refused) for every class c G_SEV1_FLOOR_DB - A_d(R_AUDIBLE_PX[c]) >= L_room + AUDIBILITY_MARGIN_DB; R-b (diagnostic) RUN_FLOOR_DB >= L_room + AUDIBILITY_MARGIN_DB - TONAL_ADVANTAGE_DB; R-c (diagnostic) HAL_CEIL_DB <= G_SEV1_FLOOR_DB + HAL_OVER_TRUE_MAX_DB; R-d (refused) BEAT_REF_DB >= FOOT_REF_DB + FOOT_RUN_DELTA_DB - FOOT_BED_BAND_REJECT_DB + AUDIBILITY_MARGIN_DB and BEAT_REF_DB >= L_nc,b + AUDIBILITY_MARGIN_DB for each bed band; R-e (refused) DBR0_DBFS + 10 * log10(sum over PEAK_SET of 10^(PEAK_DB[i]/10)) <= PEAK_BUDGET_DBFS; R-f (footfall masking) is recorded, not relaxed; R-g (diagnostic) RUN_AUDIBLE_FLOOR_DB >= L_room + AUDIBILITY_MARGIN_DB - TONAL_ADVANTAGE_DB; R-h (refused) ANN_PEAK_DB - ANN_STEPDOWN_DB >= L_room + AUDIBILITY_MARGIN_DB"
       variables: "DBR0_DBFS -9, AUDIBILITY_MARGIN_DB 3, TONAL_ADVANTAGE_DB 6, HAL_OVER_TRUE_MAX_DB 9, BEAT_REF_DB -9, FOOT_BED_BAND_REJECT_DB 12, PEAK_BUDGET_DBFS -3, ANN_PEAK_DB -6, HOR_PEAK_DB -6, SUIT_PEAK_DB -12, INTEGRITY_TONE_DB -44, RUN_FLOOR_DB -42, G_SEV1_FLOOR_DB -21, HAL_CEIL_DB -18; PEAK_SET = one breach entry at BEAT_REF_DB + BREACH_ENTRY_STEP_LU_MAX, one ann pulse, one RUN footfall, WIT_VOICE_CAP witnesses at WIT_CEIL_DB, one Horror strike, SUIT_VOICE_CAP Suit cues, one hal voice, the D.6 sustained set"
-      output: "at the defaults R-a holds with 3.23 dB spare, R-b 0.23 dB, R-c 6 dB, R-d 3.00 dB, R-e 0.95 dB (peak sum +5.05 dBr, -3.95 dBFS); the first-draft values (room tone -38, G_SEV1_FLOOR_DB -24, RUN_FLOOR_DB -45) fail R-a by 2.8 dB and R-b by 5.8 dB"
+      output: "at the defaults R-a holds with 3.60 dB spare (A_d(576) = 11.63), R-b 0.23 dB, R-c 6 dB, R-d 3.00 dB, R-e 0.95 dB (peak sum +5.05 dBr, -3.95 dBFS), R-g expected 11.77 dB short at the placeholders (DIAGNOSTIC), R-h 24.23 dB spare; the first-draft values (room tone -38, G_SEV1_FLOOR_DB -24, RUN_FLOOR_DB -45) fail R-a by 2.8 dB and R-b by 5.8 dB"
     added: 2026-10-27
     revised: 2026-10-27
+    # was: R-a spare 3.23 dB (linear A_d at 288 px) and relations R-a to R-f only before 2026-10-27 (user rulings: R-g, R-h added)
     # [PLACEHOLDER] paper values until the listening pass (OQ-AA-35); same-band worst case at MVP
   - name: warmth_band_index
     status: active
@@ -6090,13 +6231,15 @@ formulas:
   - name: ragged_breach_open
     status: active
     source: design/gdd/modular-ship-assembly.md
-    referenced_by: []
+    referenced_by:
+      - design/gdd/save-load-and-versioned-format.md
     attributes:
       expression: "ragged_breach_open() = true iff some CUT seam with boundary RAGGED still has an uncapped open_end (count from the Graph's seam_view, ASK G10)"
       variables: "Layout welds[] rows (state CUT, boundary RAGGED), Graph seam_view uncapped open_end count"
       output: "boolean pure read; Save/Load withholds the ASSEMBLY_CUT event while it is true and treats it as an interval-save soft-gate row (ASK S1(b))"
     added: 2026-10-27
-    # Pure-read candidate (MSA-33, AC-MSA-76, AC-MSA-130). Consumer Save/Load does not cite the name yet
+    revised: 2026-10-27
+    # Pure-read candidate (MSA-33, AC-MSA-76, AC-MSA-130). Withhold and interval soft-gate row adopted by user ruling X7 / D54; save-load-and-versioned-format.md now cites the name (SL-4, soft-gate row (d)) and is listed in referenced_by
   - name: fault_loss_window
     status: active
     source: design/gdd/modular-ship-assembly.md
@@ -6106,7 +6249,88 @@ formulas:
       variables: "AUTOSAVE_INTERVAL_TICKS 10800, AUTOSAVE_MAX_DEFER_TICKS 7200 (Save/Load, cited), T_fault, last_save_T (int64 ticks)"
       output: "0..18000 ticks (5 minutes) at the ceiling; mean about 5400 and maximum 10800 ticks without a soft gate; fixture AC-MSA-148 asserts 17999"
     added: 2026-10-27
+    revised: 2026-10-27
+    # figures accepted by user ruling D55 (mean ~5400, max 10800, ceiling 18000); event saves ship in the MVP (D17) and can only shorten it. Expression and values unchanged
     # D.16; distinct from Save/Load's loss_ticks (T_dead - T_g, the death rule). The earlier '10800 typical' is relabelled: 10800 is a maximum, the mean is about 5400 (design review R10)
+  - name: lag_forgiveness
+    status: active
+    source: design/gdd/command-simulation-layer.md
+    referenced_by:
+      - design/gdd/life-support-graph.md
+    attributes:
+      expression: "lag_ticks = floor(acc / TICK_UNITS) after the frame's ticks; if lag_ticks > LAG_FORGIVE_TICKS then dropped = lag_ticks, acc <- acc mod TICK_UNITS, lag_ticks <- 0"
+      variables: lag_ticks (int), acc (int, tick accumulator), TICK_UNITS (int), LAG_FORGIVE_TICKS (int, default 0)
+      output: "at the default 0, lag_ticks == 0 after every frame and simulated_time_lag_s == 0 (forgiveness fires on every frame that ends with at least one whole tick of lag; no sub-threshold repay); in general lag_ticks is 0..LAG_FORGIVE_TICKS after a frame"
+    added: 2026-10-27
+    # Kernel D.5 (tick driver). Expression unchanged; the default and range outputs changed by ruling D2 (user, 2026-10-27, X13), LAG_FORGIVE_TICKS 30 -> 0. The sub-tick remainder is kept so tick_alpha stays continuous.
+  - name: bead_segments
+    status: active
+    source: design/gdd/interaction-system.md
+    referenced_by: []
+    attributes:
+      expression: bead_segments(h) = clamp(1 + floor(2 * (h - LEAK_HP) / (PATCH_CAP_BP - LEAK_HP)), 1, 3)
+      variables: "h (int bp, true banked hp when a patch ends, completed or cancelled, 4000..6000); LEAK_HP 4000; PATCH_CAP_BP 6000; PATCH_DECAY_S 240; wear 10 bp/s after the hold (Graph LS-23)"
+      output: "1..3 segments (re-leak after about 240 / 340 / 440 s); read by the module presenter for a WORN subject, never by Interaction validate"
+    added: 2026-10-27
+    # D39 (Tier 2, pending user confirmation): interaction-system.md D.1b; drawn as the Failure & Trail FT-32 bead
+  - name: coolant_wet_run
+    status: active
+    source: design/gdd/failure-and-trail-system.md
+    referenced_by: []
+    attributes:
+      expression: "frost_px = min(trail_extent_px, frost_reach(T)); n_frost = max(1, n_cover(frost_px)); frost_end_px = start(n_frost); n_wet = ceil(max(0, trail_extent_px - frost_end_px) / WET_PITCH_PX); wet piece j (0..n_wet - 1) at o_j = frost_end_px + WET_PITCH_PX x j; L = (WET_SRC_PX - WET_MIN_PX) / 2 + 1; lvl_j = min(L - 1, floor(o_j x L / edge_len_px)); wet_w_j = WET_SRC_PX - 2 x lvl_j"
+      variables: "trail_extent_px 48..edge_len_px (D.2, age bound only for 1 LEAK/COOLANT), frost_reach(T) 0..1152, n_cover and start (D.1), edge_len_px 48..TRAIL_EDGE_MAX_PX (Layout), WET_SRC_PX 8 [PLACEHOLDER] (6-12, even), WET_MIN_PX 2 (fixed), WET_PITCH_PX 48 (fixed, = STAMP_PX[1]), L 3-6"
+      output: "wet_w_j in {2, 4, 6, 8} at the defaults (even, WET_MIN_PX..WET_SRC_PX), monotone non-increasing in o_j; n_wet 0 while the extent is within the head frost stamp; a piece's width never changes as the trail grows (keyed to edge_len_px, not the extent); worked values: 288 px edge widths 8, 8, 6, 6, 4, 4, 2, 2 at offsets 0, 71, 72, 143, 144, 215, 216, 287 (AC-176)"
+    added: 2026-10-27
+    # user ruling D26 Option A (temperature-independent coolant wet run); GDD section D.2d, FT-11
+    # Budget: wet pieces replace frost slots one for one (n_frost + n_wet <= ceil(extent / 48)), see trail_budget_at_k
+  - name: pod_console_glow
+    status: active
+    source: design/gdd/web-map-and-transit.md
+    referenced_by: []
+    attributes:
+      expression: "E_glow(r) = GLOW_PEAK_PM at r = 0 and E_glow(r) = 0 for r >= R_GLOW_PX (finite support; the falloff between is Emitter State's); c1: E_glow(0) >= LIT_ON_PM + GLOW_LINT_MARGIN_PM; c2: E_glow(r_arr) < LIT_OFF_PM, guaranteed structurally by R_GLOW_PX <= r_arr; c3: GLOW_PEAK_PM is below the visible-unknown (residual) lamp's peak by the art-director's separation margin, and the glow is not Tungsten; c4: registered(glow) <=> (pod_at == dock_record) (WM-33)"
+      variables: "GLOW_PEAK_PM 200 permille [PLACEHOLDER]; GLOW_LINT_MARGIN_PM 50 permille [PLACEHOLDER]; R_GLOW_PX 24 base px [PLACEHOLDER]; LIT_ON_PM 150 and LIT_OFF_PM 120 (Emitter State, cited); r_arr (arrival-cell distance, 24 px at the nearest authored layout)"
+      output: "design-time lint (AC-WM-127); the console is lit by the glow alone at the console anchor (E_glow(0) 200 >= 150 + 50) and the arrival cell stays dark (E_glow(24) = 0 < 120); the dark-dock strand (BS-19) is unreachable without lighting the dock room"
+    added: 2026-10-27
+    # D.15, WM-8b, user ruling OQ-WM-39 Option B (X2). The glow's falloff law and Attention eligibility are Emitter State's; consumer hint (GDD exists, does not cite this name yet): design/gdd/emitter-state-and-light-exposure-query.md
+  - name: carry_burden_intake
+    status: active
+    source: design/gdd/attention-system.md
+    referenced_by:
+      - design/gdd/player-controller-input.md
+      - design/gdd/boarding-and-salvage.md
+    attributes:
+      expression: "I_burden(tick) = U_BURDEN x 1000 if carry_ref != none else 0 (mAU per tick), pushed per tick by the Controller as class BURDEN; constraints K1 the tell opens between pickup and console, K2 carry remaining at onset > TELL_DRAW_LO, K3 standing still with the cargo held still crosses theta, K4 the cut and carry supply the headroom (90 percent on the golden schedule), K5 abortable (drop zeroes the burden, so F-15 and F-15b keep their inputs)"
+      variables: "U_BURDEN 7; carry_ref (the Controller's carried HEAVY item or none); TELL_DRAW_LO 900; theta ATT_THRESHOLD 6000 x 1000 mAU; L_CEIL 1.02 theta"
+      output: "7,000 mAU per tick while a HEAVY item is carried; at U_BURDEN 7 and Lc 1344 one carry run adds 54,324 mAU, the level reaches theta on the 72nd run (432 ticks in); standing still with the cargo held crosses 510 ticks after pickup"
+    added: 2026-10-27
+    revised: 2026-10-27
+    # F-26 in design/gdd/attention-system.md; user ruling X3 (calibration route for OQ-AT-27)
+  - name: carry_decision
+    status: active
+    source: design/gdd/attention-system.md
+    referenced_by:
+      - design/gdd/derelict-authoring-handmade-kits.md
+      - design/gdd/boarding-and-salvage.md
+    attributes:
+      expression: "IR-4: for the reference derelict's Lc, K1 (the tell opens between pickup and console) and K2 (carry remaining at onset > TELL_DRAW_LO) hold on the lit golden schedule, else ATT_CARRY_NOT_LIVE; a CI data-lint over assets/data/attention/intake.json and the reference derelict's Lc"
+      variables: "U_BURDEN 7 (range 7..10); Lc 1344 (28 tiles, carry starts at schedule tick 624); TELL_DRAW_LO 900"
+      output: "at U_BURDEN 7 and Lc 1,344 the tell opens 432 ticks into the carry with remaining 912 (12 ticks of slack); negative fixtures Lc 1,008 (remaining 576) and U_BURDEN 6 at Lc 1,344 (remaining 834) raise ATT_CARRY_NOT_LIVE; K2 needs Lc >= 1,333 at U_BURDEN 7"
+    added: 2026-10-27
+    revised: 2026-10-27
+    # IR-4 of noise_unit_relations; the reference carry length is Derelict Authoring's pick, not Attention's (F-26)
+  - name: ann_stepdown
+    status: active
+    source: design/gdd/adaptive-audio-and-tells.md
+    referenced_by: []
+    attributes:
+      expression: "ann_trim_db(T_p) = -ANN_STEPDOWN_DB if floor((T_p - T_e) / BEACON_SWEEP_TICKS) >= ANN_STEPDOWN_SWEEPS else 0, sampled once at the start tick T_p of each ann pulse and held for that pulse; T_e is the latest reset event (the eligible set becomes non-empty, gains a member, or its max sev rises; T_e := T_restore on a restore); relation R-h: ANN_PEAK_DB - ANN_STEPDOWN_DB >= L_room + AUDIBILITY_MARGIN_DB"
+      variables: "ANN_STEPDOWN_SWEEPS 8 (range 4..24), ANN_STEPDOWN_DB 6 (range 3..12, bounded by R-h), BEACON_SWEEP_TICKS 128 (cited), ALARM_SEV_MIN (cited), T_e tick"
+      output: "ann_trim_db is 0 or -ANN_STEPDOWN_DB; rhythm, count and timing untouched (a level policy, not a suppression); R-h at the defaults -12 >= -36.23, 24.23 dB spare; pulse at T_p 1152 after T_e 40 plays at -6 dB"
+    added: 2026-10-27
+    revised: 2026-10-27
+    # [PLACEHOLDER] X12 / D87 (b), user ruling: klaxon step-down; D.20 of the source GDD
 
 constants:
 
@@ -6181,6 +6405,7 @@ constants:
     added: 2026-10-26
     revised: 2026-10-26
     # No run while carrying
+    # Unchanged by D18 (any stowed HEAVY item disables run via heavy_stowed; the carry rule and this value are untouched), 2026-10-27
     # Invariant 3 is now strict: v_carry < v_walk < v_run, all integer px/tick (design review 2026-10-27, no value change)
   - name: AIM_UNITS
     status: active
@@ -6275,12 +6500,15 @@ constants:
       - design/gdd/interaction-system.md
       - design/gdd/chart-table-web-map-and-menus.md
       - design/gdd/hud-and-suit-layer.md
+      - design/gdd/save-load-and-versioned-format.md
     attributes:
       value: 0.8
       unit: s
+      range: 0.6-1.9
     added: 2026-10-26
-    revised: 2026-10-26
-    # Hold-to-confirm on the linear bar; range 0.6-1.2; two-tap option
+    revised: 2026-10-27
+    # was: range 0.6-1.2 before 2026-10-27 (user rulings: X10)
+    # Hold-to-confirm on the linear bar; two-tap option. The value is the player-adjustable BASE hold (default 0.8 s); the effective hold is H_v = min(m_v * base, HOLD_EFF_MAX_S), m_v 1 for every verb except slot Delete (2x, 1.6 s at the default). The D80/D81 part (adjustable hold, Delete 2x) is a default applied 2026-10-27, pending user confirmation
   - name: STAGGER_TICKS
     status: active
     source: design/gdd/player-controller-input.md
@@ -6313,7 +6541,7 @@ constants:
       unit: ticks (30 s)
     added: 2026-10-26
     revised: 2026-10-26
-    # Solo MVP placeholder
+    # Solo MVP placeholder. Solo recovery window and VS-B revive window; the solo player may end it early with give_up (PCI PC-1, D7, user rulings 2026-10-27). GIVE_UP_MIN_TICKS (48) is now the floor of T_dead - T_downed, so loss_ticks (the death-loss window, owner Save/Load) takes loss_min = GIVE_UP_MIN_TICKS + 1; DOWN_TO_DEATH_TICKS + 1 survives only as loss_min_timer. Value unchanged.
   - name: NOISE_PER_TICK
     status: active
     source: design/gdd/player-controller-input.md
@@ -6331,6 +6559,7 @@ constants:
       unit: "AU per moving tick (1 AU = one walking tick), keyed by push_stimulus class WALK / RUN / CARRY"
     # was: unit 'Attention stimulus units (placeholder)' (values unchanged) before 2026-10-27 (consistency pass)
       note: "pushed by hook controller.noise after body.integrate (PCI PC-15, D.13)"
+    # Unchanged by D18 (heavy_stowed only gates the RUN class; the WALK/RUN/CARRY values are untouched), 2026-10-27
     added: 2026-10-26
     revised: 2026-10-27
     # The Controller owns the gait table; Attention's intake maps each push_stimulus class to it (PCI D.13 L560)
@@ -6416,6 +6645,7 @@ constants:
     revised: 2026-10-27
     # Range 48-75 at the default field (V_RUN 3; inner-box invariant binds at 75.6); L_MAX_eff = LOOKAHEAD_PX * s at other ladder steps
     # was: Range 48-120 before 2026-10-27 (consistency pass)
+    # note 2026-10-27 (D6): L_MAX_eff remains the hard bound after run weighting (convex combination); no value change
     # with V_RUN 3 the operative ceiling is L <= 75 at the default field (controller D.2)
 
   - name: FOLLOW_TAU
@@ -6478,8 +6708,9 @@ constants:
       value: 3
       unit: flashes per 1 s window
     added: 2026-10-26
-    revised: 2026-10-26
+    revised: 2026-10-27
     # WCAG 2.3.1 general and red flash threshold
+    # note 2026-10-27 (X9 / D91 iv, user rulings; value unchanged at 3): weighted per area (D.15); exemptions for sub-threshold digit swaps and prompt show-starts; strict under reduce flashing and for the Alarm Red mark. Rule site: design/gdd/pixel-perfect-render-pipeline-camera.md PR-13 (g)
     # alias: GDDs write this as `F_MAX` (pipeline D.13 / criteria)
 
   - name: TICK_RATE
@@ -6517,6 +6748,7 @@ constants:
       set_once: true
     added: 2026-10-25
     revised: 2026-10-25
+    # Header-mismatch rule RATIFIED 2026-10-27 (user ruling X13 / D1, batch R-2/R-9/R-18/R-19/R-20); value unchanged
     # Changing it invalidates every tick-expressed value; confirmed by the weld spike
   - name: MAX_CMDS_PER_TICK
     status: active
@@ -6530,7 +6762,7 @@ constants:
       unit: commands
     added: 2026-10-25
     revised: 2026-10-25
-    # Intake budget per tick
+    # Intake budget per tick; RATIFIED 2026-10-27 (user ruling X13 / D1 batch), value unchanged
   - name: QUEUE_CAPACITY
     status: active
     source: design/gdd/command-simulation-layer.md
@@ -6543,7 +6775,7 @@ constants:
       unit: commands
     added: 2026-10-25
     revised: 2026-10-25
-    # Global queue cap; QUEUE_CAPACITY >= max_issuers * PER_ISSUER_CAPACITY + SYSTEM_RESERVE
+    # Global queue cap; QUEUE_CAPACITY >= max_issuers * PER_ISSUER_CAPACITY + SYSTEM_RESERVE; RATIFIED 2026-10-27 (user ruling X13 / D1 batch), value unchanged
   - name: PER_ISSUER_CAPACITY
     status: active
     source: design/gdd/command-simulation-layer.md
@@ -6554,7 +6786,7 @@ constants:
       unit: commands
     added: 2026-10-25
     revised: 2026-10-25
-    # Per-issuer queue cap
+    # Per-issuer queue cap; RATIFIED 2026-10-27 (user ruling X13 / D1 batch), value unchanged
   - name: MAX_AGE_TICKS_INTENT
     status: active
     source: design/gdd/command-simulation-layer.md
@@ -7195,8 +7427,10 @@ constants:
       value: 3600
       unit: ticks (60 s), measured from the restored generation's T to T_downed
       range: 1800-10800
+      scope_note: "the value is now the RISKY-window route's window only; the fairness window is W_MIN_WARNING_S x TICK_RATE (derived, not a knob) and invariant I13 requires it to be no longer than this value"
     added: 2026-10-26
-    revised: 2026-10-26
+    revised: 2026-10-27
+    # value unchanged (3600); scope note added 2026-10-27 (user ruling X7 (b))
   - name: MAX_SAVE_BYTES
     status: active
     source: design/gdd/save-load-and-versioned-format.md
@@ -7577,6 +7811,7 @@ constants:
       range: "monotone, starts at 1"
     added: 2026-10-26
     revised: 2026-10-27
+    # note 2026-10-27 (user rulings): the id ledger (F-8) now supports `dormant: true` pairs (tool_suppressant 2004, reserved, outside the MVP roster, not counted in roster_golden.json); the MVP roster count in roster_golden.json is 23 defs. No value change.
     # header field name agreed with Save/Load (designed): its header table SL:158 and Item DB row SL:474 carry catalogue_version; OQ-13 closed (stage 10 revision, 2026-10-26)
 
   - name: LIT_ON_PM
@@ -8189,11 +8424,12 @@ constants:
       - design/gdd/suit-and-equipment.md
       - design/gdd/sanity-and-hallucination-rules.md
     attributes:
-      value: 120
-      unit: ticks (2 s); multiple of GRAPH_STEP_TICKS; range 60-240 [PLACEHOLDER]
+      value: 204
+      unit: ticks (3.4 s); derived, no longer tuned directly (B * ceil(HARM_TOTAL_BP / HARM_BP_PER_STEP)); multiple of GRAPH_STEP_TICKS; range 60-240 [PLACEHOLDER]
     added: 2026-10-26
-    revised: 2026-10-26
-    # begin_harm channel length (20 steps at defaults); feeds harm_step and Suit's limiter holds (SE-23)
+    revised: 2026-10-27
+    # was: value 120 (2 s, tuned directly) before 2026-10-27 (user rulings: D36, the channel length follows from the lowered HARM_BP_PER_STEP under I-6)
+    # begin_harm channel length (n_h 34 at defaults, was 20); feeds harm_step and Suit's limiter holds (SE-23)
     # CD-GDD-ALIGN (stage 12): D.8 exists only to guarantee the victim's Pillar 2 escape window; never tune for lethality or effectiveness; any change needs creative-director review against anti-pillar 1. Values unchanged.
 
   - name: HARM_TOTAL_BP
@@ -8472,7 +8708,7 @@ constants:
     # consumer hints (GDD exists, does not cite this name yet): design/gdd/emitter-state-and-light-exposure-query.md
     attributes:
       value: 120
-      unit: "subjects; content ceiling for S_int = F + L_seed + C over every registered loaded set (IA-37, D.10)"
+      unit: "subjects; content ceiling for the per-registration-window sum W_int(p) = F + L_seed + C at every authored body position, not S_int over every loaded set (IA-37, D.10; D37)"
       range: "<= 144 - PLAYER_DROP_RESERVE (invariant I-7: INTERACT_FIXTURE_BUDGET + PLAYER_DROP_RESERVE <= 144)"
     added: 2026-10-27
     revised: 2026-10-27
@@ -8610,18 +8846,16 @@ constants:
     # consumer hint (GDD exists, does not cite this name yet): design/gdd/derelict-authoring-handmade-kits.md
 
   - name: SUPPRESSANT_START_CHARGES
-    status: active
+    status: deprecated
     source: design/gdd/suit-and-equipment.md
-    referenced_by:
-      - design/gdd/item-and-module-database.md
-      - design/gdd/horror-entities.md
-      - design/gdd/hud-and-suit-layer.md
+    referenced_by: []
     attributes:
       value: 3
       unit: "charges on the start-kit suppressant; range 0-3 (= charges_max); no refill source"
     added: 2026-10-26
     revised: 2026-10-26
     # [PLACEHOLDER]; star-marked in the GDD Tuning Knobs table
+    # DEPRECATED 2026-10-27 (user ruling X6 / D19 / D61 Option A; suit-and-equipment.md Tuning Knobs row says RETIRED). Mentioned elsewhere only as 'retired'. Entry kept, never deleted.
 
   - name: STOWED_CUE_FLOOR_CLASS
     status: active
@@ -8786,8 +9020,9 @@ constants:
       - design/gdd/web-map-and-transit.md
     attributes:
       value: 180
-      unit: AU per one-shot LOUD push (= 30 x 6; range 30 x U_TOOL .. ATT_THRESHOLD / 10, i.e. 600 at theta 6000 and 720 at 7200; game-designer alternative 600)
+      unit: AU per one-shot LOUD push (cut completion, seam-cut DONE, vent apply, throw landing and the berth apply, IA-40, default applied pending user confirmation, OQ-AT-23; = 30 x 6; range 30 x U_TOOL .. ATT_THRESHOLD / 10, i.e. 600 at theta 6000 and 720 at 7200; game-designer alternative 600)
     # was: range 30 x U_TOOL .. 400 before 2026-10-27 (design review)
+    # was: unit text without the berth apply in the one-shot list before 2026-10-27 (user rulings D59; value 180 unchanged)
     added: 2026-10-26
     revised: 2026-10-27
     # [PLACEHOLDER] value awaits the tuning pass; see Tuning Knobs in design/gdd/attention-system.md
@@ -9031,9 +9266,10 @@ constants:
       - design/gdd/adaptive-audio-and-tells.md
     attributes:
       value: 1800
-      unit: ticks (interval shrinks over this elapsed time; equal to TELL_MAX_TICKS removes any dependence on tell_len)
+      unit: ticks of the escalation clock (interval shrinks over this clock, tell_elapsed; equal to TELL_MAX_TICKS removes any dependence on tell_len)
     added: 2026-10-26
-    revised: 2026-10-26
+    revised: 2026-10-27
+    # was: unit 'ticks (interval shrinks over this elapsed time ...)' before 2026-10-27 (user rulings X4; value unchanged)
     # [PLACEHOLDER] value awaits the tuning pass; see Tuning Knobs in design/gdd/attention-system.md
   - name: BEAT_JITTER_TICKS
     status: active
@@ -9064,9 +9300,11 @@ constants:
       - design/gdd/adaptive-audio-and-tells.md
     attributes:
       value: 4
-      unit: beats (minimum published in the first TELL_MIN_TICKS of every un-aborted tell; worst case at the placeholders is 5)
+      unit: beats (minimum published in the first TELL_MIN_TICKS of every un-aborted tell; the organic worst case at the placeholders is 5, the universal bound over every trajectory under the frozen clock is exactly 4, F-12)
+      range: "3-4 (5 fails the frozen-clock universal bound)"
     added: 2026-10-26
-    revised: 2026-10-26
+    revised: 2026-10-27
+    # was: range unstated (3-5 implied by the organic worst case of 5) before 2026-10-27 (user rulings, X4)
     # [PLACEHOLDER] value awaits the tuning pass; see Tuning Knobs in design/gdd/attention-system.md
   - name: TIER2_TICKS
     status: active
@@ -9076,11 +9314,12 @@ constants:
       - design/gdd/2d-lighting-and-occlusion.md
     attributes:
       value: 600
-      unit: ticks of tell_elapsed (tier 2 begins; range 600..900; must stay >= 600 while Lighting reads tier >= 1)
+      unit: ticks of the escalation clock (tell_elapsed) (tier 2 begins; range 600..900; must stay >= 600 while Lighting reads tier >= 1)
     added: 2026-10-26
     revised: 2026-10-27
     # [PLACEHOLDER] value awaits the tuning pass; see Tuning Knobs in design/gdd/attention-system.md
     # was: range 480..900 (value 600 unchanged) before 2026-10-27 (consistency pass)
+    # was: unit 'ticks of tell_elapsed' before 2026-10-27 (user rulings X4; value and range unchanged)
   - name: TIER3_TICKS
     status: active
     source: design/gdd/attention-system.md
@@ -9089,9 +9328,10 @@ constants:
       - design/gdd/2d-lighting-and-occlusion.md
     attributes:
       value: 1200
-      unit: ticks of tell_elapsed (tier 3 begins; range 900..1500)
+      unit: ticks of the escalation clock (tell_elapsed) (tier 3 begins; range 900..1500)
     added: 2026-10-26
-    revised: 2026-10-26
+    revised: 2026-10-27
+    # was: unit 'ticks of tell_elapsed' before 2026-10-27 (user rulings X4; value and range unchanged)
     # [PLACEHOLDER] value awaits the tuning pass; see Tuning Knobs in design/gdd/attention-system.md
   - name: HASH_SEED
     status: active
@@ -9413,11 +9653,12 @@ constants:
       - design/gdd/boarding-and-salvage.md
       - design/gdd/perception-filter.md
     attributes:
-      value: "70000 / 45000 / 25000 (stages 1 / 2 / 3)"
-      unit: "mSU, strictly below to enter; exit is entry + STAGE_HYST (2000), strictly above; range stage 1 69600-80000"
+      value: "70000 / 55000 / 25000 (stages 1 / 2 / 3)"
+      unit: "mSU, strictly below to enter; exit is entry + STAGE_HYST (2000), strictly above, so stage-2 exit is 57000; range stage 1 69600-80000; stage 2 55000-66000 with the other knobs at default"
     added: 2026-10-26
-    revised: 2026-10-26
+    revised: 2026-10-27
     # [PLACEHOLDER]
+    # was: 70000 / 45000 / 25000 (stage 2 entry 45000, exit 47000) before 2026-10-27 (user rulings, OQ-SN-38 option b; derivation in sanity-and-hallucination-rules.md D.8)
 
   - name: SAN_TELL_ON
     status: active
@@ -9562,12 +9803,13 @@ constants:
     referenced_by:
       - design/gdd/web-map-and-transit.md
     attributes:
-      value: "62000 / 52000 / 43000 (rings 1 / 2 / 3)"
-      unit: "mSU - E1 contributes only while level is strictly above the floor; non-increasing with ring, each >= 2000 from every stage threshold; range is two disjoint intervals: 41965-43000 for the lowest floor (D.4 (v) lifts the D.8 (a) lower end of 40000) and 49000-68000 for the others"
+      value: "53000 / 52000 / 43000 (rings 1 / 2 / 3)"
+      unit: "mSU - E1 contributes only while level is strictly above the floor; range: lowest floor 41965-53000, every floor >= 2000 from every threshold (so 53001-58999 and 68001-73999 are refused), non-increasing with ring, ring-1 floor capped at 53000 by ruling"
     # was: range 40000-68000 before 2026-10-27 (design review)
     added: 2026-10-26
     revised: 2026-10-27
     # [PLACEHOLDER]
+    # was: 62000 / 52000 / 43000 before 2026-10-27 (user rulings, OQ-SN-38 option b; D.8 clearance 55000 - 2000 = 53000)
 
   - name: EXP_TELL
     status: active
@@ -9828,6 +10070,7 @@ constants:
     added: 2026-10-26
     revised: 2026-10-26
     # [PLACEHOLDER] Kept equal to Interaction's REACH_PX 72 so one disc size teaches both threats. First playtest tweak: 48 (carrier arithmetic)
+    # D63 (2026-10-27, user rulings): default stays 72; 48 is the ruled lever, carrier-struck draws fall from 7 of 18 to 2 of 18 (HE-F5)
 
   - name: REACH_RANGE_PX
     status: active
@@ -9882,8 +10125,9 @@ constants:
       unit: ticks (longest REACH telegraph; multiple of 5)
       range: UNFOLD_LO-270
     added: 2026-10-26
-    revised: 2026-10-26
-    # [PLACEHOLDER] Draw: UNFOLD_TICKS = 5 x rng_int(19, 36) from rng_derive(world_seed, "horror.tell", counter); 18 values, mean 137.5
+    revised: 2026-10-27
+    # [PLACEHOLDER] Draw: UNFOLD_TICKS = 5 x rng_int(19, 36) from rng_derive(threat_seed, "horror.tell", counter), threat_seed = rng_derive(world_seed, "threat.epoch", threat_epoch); 18 values, mean 137.5
+    # was: draw source rng_derive(world_seed, "horror.tell", counter) before 2026-10-27 (user rulings, X8/D16)
 
   - name: REACT_ALLOW_TICKS_HORROR
     status: active
@@ -10469,10 +10713,11 @@ constants:
     attributes:
       value: 3.0
       unit: deg/s on the dial arc
-      range: 2.0-8.0, at or above GLIDE_RATE_MAX_DEG and below the D.6 flash coupling
+      range: 2.0-8.0, at or above GLIDE_RATE_MAX_DEG and below the D.6 flash coupling (max 9.05 deg/s at the defaults and 4.47 at LEAK_D_FULL_DEG 10, evaluated at the stage-3 floor AMP_FLOOR_S3_PM 250)
     added: 2026-10-26
     revised: 2026-10-27
     # [PLACEHOLDER] playtest dial; a debunked needle must never outlast a live lie; answers OQ-SN-24
+    # was: flash-coupling limit max 11.3 deg/s at defaults and 5.6 at LEAK_D_FULL_DEG 10 (evaluated at floor 400) before 2026-10-27 (user rulings, D74); value 3.0 and range 2.0-8.0 unchanged
 
   - name: GLIDE_RATE_BAND
     status: active
@@ -10657,6 +10902,7 @@ constants:
     added: 2026-10-27
     revised: 2026-10-27
     # [PLACEHOLDER] discharges AC-WM-117; fade uses LEG_BED_FADE_TICKS (edge-driven, no progress datum)
+    # D59 (TIER 2): value kept at -44 dBr, no change; D.6 tolerates up to -36 (tier-1 margin 7.79 dB) and the level is a listening-pass decision. Default applied 2026-10-27, pending user confirmation
   - name: VOICE_POOL_SIZE
     status: active
     source: design/gdd/adaptive-audio-and-tells.md
@@ -10837,7 +11083,7 @@ constants:
       # was: unit ms (shared honest-numeral hold grid, 30 ticks) before 2026-10-27 (design review)
       range: "500 (pinned; the 400-500 range is withdrawn, the window-feasibility check of hud_flash_budget leaves 30 ticks as the only feasible grid and g=24 fails)"
       # was: 400-500, two-bound by honest_tick_floor_ms of hud_flash_budget before 2026-10-27 (design review)
-      note: amends art bible 7.3 "one step per real change" (CF-HS-9, user decision pending, OQ-HS-2); the inspect card numeral rides the same grid; HONEST_GRID_TICKS 30 is the derived restatement in ticks
+      note: amends art bible 7.3 "one step per real change" (CF-HS-9; pin of 500 ratified by user ruling D91 (iii), OQ-HS-2 closed; the window proof also covers the rare counted-numeral-plus-pulsing-mark case); the inspect card numeral rides the same grid; HONEST_GRID_TICKS 30 is the derived restatement in ticks
     added: 2026-10-26
     revised: 2026-10-27
   - name: MARK_DUTY_PM
@@ -10851,7 +11097,8 @@ constants:
       value: 500
       unit: permille of BEACON_SWEEP_TICKS (mark ON fraction)
       range: 400-600
-      note: visual duty only; independent of Audio's ALARM_DUTY_MAX_PM 250; the mark period is BEACON_SWEEP_TICKS by relation; pinned at 500 under the edge unit u=2 (the ON and OFF edges at least 60 ticks apart, 469-531 permille at BEACON_SWEEP_TICKS 128, hud_flash_budget window analysis); the range 400-600 stands under u=1
+      note: visual duty only; independent of Audio's ALARM_DUTY_MAX_PM 250; the mark period is BEACON_SWEEP_TICKS by relation; the range 400-600 stands under the ruled counting unit (D91 (ii))
+      # was: note 'pinned at 500 under the edge unit u=2 (ON and OFF edges at least 60 ticks apart ...)' before 2026-10-27 (user rulings; u=2 retired by D91 (ii))
     added: 2026-10-26
     revised: 2026-10-27
   - name: HUD_NONGROUND_PX_MAX
@@ -10869,7 +11116,8 @@ constants:
   - name: UI7_DWELL_S
     status: active
     source: design/gdd/hud-and-suit-layer.md
-    referenced_by: []
+    referenced_by:
+      - design/gdd/save-load-and-versioned-format.md
     attributes:
       value: 8
       unit: seconds on present_time (first-frame corrupt-ring line dwell)
@@ -11450,7 +11698,7 @@ constants:
       unit: "commands - ring buffer of commands with results (CR-9; diagnostics and replay tests only; D.13 log_coverage_ticks = COMMAND_LOG_CAPACITY / cmds_per_tick_actual); range 256-8192"
     added: 2026-10-27
     revised: 2026-10-27
-    # kern:547; Debug Overlay requires DIAG_CMD_LOG_ROWS <= COMMAND_LOG_CAPACITY (AC-DO-151)
+    # kern:547; RATIFIED 2026-10-27 (user ruling X13 / D1 batch), value unchanged; Debug Overlay requires DIAG_CMD_LOG_ROWS <= COMMAND_LOG_CAPACITY (AC-DO-151)
 
   - name: TELL_RAMP_S
     status: active
@@ -11473,11 +11721,12 @@ constants:
       - design/gdd/in-world-instruments-and-inspect-view.md
     attributes:
       value: 400
-      unit: "per mille - leak amplitude while ACTIVE at zero discrepancy (D.5, PF-15)"
+      unit: "per mille - stage 0-1 gleam floor: leak amplitude while ACTIVE at zero discrepancy (D.5, PF-15). The effective floor is stage-indexed: floor_eff = AMP_FLOOR_PM - (AMP_FLOOR_PM - AMP_FLOOR_S3_PM) x r_FLOOR, giving 400/325/250 at stages 0-1/2/3. Read by D.5, D.6, D.11, D.15; AC-PF-117"
       range: 250-600
     added: 2026-10-27
     revised: 2026-10-27
     # [PLACEHOLDER] playtest dial
+    # was: the single floor at every stage (no stage index) before 2026-10-27 (user ruling X11/D74, OQ-PF-37 lever a); value 400 unchanged
 
   - name: BREATH_FLOOR_PM
     status: active
@@ -11722,11 +11971,12 @@ constants:
     source: design/gdd/sanity-and-hallucination-rules.md
     referenced_by: []
     attributes:
-      value: 2
-      unit: "factor - repair bias weight (D.5)"
+      value: 1
+      unit: "factor - repair bias weight (D.5); 1 is the MVP default and disables the bias"
       range: 1-3
     added: 2026-10-27
     revised: 2026-10-27
+    # was: value 2 before 2026-10-27 (user rulings, OQ-SN-40 / D67): repair bias dropped from MVP; the repaired_recent stamp is still written, re-enable post-MVP
     # [PLACEHOLDER]; Sanity Tuning Knobs (unstarred: Sanity-internal, registered as a placeholder per the GDD registry list)
 
   - name: KIND_W
@@ -11902,6 +12152,7 @@ constants:
       unit: px (one wall cell)
       range: 0-48
     added: 2026-10-27
+    # user-ruled scoped MVP exception until VS-B (D31, 2026-10-27), still active, no value change
     # owner technical-artist; authored spill depth accepted through a wall (LO-33 residual (i)); confirmed by the Lighting spike steps named in its Tuning Knobs row
     # [PLACEHOLDER] registry status active; the value awaits the owner or confirming spike named above
   - name: PD1B_SUBJECTS_MAX
@@ -11913,6 +12164,7 @@ constants:
       unit: registered subjects in view
       range: 0-4
     added: 2026-10-27
+    # user-ruled scoped MVP exception until VS-B (D31, 2026-10-27), still active, no value change
     # owner technical-artist; prop-lee leak bound counted by diag.contain_leak_prop (PD-1b, LO-33 residual (iv)); confirmed by the Lighting spike steps named in its Tuning Knobs row
     # [PLACEHOLDER] registry status active; the value awaits the owner or confirming spike named above
   - name: SEAT_PROTECT_MARGIN_PX
@@ -12284,7 +12536,7 @@ constants:
       unit: ms
       range: 500-1500
     added: 2026-10-27
-    # [PLACEHOLDER]; re-open governor interval under reduce flashing (CT-3, CT-13)
+    # [PLACEHOLDER]; re-open governor interval under reduce flashing (CT-3, CT-13); this is the interval every new player meets at first launch, because reduce flashing is ON by default (D79 / X10); value 1000 ms, range 500-1500 unchanged
   - name: NODE_CLEAR_PAD_PX
     status: active
     source: design/gdd/chart-table-web-map-and-menus.md
@@ -12351,11 +12603,13 @@ constants:
     referenced_by:
       - design/gdd/life-support-graph.md
     attributes:
-      value: 30
+      value: 0
       unit: ticks
-      range: "0-120 (0 = never repay: any lag after a frame is dropped)"
+      range: "0-120 (0 = never repay lag: every whole tick of lag after a frame is dropped; non-zero values are a fixture-only seam)"
     added: 2026-10-27
-    # PROVISIONAL, pending USER DECISION (kernel Open Question 19); recommended alternative 0. Lag above this is dropped at the end of the frame, never fast-forwarded (D.5)
+    revised: 2026-10-27
+    # was: value 30 (provisional) before 2026-10-27 (user rulings)
+    # Ruling D2 (user, 2026-10-27, X13; kernel Open Question 19 closed, former status 'registry request: not yet registered' closed). Lag above this is dropped at the end of the frame, never fast-forwarded (D.5)
   - name: REMOTE_RATE_LIMIT
     status: active
     source: design/gdd/command-simulation-layer.md
@@ -12397,7 +12651,7 @@ constants:
       unit: blocks
       range: 32-256 (32 expected)
     added: 2026-10-27
-    # Block registry capacity; a block count above it fails boot
+    # Block registry capacity; a block count above it fails boot; RATIFIED 2026-10-27 (user ruling X13 / D1 batch), value unchanged
   - name: SYSTEM_RESERVE
     status: active
     source: design/gdd/command-simulation-layer.md
@@ -12417,6 +12671,7 @@ constants:
       unit: ms
       range: 2-8 (one tick) / 3-12 (MAX_TICKS_PER_FRAME ticks)
     added: 2026-10-27
+    # RATIFIED 2026-10-27 (user ruling X13 / D1 batch), value unchanged; stays ADVISORY until the reference machine is named (X14)
     # Logging threshold for frame_sim_over_budget (D.6), never a cap; measured on a release export on the reference machine (TBD, kernel Open Question 22)
   - name: PAYLOAD_MAX_DEPTH
     status: active
@@ -12741,7 +12996,8 @@ constants:
       value: 1800
       unit: "mGU per step per scrubber component at full eff and power (inert make-up offered, demand-driven); range 600-6000"
     added: 2026-10-27
-    # [PLACEHOLDER]; D.5 two-species recovery rule (inert-gas blocker); star-marked in the GDD Tuning Knobs table
+    # [PLACEHOLDER] pending spike or playtest tuning; D.5 two-species recovery rule (inert-gas blocker); star-marked in the GDD Tuning Knobs table
+    # The scrubber-supplied inert make-up source was confirmed by user ruling D11 on 2026-10-27 (closes Graph OQ 30); the value stays a placeholder
   - name: SP_IN
     status: active
     source: design/gdd/life-support-graph.md
@@ -12927,21 +13183,25 @@ constants:
     source: design/gdd/perception-filter.md
     referenced_by: []
     attributes:
-      value: AMBIENT
-      unit: enum switch (AMBIENT or LIE_BOUND)
+      value: LIE_BOUND
+      unit: enum switch (AMBIENT or LIE_BOUND); AMBIENT is a playtest-gated opt-in
       range: AMBIENT | LIE_BOUND
     added: 2026-10-27
-    # [PLACEHOLDER] pending USER DECISION (OQ-PF-1, OQ-PF-2); AMBIENT contradicts PF-G5 as a stage meter, LIE_BOUND shows the stage-2 self-sign only with a reach lie; PF-23, PF-24, D.7 gate_e
+    revised: 2026-10-27
+    # [PLACEHOLDER]; default LIE_BOUND by user ruling X11/D75 (OQ-PF-1); AMBIENT contradicts PF-G5 as a stage meter, LIE_BOUND shows the stage-2 self-sign only with a reach lie; PF-23, PF-24, D.7 gate_e
+    # was: AMBIENT, pending user decision, before 2026-10-27 (user rulings)
   - name: AMBIENT_FRINGES_ENABLED
     status: active
     source: design/gdd/perception-filter.md
     referenced_by: []
     attributes:
-      value: true
-      unit: flag (ambient rim and bleed fringes on or off)
+      value: false
+      unit: flag (ambient rim and bleed fringes on or off); flag-on is a playtest-gated opt-in
       range: true | false
     added: 2026-10-27
-    # [PLACEHOLDER] pending USER DECISION (OQ-PF-1, OQ-PF-2); companion of RIM_MODE; PF-23, PF-24
+    revised: 2026-10-27
+    # [PLACEHOLDER]; default false by user ruling X11/D76 (OQ-PF-2); companion of RIM_MODE; PF-23, PF-24
+    # was: true, pending user decision, before 2026-10-27 (user rulings)
   - name: SETTLE_EPS
     status: active
     source: design/gdd/pixel-perfect-render-pipeline-camera.md
@@ -13005,7 +13265,7 @@ constants:
       unit: "s - required lead from the lowest ambient floor to harm eligibility, including the dwell (D.4 (v))"
       range: 150-240
     added: 2026-10-27
-    # [PLACEHOLDER]; pending user decision: the creative-director confirms the target (OQ-SN-43); the review accepts at least 180 s for lethal friendly fire; safe 150-240 with the other knobs at their defaults
+    # [PLACEHOLDER]; target 180 s confirmed by user ruling OQ-SN-43, 2026-10-27; the review accepts at least 180 s for lethal friendly fire; safe 150-240 with the other knobs at their defaults
   - name: BLOCK_RECORD_BYTES
     status: active
     source: design/gdd/save-load-and-versioned-format.md
@@ -13070,6 +13330,401 @@ constants:
       unit: "base px; the exterior distance cull (WM-18): the wreck silhouette, the residual-lamp point and the departure hull are drawn only within this distance of the pod, at every zoom step (zoom stays free); presentation only, a derived input of D.6; range 184 (the narrowest ladder field's half-diagonal) to 256; [PLACEHOLDER]"
     added: 2026-10-27
     # Provisional placeholder, tuned at the kill/continue playtest; presentation only (ASK-PIPE, OQ-WM-47)
+  - name: LOOKAHEAD_RUN_WEIGHT
+    status: active
+    source: design/gdd/pixel-perfect-render-pipeline-camera.md
+    referenced_by:
+      - design/gdd/player-controller-input.md
+    attributes:
+      value: 0.50
+      unit: fraction of the lean target following movement at run speed
+      range: "0-0.75 (0 = no run weighting, the pre-ruling behaviour) [PLACEHOLDER]"
+    added: 2026-10-27
+    revised: 2026-10-27
+    # D6 option B (user rulings); used by camera_lookahead (D.7); alias W_RUN in the GDD
+  - name: BEAM_SPILL_RADIUS_PX
+    status: active
+    source: design/gdd/emitter-state-and-light-exposure-query.md
+    referenced_by:
+      - design/gdd/interaction-system.md
+      - design/gdd/attention-system.md
+    attributes:
+      value: 24
+      unit: base px
+      range: "0 (off, removes light_shape row 11) or 24-48; I-REACH forbids 1-23"
+    added: 2026-10-27
+    revised: 2026-10-27
+    # D24 user ruling made 24 the shipped default; owner game-designer + art-director, validated by the dark-at-feet playtest metric
+  - name: BEAM_SPILL_PM
+    status: active
+    source: design/gdd/emitter-state-and-light-exposure-query.md
+    referenced_by: []
+    attributes:
+      value: 600
+      unit: permille
+      range: 150-1000
+    added: 2026-10-27
+    revised: 2026-10-27
+    # D24 ruling (user rulings); owner game-designer; output of light_shape row 11 BEAM_SPILL
+  - name: SWITCH_MIN_SPACING_TICKS
+    status: active
+    source: design/gdd/emitter-state-and-light-exposure-query.md
+    referenced_by:
+      - design/gdd/2d-lighting-and-occlusion.md
+      - design/gdd/interaction-system.md
+      - design/gdd/player-controller-input.md
+    attributes:
+      value: 12
+      unit: commit ticks between two realised switch transitions of one emitter
+      range: "11-20 and <= BEAM_TOGGLE_MIN_INTERVAL_TICKS [PLACEHOLDER]"
+      reject_codes: "COOLDOWN (set_switch), TOO_SOON (toggle_beam)"
+      derivation: D.2b
+    added: 2026-10-27
+    revised: 2026-10-27
+    # D32: default applied, pending user confirmation; 2D Lighting LO-22 confirms
+  - name: DOCK_STATUS_BASE_PM
+    status: active
+    source: design/gdd/emitter-state-and-light-exposure-query.md
+    referenced_by:
+      - design/gdd/derelict-authoring-handmade-kits.md
+      - design/gdd/web-map-and-transit.md
+    attributes:
+      value: 500
+      unit: permille
+      range: 300-800
+    added: 2026-10-27
+    # [PLACEHOLDER] user ruling X2 (2026-10-27); owner game-designer / art-director, confirmed by the Lighting spike; derived in Emitter State D.1b; floor 300 from I-DOCK (c(DOCK_STATUS_CONSOLE_MAX_PX) >= LIT_ON_PM)
+  - name: DOCK_STATUS_REACH_PX
+    status: active
+    source: design/gdd/emitter-state-and-light-exposure-query.md
+    referenced_by:
+      - design/gdd/derelict-authoring-handmade-kits.md
+      - design/gdd/web-map-and-transit.md
+    attributes:
+      value: 48
+      unit: px (SOFT fade-out radius)
+      range: 24-96
+    added: 2026-10-27
+    # [PLACEHOLDER] user ruling X2 (2026-10-27); same owner as DOCK_STATUS_BASE_PM; bounded by I-REACH (REACH_MIN_PX 24 .. REACH_MAX_PX) and I-DOCK. DOCK_STATUS_CONSOLE_MAX_PX 24 is owned by Derelict Authoring's placement lint and is not registered here
+  - name: RUN_LOOKAHEAD_MOVE_WEIGHT
+    status: active
+    source: design/gdd/player-controller-input.md
+    referenced_by:
+      - design/gdd/pixel-perfect-render-pipeline-camera.md
+    attributes:
+      value: 0.75
+      unit: fraction
+      range: 0.55-0.90
+      constraint: "0.5 < w < 1"
+    added: 2026-10-27
+    # [PLACEHOLDER] derive at spike; D.7b: w = RUN_LOOKAHEAD_MOVE_WEIGHT while loco_state == RUN else 0; u_look = (1 - w) * u_aim + w * u_move. User ruling D6 option B (2026-10-27)
+    # consumer hint: the Pipeline GDD consumes the weighted look-ahead (C4) but does not cite this name yet
+  - name: HOLD_EFF_MAX_S
+    status: active
+    source: design/gdd/player-controller-input.md
+    referenced_by:
+      - design/gdd/chart-table-web-map-and-menus.md
+      - design/gdd/interaction-system.md
+    attributes:
+      value: 1.9
+      unit: s
+      derivation: "floor(10 * (max_age_ticks - 1) / TICK_RATE) / 10 = floor(10 * 119 / 60) / 10"
+    added: 2026-10-27
+    # Derived cap on every effective hold H_v = min(m_v * confirm_hold_s, HOLD_EFF_MAX_S); keeps H_v * TICK_RATE = 114 < 120 = max_age_ticks(actions) (invariant 7) for any base hold and any verb multiple. User rulings X10 / D80 / D81, default applied 2026-10-27 pending user confirmation (D.10)
+  - name: GIVE_UP_MIN_TICKS
+    status: active
+    source: design/gdd/player-controller-input.md
+    referenced_by:
+      - design/gdd/save-load-and-versioned-format.md
+    attributes:
+      value: 48
+      unit: "ticks; derived: ceil(H_give_up * TICK_RATE) = 48 in hold mode at the default (D.14; tap mode: two taps at least 2 ticks apart); floor of T_dead - T_downed for the solo give_up action"
+    added: 2026-10-27
+    # Save/Load's loss_ticks floor: loss_min = GIVE_UP_MIN_TICKS + 1 = 49 (user rulings: D7)
+  - name: HARM_BP_PER_STEP
+    status: active
+    source: design/gdd/interaction-system.md
+    referenced_by:
+      - design/gdd/suit-and-equipment.md
+      - design/gdd/sanity-and-hallucination-rules.md
+    attributes:
+      value: 300
+      unit: bp per credited block end; range 250-312 [PLACEHOLDER, VS-B playtest]; the tuned input of harm_step (HARM_CHANNEL_TICKS = B * ceil(HARM_TOTAL_BP / HARM_BP_PER_STEP) is derived from it)
+    added: 2026-10-27
+    # D36: primary knob, previously only a derived symbol (was 500 derived from HARM_CHANNEL_TICKS 120); see harm_step
+  - name: SUBJECT_WINDOW_HOPS
+    status: active
+    source: design/gdd/interaction-system.md
+    referenced_by: []
+    attributes:
+      value: 2
+      unit: "room-hops from a bound body's room (one door, seam hatch or dock link per hop); the hysteresis ring is +1; range 1-4 [PLACEHOLDER - derive at spike]"
+    added: 2026-10-27
+    # D37: subject registration window; see subject_budget and INTERACT_FIXTURE_BUDGET
+  - name: WET_SRC_PX
+    status: active
+    source: design/gdd/failure-and-trail-system.md
+    referenced_by: []
+    attributes:
+      value: 8 [PLACEHOLDER]
+      unit: "base px, width of the widest coolant wet-run piece; range 6-12, even (below 6 a six-tile edge shows fewer than three width levels)"
+    added: 2026-10-27
+    # consumed by formula coolant_wet_run; GDD section D.2d, Tuning Knobs
+  - name: WET_MIN_PX
+    status: active
+    source: design/gdd/failure-and-trail-system.md
+    referenced_by: []
+    attributes:
+      value: 2
+      unit: "base px, width of the narrowest coolant wet-run piece; fixed (FT-22 2 x 2 minimum feature)"
+    added: 2026-10-27
+    # consumed by formula coolant_wet_run; GDD section D.2d
+  - name: WET_PITCH_PX
+    status: active
+    source: design/gdd/failure-and-trail-system.md
+    referenced_by: []
+    attributes:
+      value: 48
+      unit: "base px, wet-run piece pitch; fixed, = STAMP_PX[1] (the s stamp pitch, whatever the frost stamp sizes)"
+    added: 2026-10-27
+    # consumed by formula coolant_wet_run; GDD section D.2d, D.9 (12-cell worst case)
+  - name: POD_CID
+    status: active
+    source: design/gdd/suit-and-equipment.md
+    referenced_by: []
+    # pending referenced_by (GDD must repeat the rule, routed; does not cite the name yet): design/gdd/web-map-and-transit.md
+    attributes:
+      value: "symbolic pseudo-compartment id, distinct from NONE and from every Graph compartment id; never a Graph id"
+      unit: compartment id (pseudo)
+      rule: "the pod cabin rule for a seat with loco_state IN_POD (SE-3, D60): band_o2 ANOXIC, band_p NORMAL, band_t COMFORT with no gain, o2_pp_dkpa 0; the source is RESERVE and then NONE, never ROOM and never GASP"
+    added: 2026-10-27
+    # SE-3 (Suit-owned rule that Web Map & Transit and Derelict Authoring must repeat, routed). A change of cid on entering or leaving the pod re-anchors the Suit holds and never fires
+  - name: REF_CARRY_TILES_MIN
+    status: active
+    source: design/gdd/derelict-authoring-handmade-kits.md
+    referenced_by: []
+    # pending referenced_by (cite the ruled band, do not cite the name yet): design/gdd/boarding-and-salvage.md, design/gdd/attention-system.md
+    attributes:
+      value: 21
+      unit: tiles (lower bound of the reference carry, derelict A htr_a cut point to the a_dock pod arrival)
+      range: "21 to 28 (the ruled band, user ruling X3 / D71); the geometry is [PLACEHOLDER: derive at spike]"
+    added: 2026-10-27
+    # DA-48, Tuning Knobs. Below 21 the carry cannot carry Attention's carry-intake decision. Pairs with REF_CARRY_TILES_MAX. REF_CARRY_LEVER_N 9 stays [PLACEHOLDER: derive at spike] and is not registered
+  - name: REF_CARRY_TILES_MAX
+    status: active
+    source: design/gdd/derelict-authoring-handmade-kits.md
+    referenced_by: []
+    # pending referenced_by (cite the ruled band, do not cite the name yet): design/gdd/boarding-and-salvage.md, design/gdd/attention-system.md
+    attributes:
+      value: 28
+      unit: tiles (upper bound of the reference carry, derelict A htr_a cut point to the a_dock pod arrival)
+      range: "21 to 28 (the ruled band, user ruling X3 / D71); the geometry is [PLACEHOLDER: derive at spike]"
+    added: 2026-10-27
+    # DA-48, Tuning Knobs. Above 28 the one-way carry passes 22.4 s and eats the W_LOOP dwell budget of about 200 s (D73). Pairs with REF_CARRY_TILES_MIN
+  - name: DOCK_GLOW_OUTPUT_MAX_PM
+    status: active
+    source: design/gdd/derelict-authoring-handmade-kits.md
+    referenced_by: []
+    attributes:
+      value: "250 [PLACEHOLDER: art-director]"
+      unit: permille of the residual lamp's output_pm (ceiling for the dock status glow)
+      range: 100-500
+    added: 2026-10-27
+    # DA-46 (user ruling X2), checked by the DOCK_GLOW_LUMINANCE lint. Above the range the glow competes with the visible unknown (VA-6); too dim it cannot light the console alone (DOCK_GLOW_LIT_AT_CONSOLE)
+  - name: DOCK_GLOW_CONSOLE_MAX_PX
+    status: active
+    source: design/gdd/derelict-authoring-handmade-kits.md
+    referenced_by: []
+    attributes:
+      value: 192
+      unit: px (design cap, docked-podcraft prop centre to the console anchor)
+      range: "96-192 (arithmetic in DA-46: 48 + 48 + 96)"
+    added: 2026-10-27
+    # DA-46 (user ruling X2), checked by DOCK_GLOW_LIT_AT_CONSOLE. Above 192 the console may fall outside the glow's radius [PLACEHOLDER: Emitter]; below 96 the console sits inside the prop
+  - name: SCRUBBER_SLOT_COUNT_HOME
+    status: active
+    source: design/gdd/derelict-authoring-handmade-kits.md
+    referenced_by: []
+    attributes:
+      value: 2
+      unit: vacant scrubber hardpoints on home_ship (hp_cargo_scrubber, hp_eng_scrubber)
+      range: 1-3 (MAX_HARDPOINTS_PER_SECTION 32 leaves 3 spare at 29)
+    added: 2026-10-27
+    # DA-47 (user ruling D72), checked by SCRUBBER_SLOT_OVERLOAD and AC-DA-146. 3 leaves 2 spare hardpoints and adds a subject per set; 1 removes the choice of where
+  - name: GLOW_PEAK_PM
+    status: active
+    source: design/gdd/web-map-and-transit.md
+    referenced_by: []
+    attributes:
+      value: 200
+      unit: permille
+      range: LIT_ON_PM + GLOW_LINT_MARGIN_PM up to the art-director's separation ceiling (below the residual lamp's peak)
+    added: 2026-10-27
+    # [PLACEHOLDER — derive at spike]; D.15, Tuning Knobs. consumer hint (GDD exists, does not cite this name yet): design/gdd/emitter-state-and-light-exposure-query.md
+  - name: GLOW_LINT_MARGIN_PM
+    status: active
+    source: design/gdd/web-map-and-transit.md
+    referenced_by: []
+    attributes:
+      value: 50
+      unit: permille margin above LIT_ON_PM so the console never sits on the hysteresis edge
+      range: 25-100
+    added: 2026-10-27
+    # [PLACEHOLDER]; D.15, AC-WM-127
+  - name: R_GLOW_PX
+    status: active
+    source: design/gdd/web-map-and-transit.md
+    referenced_by: []
+    attributes:
+      value: 24
+      unit: base px (finite radius of the pod console glow)
+      range: 12 (half a tile) up to r_arr (24 at the nearest authored layout)
+    added: 2026-10-27
+    # [PLACEHOLDER — derive at spike]; D.15, WM-15
+  - name: U_BURDEN
+    status: active
+    source: design/gdd/attention-system.md
+    referenced_by:
+      - design/gdd/player-controller-input.md
+      - design/gdd/boarding-and-salvage.md
+      - design/gdd/derelict-authoring-handmade-kits.md
+    attributes:
+      value: 7
+      unit: AU per tick of holding a carried HEAVY item (class BURDEN, pushed every tick by the Controller whether walking or standing; range 7..10, a boot range lint, 6 and 11 refuse boot; 7 is the smallest whole-AU value passing K2 of F-26 at Lc 1344)
+    added: 2026-10-27
+    revised: 2026-10-27
+    # [PLACEHOLDER] value awaits the tuning pass; see Tuning Knobs in design/gdd/attention-system.md
+    # player-controller-input.md is the declared pusher (calls push_stimulus with class BURDEN); boarding-and-salvage.md and derelict-authoring-handmade-kits.md depend on the carry decision it creates (user ruling X3)
+  - name: RESTORE_KEY_STRIDE
+    status: active
+    source: design/gdd/attention-system.md
+    referenced_by:
+      - design/gdd/save-load-and-versioned-format.md
+      - design/gdd/horror-entities.md
+    attributes:
+      value: 1048576
+      unit: counter steps (fixed 2^20; the tell-draw key is rng_counter + RESTORE_KEY_STRIDE x restore_epoch; lint rng_counter < RESTORE_KEY_STRIDE)
+    added: 2026-10-27
+    revised: 2026-10-27
+    # Fixed by construction, not a tuning knob (user rulings X8, D16: threat draws re-key per restore epoch); restore_epoch is supplied by the restore and never stored in attention.state
+  - name: DOCK_GLOW_TERM_MAX
+    status: active
+    source: design/gdd/attention-system.md
+    referenced_by:
+      - design/gdd/emitter-state-and-light-exposure-query.md
+      - design/gdd/derelict-authoring-handmade-kits.md
+    attributes:
+      value: 24
+      unit: mAU per tick (output_pm x reach_px / 1000; the lint-input budget for the DOCK_STATUS pod glow term g_dock in survivable_dark_floor)
+      range: 0-24 (30 fails the ring-3 test row, F-16)
+    added: 2026-10-27
+    revised: 2026-10-27
+    # [PLACEHOLDER] g_dock itself is awaiting Emitter and Derelict Authoring knobs; this is the constraint handed to them (X2, user rulings)
+  - name: FLASH_AREA_EXEMPT_PM
+    status: active
+    source: design/gdd/hud-and-suit-layer.md
+    referenced_by: []
+    attributes:
+      value: 100
+      unit: permille of one region (a ninth of the displayed picture)
+      range: 50-100, never above 100
+      note: derived from the Pipeline's 10 % area-weighted transition (registry flash_count); HUD-owned; used by hud_flash_budget exempt(); above 100 the arbiter would exempt events the Pipeline counts as flashes
+    added: 2026-10-27
+    # [PLACEHOLDER]; user ruling D91 (iv), D.2 and Tuning Knobs of hud-and-suit-layer.md; two-bound constraint [50, 100]
+  - name: VOLUME_STEPS
+    status: active
+    source: design/gdd/chart-table-web-map-and-menus.md
+    referenced_by: []
+    attributes:
+      value: 10
+      unit: notches (master volume stepped control)
+      range: 5-20
+    added: 2026-10-27
+    # [PLACEHOLDER]; D85 master volume stepped control (CT-18, CT-19, D.1c); default applied 2026-10-27, pending user confirmation; Adaptive Audio owns the step-to-gain law
+  - name: S6_ITEM_H_MIN_HUD
+    status: active
+    source: design/gdd/chart-table-web-map-and-menus.md
+    referenced_by: []
+    attributes:
+      value: 12
+      unit: HUD px
+      range: fixed (the lower bound of PANEL_ITEM_H_HUD)
+    added: 2026-10-27
+    # fixed, not a knob; D.1c six-row Display & Comfort page shrink, used by coupled constraint C-3 (EC-CT-84)
+  - name: DIST_SLOPE_DB
+    status: active
+    source: design/gdd/adaptive-audio-and-tells.md
+    referenced_by: []
+    attributes:
+      value: 4.5
+      unit: dB per doubling of distance beyond NEAR_PX (range 3..6; replaces FALLOFF_DB_PER_TILE, 3 dB per tile)
+    added: 2026-10-27
+    # [PLACEHOLDER] confirm at the listening pass (OQ-AA-44); X12 / D86 (b); D.9, D.8
+  - name: RUN_AUDIBLE_FLOOR_DB
+    status: active
+    source: design/gdd/adaptive-audio-and-tells.md
+    referenced_by: []
+    attributes:
+      value: -54
+      unit: dBr (post-attenuation floor of a running loop inside R_RUN_AUDIBLE_PX; range -60..-48, at least AUDIBLE_CULL_DB)
+    added: 2026-10-27
+    # [PLACEHOLDER] X12 / D86 (b); D.9, D.19 R-g
+  - name: R_RUN_AUDIBLE_PX
+    status: active
+    source: design/gdd/adaptive-audio-and-tells.md
+    referenced_by: []
+    attributes:
+      value: 576
+      unit: px (radius inside which the running-loop floor applies; range NEAR_PX..R_AUDIBLE_MAX_PX, 609 at the defaults)
+    added: 2026-10-27
+    # [PLACEHOLDER] X12 / D86 (b); D.9
+  - name: ANN_STEPDOWN_SWEEPS
+    status: active
+    source: design/gdd/adaptive-audio-and-tells.md
+    referenced_by: []
+    attributes:
+      value: 8
+      unit: sweeps (range 4..24; sweeps of unchanged eligibility before the klaxon steps down; 8 * BEACON_SWEEP_TICKS = 1024 ticks)
+    added: 2026-10-27
+    # [PLACEHOLDER] X12 / D87 (b); D.20
+  - name: ANN_STEPDOWN_DB
+    status: active
+    source: design/gdd/adaptive-audio-and-tells.md
+    referenced_by: []
+    attributes:
+      value: 6
+      unit: dB (range 3..12; depth of the klaxon step-down, bounded by D.19 R-h)
+    added: 2026-10-27
+    # [PLACEHOLDER] X12 / D87 (b); D.20, D.19 R-h
+  - name: HAPTIC_BEAT_MS
+    status: active
+    source: design/gdd/adaptive-audio-and-tells.md
+    referenced_by: []
+    attributes:
+      value: 80
+      unit: ms (range 40..150; length of the one fixed haptic pulse per tell beat; applies only when the opt-in setting haptic_beat_pulse, default off, is on)
+    added: 2026-10-27
+    # [PLACEHOLDER] X10 / D51; AA-42
+  - name: HAPTIC_BEAT_STRENGTH_PM
+    status: active
+    source: design/gdd/adaptive-audio-and-tells.md
+    referenced_by: []
+    attributes:
+      value: 600
+      unit: permille of motor strength (opt-in haptic beat pulse; fixed, never scaled by tier, progress or beat index)
+      range: 300-1000
+    added: 2026-10-27
+    # [PLACEHOLDER] X10 / D51; AA-42
+  - name: LOSS_CEILING_TICKS
+    status: active
+    source: design/gdd/save-load-and-versioned-format.md
+    referenced_by: []
+    attributes:
+      value: 24000
+      unit: ticks (ceiling checked by boot invariant I9 against loss_max_stepback; release-build boot refusal, logged diagnostic in dev and test)
+      range: 7200-36000
+    added: 2026-10-27
+    # Derived in F-7: 10800 + 7200 + 600 + 3600 + 1800; was 23400 before the refractory term (R_g 600). See the loss_ticks entry
 
 # Example:
 #

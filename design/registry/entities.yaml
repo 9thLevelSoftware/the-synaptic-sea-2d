@@ -1462,6 +1462,7 @@ entities:
       - design/gdd/2d-lighting-and-occlusion.md
       - design/gdd/ship-section-and-layout-data-model.md
       - design/gdd/modular-ship-assembly.md
+      - design/gdd/save-load-and-versioned-format.md
       - design/gdd/web-map-and-transit.md
       - design/gdd/adaptive-audio-and-tells.md
       - design/gdd/in-world-instruments-and-inspect-view.md
@@ -1472,7 +1473,7 @@ entities:
       naming: snake_case <system>_<noun> or the owner's existing prefix (PC_*, IA_*, BDY_*, graph_*, diag.*); units in the declaration never in the name
       limits: "DIAG_CHANNELS_MAX 64 channels (15 expected in MVP: 13 designed siblings, In-World Instruments, HUD & Suit Layer) and DIAG_ROWS_PER_CHANNEL_MAX 64 rows per channel (PLACEHOLDER, a dev knob)"
       channel_status: OK | PENDING | STALE | ERROR | SUSPENDED | REJECTED
-    # save-load-and-versioned-format.md removed from referenced_by 2026-10-27 (consistency pass): its GDD states no diagnostics channel, though the 13-sibling count above still expects one (open design item)
+    # save-load-and-versioned-format.md: channel `save_load` declared 2026-10-27 (its Interactions Debug Overlay row, AC-SL-127)
       rule: owners freeze their own diagnostic names using this convention; the Overlay restates none as a fact (closes the freeze asks at pipe:1055, player-controller-input.md:1095, interaction-system.md:731)
     added: 2026-10-26
     revised: 2026-10-26

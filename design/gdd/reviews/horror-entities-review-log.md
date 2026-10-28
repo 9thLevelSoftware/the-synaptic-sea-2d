@@ -152,3 +152,33 @@ Findings:
 - [RECOMMENDED] Dependencies Emitter row: [main review] The Emitter row does not list the emitters_near and kind/subkind reads.
 Reviewed-Content-Hash: design/gdd/horror-entities.md b13aa174f5e59dc6375e2d03627116132b9572d4
 Reviewed-Content-Hash: design/registry/entities.yaml cafe6d1169a1fe5dd043eae35c2c07a90c93b4c6
+
+## Review — 2026-10-28 — Verdict: APPROVED
+Scope signal: XL
+Specialists: none (lean confirming re-review after the third cross-GDD fix pass)
+Blocking items: 0 | Recommended: 12
+Summary: My verdict is APPROVED. There are no blocking items, and the 12 recommended revisions should be applied in the next fix pass.  The two blockers from the 2026-10-28 review are both closed: - AC-HE-136 now reads PASS or FAIL on the Horror side, using the kernel's published `rng_derive_epoch`. The main review re-derived its golden values independently and they match. - AC-HE-44 and AC-HE-125 now agree on a lag of at most 4 ticks for every `tell_enter_T mod 5`.  I spot-checked two claims against the files on disk: - design/gdd/horror-entities.md line 8 still reads Last Verified 2026-10-27. - design/gdd/life-support-graph.md line 777 (D.15 BREACH-EVENT) gives 131 s at the initial hole and 105-120
+Prior verdict resolved: Yes (confirming review of 2026-10-28)
+Findings:
+- [RECOMMENDED] Tuning Knobs HORROR_MARK_DRAW_GROUPS / AC-HE-89 / AC-HE-100 / OQ 11 / Gaps: [main review] The load assertion `HORROR_MARK_DRAW_GROUPS <= D_marks - TRAIL_DMARKS_SHARE` checks against D_marks, which the Pipeline gives only as a draw-call estimate, not as a published value. AC-HE-100 is NOT ASSESSED waiting on C-HE-31, and C-HE-31 has no owner: Pipeline OQ 17 declines it and Failure & Trail has no entry for it. [creative-director] Under G6 and R21 this is ours to decide. Never losing the truth-channel mark matters more for the horror read than an exact draw budget.
+- [RECOMMENDED] HE-11 / HE-35 / HE-42 / AC-HE-17 / AC-HE-139: [main review] `anchor_local_key` and `run_n` are never defined. AC-HE-17 still quotes the old three-term hash. The SALT_WP golden vector pins k3 = 0, so it cannot catch a wrong caller.
+- [RECOMMENDED] AC-HE-133 / E-HE-56 / AC-HE-94: [main review] These rows cite 131 s (7860 ticks) at LSG:707. I spot-checked the Graph: the line is now 777 (D.15 BREACH-EVENT). It gives 131 s at the initial hole but 105-120 s once the section is stressed and fatigued. AC-HE-133's fixture gouges the segment first, so the 7860-tick deadline is too generous. The 're-cite' marker has now survived three passes.
+- [RECOMMENDED] HE-F5 / Tuning Knobs UNFOLD_SCALE_PCT / HE-41 / AC-HE-88: [main review] `horror_set_unfold_scale` uses a HOST origin, which kernel CR-7 does not allow; CR-7 permits only PLAYER and SYSTEM. The command is registered nowhere outside this file. Because the setting is persisted world-scoped, a death restore silently rolls back an accessibility setting. [creative-director] Accessibility settings must never be undone by a death; that is unfair to the player. Prefer moving the setting to slot-level options.
+- [RECOMMENDED] HE-26 / HE-27 / HE-30 / V-table / HE-37: [main review] The closed-leaf HAIRLINES mark is missing from the taxonomy and the visual table. It shares the HAIRLINES quota of 3, so a horror camping at a sill can evict the strike hairlines, which are the truth-channel evidence of the last strike. HE-37's frozen counter list omits four counters.
+- [RECOMMENDED] Open Question 4 / HE-31 / AC-HE-123: [main review] Rime White-Grey #B0B8C0 (C-HE-21) is still an open USER DECISION, which goes against R21. [creative-director] I confirm the lean: add it as a palette entry. A Hull Grey exemption would weaken the frost truth-channel read.
+- [RECOMMENDED] Acceptance Criteria AC-HE-106 / AC-HE-107 / Game Feel / AC-HE-120: [main review] Four rows cannot be tested as written: 'five facings' is never defined; '90% of 5 judges' works out to 4.5 judges; Game Feel's '7 of 8' equivalent disagrees with ceil(0.875N) at N = 10; and the AC-HE-120 review step names no reviewer or artefact.
+- [RECOMMENDED] AC-HE-44 tag: [main review] The whole row is tagged 'negative fixture, expected FAIL', but cases (a) and (b) are positive. A harness that keys on the row tag could invert them.
+- [RECOMMENDED] Registry entities.yaml: horror.state / horror.view / RUPTURES_PER_EPOCH_MAX: [main review] Three registry entries lag the GDD. They show a stale restore_codes trigger, persisted fields missing from horror.state, fields missing from horror.view, and a time clause in RUPTURES_PER_EPOCH_MAX that HE-F17 deleted.
+- [RECOMMENDED] HE-42 / Attention AT-8: [main review] Horror says `rng_derive_epoch` is shared with Attention, but Attention spells the derivation inline instead of calling the helper. The value is equivalent; only the call shape drifts. The kernel owns the helper (G1).
+- [RECOMMENDED] Stale-text sweep: [main review] Stale items remain:
+(a) Last Verified reads 2026-10-27 (spot-checked at line 8).
+(b) AC-HE-48b is missing from the story-type list.
+(c) The size and row counts in OQ 29 are out of date.
+(d) Line 949 still lists Boarding among neighbours that do not name Horror.
+(e) The Attention Interactions quote is stale.
+(f) The LURK_STANDOFF_PX range of 144..288 includes 288, which Sanity rejects.
+(g) The Suit patch-cap floor of 5100 is unchanged.
+(h) The door-eject query budget assumes the eject run takes no locomotion step, but the text does not say so.
+- [RECOMMENDED] Visual/Audio V4 / Game Feel REACH: [main review] '~30% of UNFOLD_TICKS' gives the hold stage a second definition alongside the exact HE-14 formula.
+Reviewed-Content-Hash: design/gdd/horror-entities.md d37dd7bdd23a21819562f2afb26a4e9938ff5034
+Reviewed-Content-Hash: design/registry/entities.yaml c7c42b1a48216686518b8b47b2a01a34e276ab50

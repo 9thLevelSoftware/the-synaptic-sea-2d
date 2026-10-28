@@ -150,3 +150,34 @@ Findings:
 - [RECOMMENDED] Sink/faucet table; OQ-49; OQ-48 (g): [main review; creative-director endorses] By the doc's own arithmetic the lamp cell never binds within a sortie, so the 'top up or push on' autonomy and the Pillar 3 go-dark lever are still unproven.
 Reviewed-Content-Hash: design/gdd/suit-and-equipment.md fbf0a624b02c49d2d168ab008412a116a85a4a4d
 Reviewed-Content-Hash: design/registry/entities.yaml cafe6d1169a1fe5dd043eae35c2c07a90c93b4c6
+
+## Review — 2026-10-28 — Verdict: APPROVED
+Scope signal: XL
+Specialists: none (lean confirming re-review after the third cross-GDD fix pass)
+Blocking items: 0 | Recommended: 21
+Summary: CD verdict: APPROVED. Nothing blocks implementation of design/gdd/suit-and-equipment.md.  I spot-checked the findings the verdict depends on.  - **Header item (8), L16:** it says Web Map & Transit quotes VACUUM_BUDGET_S. A grep of web-map-and-transit.md finds no VACUUM_BUDGET at all, so the sentence is wrong. The defect is real and new this pass. - **AC-SE-18, L1628:** its lint still allows only locomotion_cap and stowed_heavy. The G6 Adapter read of tool_in_hand would fail that lint. - **AC-SE-23b, L1649:** it still says integrity_bp is below 2500 at run 125. At 20 bp per run from 5000 it is exactly 2500 at run 125 and first below at run 126.  The main review claimed no BLOCKING items, and 
+Prior verdict resolved: Yes (confirming review of 2026-10-28)
+Findings:
+- [RECOMMENDED] SE-16, AC-SE-18 (L1628), L475, L502, L1141, L1500 vs SE-40 (L312): [main review] [creative-director confirmed at L1628] AC-SE-18's lint allows only locomotion_cap and stowed_heavy. Under G6, the Controller Adapter also reads tool_in_hand (SE-40). A correct implementation therefore fails a BLOCKING-gate test. The design is right and the test is wrong. This is the third pass carrying it, so it ranks first.
+- [RECOMMENDED] Header item (8), L16: [main review] [creative-director confirmed: 0 VACUUM_BUDGET hits in web-map-and-transit.md] This pass introduced a new defect. Item (8) says Web Map & Transit quotes VACUUM_BUDGET_S. It does not, and the registry agrees that it does not.
+- [RECOMMENDED] AC-SE-23b (L1649), D.7 Example 2: [main review] [creative-director confirmed at L1649] Off-by-one. At 20 bp per run from 5000, integrity_bp is exactly 2500 at run 125. That is not below SUIT_HP_FAIL under strict '<'. The first run below it is 126, which is what AC-SE-74 already assumes.
+- [RECOMMENDED] D.8 A15/A16, AC-SE-44a: [main review] Suit's boot check A15 fails at HOP_LEG_TICKS 1,726 and above, but the registry owner allows values up to 2,190. AC-SE-44a's '1,500 or more boots with one warning' is false from 1,726 up. Nothing breaks at the default of 900.
+- [RECOMMENDED] Dependencies status (L1106, L1120, L1136), AC-SE-75c, AC-SE-34a, AC-SE-59, Gaps L1761-1762, OQ-30, OQ-48(a): [main review] Suit's status text is stale. Derelict Authoring, Boarding, Save/Load and Web Map have all conformed, but Suit still describes them as non-conformant. OQ-30 still states the withdrawn RESERVE_S/2 rule as live, which contradicts D.11.
+- [RECOMMENDED] SE-8, D.5, Edge Cases, Cross-References, AC-SE-47a/47b, OQ-26: [main review] Suit gives BEAM_TOGGLE_MIN_INTERVAL_TICKS as 10, range 10-20. The owner (Player Controller) set 12, range 12-20, with a WCAG floor of 12. AC-SE-47a's test value of 10 is below that floor.
+- [RECOMMENDED] D.8 item (3), Tuning Knobs TL_MAX / TL_CRITICAL: [main review] Item (3) states the A13 relationship backwards. Some published safe ranges fail boot when the other knobs are at their defaults.
+- [RECOMMENDED] SE-34; Save/Load SL-15 item 5: [main review] SE-34 describes restore as returning (ok, reason, detail). Kernel CR-19 as amended by R3 forbids that signature.
+- [RECOMMENDED] D.9 PASSIVE line: [main review] The dormant PASSIVE line restates the uncapped extra_credit formula. D.2 and AC-SE-8d replaced that formula because it credits from a stale grant.
+- [RECOMMENDED] R_BREATH range: [main review] R_BREATH values of 400-600 are legal in Suit but break the Item DB port-103 ceiling at MAX_CREW 4. The AC-SE-49b fixture uses 600.
+- [RECOMMENDED] L1389 audio-witness claim, D.10 rule (2): [main review] The text says every body cue has an audio witness. Suit's own table shows exceptions: E3, visor fog and rime. Rule (2) also leaves out E3.
+- [RECOMMENDED] OQ-11; registry STAGGER_WINDOW_TICKS unit text: [main review] OQ-11 and the registry say 'live at MVP'. The rest of the doc says this feature is dormant at MVP.
+- [RECOMMENDED] SE-30: [main review] SE-30 reads as a ban on showing the reserve in seconds, but HUD HS-17 legally converts it to nominal seconds under R8.
+- [RECOMMENDED] AC preamble, gate table group D, coverage map: [main review] The AC count reads 95. AC-SE-96 and AC-SE-97 are missing from the count, the group-D gate row and the coverage map.
+- [RECOMMENDED] AC-SE-35, SE-38, AC-SE-48b, test-infra item (5): [main review] Four small defects. The fixture contains a non-int 'S'. The size estimate is out of date. AC-SE-48b lacks the R12 P99 headroom rule. Test-infra item (5) still says a reference machine is owed, but R12 named them.
+- [RECOMMENDED] AC-SE-36a, AC-SE-87, AC-SE-94: [main review] The exact valve-click edge counts assume the seat boards from an AIR_OK room and arrives in one, but no GIVEN states that.
+- [RECOMMENDED] AC-SE-75a, D.11: [main review] A lint that reads 27 s literally allows 270 runs, but the 274-run bound would then fail legal paths of 271-274 runs.
+- [RECOMMENDED] Sibling: Emitter E4/EM-8; Save/Load SL-15: [main review] Emitter E4 and EM-8 still use the session-owner boot wording for bind_beam. Suit SE-9 dropped that wording. Suit itself is not wrong here.
+- [RECOMMENDED] D.11 Variables: [main review] D.11 does not say that warmth_ok tiles get no relax credit in DEEP_COLD. The sink table uses nominal legs while the budget uses slack legs, and neither is labelled.
+- [RECOMMENDED] AC-SE-48a: [main review] As written, the size criterion cannot fail.
+- [RECOMMENDED] OQ-49, sink/faucet table: [main review] [creative-director] This is a design-intent concern, not an edit defect. By the doc's own arithmetic the lamp cell never runs out within a sortie (about 4x margin). The 'go dark' lever in Pillar 3 is therefore unproven. Leave it open until playtest.
+Reviewed-Content-Hash: design/gdd/suit-and-equipment.md b4c2dd572d554c4806dabf5b3893e0ad16a8c106
+Reviewed-Content-Hash: design/registry/entities.yaml c7c42b1a48216686518b8b47b2a01a34e276ab50

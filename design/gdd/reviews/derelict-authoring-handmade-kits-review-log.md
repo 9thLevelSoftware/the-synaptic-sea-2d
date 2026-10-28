@@ -151,3 +151,34 @@ Findings:
 - [RECOMMENDED] Tuning Knobs REF_CARRY_LEVER_N; SPINE_LENGTH_TILES: [main review] The R19 conditional (n = 13/14, 31 tiles) falls outside the stated ranges.
 Reviewed-Content-Hash: design/gdd/derelict-authoring-handmade-kits.md 12f8dddf20da30acfdbc6b13796e01e45f9c3667
 Reviewed-Content-Hash: design/registry/entities.yaml cafe6d1169a1fe5dd043eae35c2c07a90c93b4c6
+
+## Review — 2026-10-28 — Verdict: APPROVED
+Scope signal: XL
+Specialists: none (lean confirming re-review after the third cross-GDD fix pass)
+Blocking items: 0 | Recommended: 17
+Summary: The verdict is APPROVED, with 0 BLOCKING, 14 RECOMMENDED and 3 NICE (the main review's 15 + 2 count leaves one finding out). No finding makes implementation wrong or impossible. Every cross-GDD conflict resolves through G1 (owner wins), and the ACs it touches are already gated.  **What I checked myself** - **Dock glow:** DA-46 still uses the 250-permille cap, the 100-500 range and the 'switch_on true' wording (L556, L1483, L1580, L2077). The Emitter defines DOCK_STATUS as switched only by E10 (Emitter L121), and the registry sets DOCK_STATUS_BASE_PM to 500. AC-DA-144 and AC-DA-145 are already gated (L2107), so neither is a live CI break. - **D.18 heat tell:** 22,857 x ln(26,286/23,586) = 2,4
+Prior verdict resolved: Yes (confirming review of 2026-10-28)
+Findings:
+- [RECOMMENDED] DA-46; DA-40 DOCK_GLOW_LUMINANCE (L556); Tuning Knobs DOCK_GLOW_OUTPUT_MAX_PM (L1483); Visual/Audio L1580; AC-DA-145: [main review] Third carry (G3). DOCK_GLOW_OUTPUT_MAX_PM caps the glow at 250 permille, with a range of 100-500. The Emitter owns DOCK_STATUS_BASE_PM: default 500, floor 300 (I-DOCK, registry L14342). [creative-director] Confirmed at L556, L1483 and L1580. AC-DA-145 waits on the art-director's ratio, so CI is not yet red. Under G1 the Emitter wins, so this is not blocking.
+- [RECOMMENDED] DA-46 Placement; DA-40 SELF_POWERED_LAMP_COUNT; OQ-DA-46; AC-DA-144: [main review] Third carry. DA-46 still says 'switch_on true at build' and refers to a BOOT node_ref list. The Emitter's FIXTURE DOCK_STATUS subkind is switched only by E10 set_dock_status (Emitter L121), so only the pod's dock room is lit. As written, AC-DA-144 (every dock room lit) cannot pass on a correct build. [creative-director] Confirmed. AC-DA-144 is currently BLOCKED-ON Layout's CONSOLE anchor (L2107), which is why this is not blocking yet.
+- [RECOMMENDED] AC-DA-142; D.17 cumulative table; registry interaction_subjects_if_adopted: [main review] Third carry, a G4 violation. The cumulative table is built from the pre-DA-47 base 68/100/111/111/143, while the GDD's own D.17 gives 70/102/113/113/145. The correct results are S_int 81/119/130/130/168, S_total 198 and need 256.
+- [RECOMMENDED] DA-40 lint table; DA-25; D.4; AC-DA-56; L542: [main review] PART_TYPE_UNSUPPLIED is cited by DA-25, D.4, the Item DB and the registry, but it has no DA-40 row, so AC-DA-56's traceability check fails. L542 still says 'registry still reads 82'.
+- [RECOMMENDED] D.18 tell lead (L1173); AC-DA-133; L1254; L1737: [main review] [creative-director] I re-derived this independently. ln(26,286/23,586) = 0.108383, and x 22,857 = 2,477.31, so the ceiling is 2,478, not 2,477. That makes the lead 292 steps (29.2 s, 1,752 ticks) and the margin 192. A correct build fails the exact AC as written. L1737 (presentation table) carries the same stale figures.
+- [RECOMMENDED] DA-40 lint tranches; DWELL_BUDGET_LOW; AC-DA-162; OQ-DA-56: [main review] DWELL_BUDGET_LOW is a T2 ERROR that is red on the shipped plan by design (104 s vs 190 s), so T2 can never complete. DOCK_GLOW_LUMINANCE has the same problem at the owner's default.
+- [RECOMMENDED] D.10; AC-DA-138: [main review] Both still cite Boarding D.4 as '546 ticks / 250 permille'. Boarding now also computes 582 ticks / 266 permille at the 228 px DA-48 proposal.
+- [RECOMMENDED] DA-48 decision reach (2); AC-DA-160: [main review] door_a_spine_machine's own assembly [936,1128) overlaps the 54-252 px decision window over y 936-1,026, so a literal lint run fires on the proposal geometry.
+- [RECOMMENDED] Player Fantasy beat 4 (L65); L391; DA-48; AC-DA-148: [main review] [creative-director] Pillar truthfulness. The Fantasy promises the failed scrubber as 'the first V8 salvage', but the measured reference route makes htr_a the first carry. A fantasy beat the route does not deliver first is a vision defect, not just stale text.
+- [RECOMMENDED] AC-DA-77: [main review] The recovery lever 'b_a2 range to 2,160,000' exceeds the 1,950,000 knob ceiling and would fire THAW_REACHABLE (ERROR).
+- [RECOMMENDED] AC-DA-121; AC-DA-122 (R12): [main review] AC-DA-122 prints two pass lines (the raw ceiling and 90 % of it). AC-DA-121 applies the frame-ceiling 90 % clause to a per-tick simulation budget, which is a different quantity.
+- [RECOMMENDED] AC-DA-96; AC-DA-100: [main review] AC-DA-96 requires 'leaked RefCounted handles', which gdUnit4 does not report. AC-DA-100's violation (a third fixture in b_pump) is legal at bound 3, so nothing is injected.
+- [RECOMMENDED] L1849; AC-DA-130; AC-DA-159; DA-17; OQ-DA-53: [main review] 'Dead SHORT at intensity 0' is stale. LSG now defines SHORT only while energised. OQ-DA-53(a) is answered by the Graph but still listed as open.
+- [RECOMMENDED] Open Questions OQ-DA-6, OQ-DA-8, OQ-V5, OQ-DA-2, OQ-DA-24, OQ-DA-54: [main review] Five OQs are still owned by 'user' with no resolution marker, although R20 and R21 forbid open OQs. OQ-V5 has no default at all. [creative-director] I am exercising the delegated R21 call on OQ-V5: MVP ships 0 web-intrusion pieces and no filament. This is the least new content, it keeps the kit count at its floor, and web intrusion belongs with the VS horror escalation.
+- [RECOMMENDED] AC-DA-153: [main review] The 14 s behind the 1,540 peak is asserted, not derived.
+- [RECOMMENDED] Stale labels and counts (Dependencies L1433, header L9, L84, L1427, L1615, L1702, L1790, L2104, DA-25): [main review] Residual stale text:
+- Status labels: Modular Ship Assembly is called 'In Design'; Perception Filter, Web Map and Adaptive Audio are called 'undesigned'.
+- Counts: the header says 88 lints and about 142 ACs; the Item DB row says 24 defs (the Item DB says 23).
+- Values: PART_INSTANCES_MAX is 70 (tight bound 68); the Composition row says 98 px (should be 102).
+- L1427 says the Controller does not name Authoring (it now has one hit).
+- [RECOMMENDED] AC-DA-148; REF_CARRY_LEVER_N and SPINE_LENGTH_TILES knob ranges: [main review] AC-DA-148's effective pass band is 1,219-1,344 px, not the 1,008-1,344 px it states. The R19 conditional values (n up to 14, spine up to 26) lie outside the stated knob ranges.
+Reviewed-Content-Hash: design/gdd/derelict-authoring-handmade-kits.md 04428b97eb7010b8e6f46a64280827f5d0da4b32
+Reviewed-Content-Hash: design/registry/entities.yaml c7c42b1a48216686518b8b47b2a01a34e276ab50

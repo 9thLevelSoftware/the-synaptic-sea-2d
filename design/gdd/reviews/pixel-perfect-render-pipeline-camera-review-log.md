@@ -156,3 +156,28 @@ Findings:
 - [RECOMMENDED] D.12 Output Range / Edge Cases L821 / OQ 19: [main review] 'Head visible throughout a doorway crossing' is stated as fact, but it depends on door art that has not been authored.
 Reviewed-Content-Hash: design/gdd/pixel-perfect-render-pipeline-camera.md 5f23375cb8535e48e5c98615b2ca055d7b966683
 Reviewed-Content-Hash: design/registry/entities.yaml cafe6d1169a1fe5dd043eae35c2c07a90c93b4c6
+
+## Review — 2026-10-28 — Verdict: APPROVED
+Scope signal: XL
+Specialists: none (lean confirming re-review after the third cross-GDD fix pass)
+Blocking items: 0 | Recommended: 15
+Summary: The verdict is APPROVED, with recommended revisions; nothing blocks implementation. I checked the one prior blocker (exact-oracle ACs starting at 3*tau_eff = 0.54 s) against the file. D.6 now defines t_exact = 10*tau_eff = 1.8 s (L438), and C3 step 12 (L162), D.6b (L453), the ACs at L1061/L1070/L1071 and OQ 12 (L1221) all reference it. The main review recomputed the margins at 60, 90 and 144 fps, so a correct build now passes. The main review raised no BLOCKING items, and I found none. I confirmed that the carried sibling defect is real and not resolved elsewhere: web-map-and-transit.md G-8 (L1762) still says AC-WM-115 'depends on the Pipeline accepting a world-camera impulse', although Pipe
+Prior verdict resolved: Yes (confirming review of 2026-10-28)
+Findings:
+- [RECOMMENDED] Web Map & Transit sibling (OQ-WM-25 L1788, AC-WM-115 L1733, G-8 L1762): [main review, confirmed by creative-director] G-8 still says AC-WM-115 'depends on the Pipeline accepting a world-camera impulse not currently in its camera states'. The Pipeline already answered that question (OQ 16 / R21: the Settle is held to VS-A and the jolt knob is 0 at MVP). As written, an MVP-listed manual AC cannot pass, and QA cannot tell whether it is owed.
+- [RECOMMENDED] Player Controller sibling (D.7b L532, OQ 30(a) L1396) / Pipeline D.7 W_RUN range: [main review] The Controller still asks for run look-ahead keyed on loco_state == RUN. The Pipeline already does this. W_RUN's safe range is also still 0-0.75, while the Controller asks for it to start at 0.50.
+- [RECOMMENDED] C3 L162, D.6b, D.8b, OQ 12: [main review, creative-director concurs] D.6b is still labelled 'default candidate' although it is the normative MVP solver. The D.6b path then clamps against a float rect_eff after flooring, so during a rect ease the pose can be non-integer. That violates PR-4 rule 2.
+- [RECOMMENDED] D.12 entity_id / PR-5 / OQ 27(b); registry layout_entity_id_namespace; Layout OQ-33: [main review] The publisher namespace tag table does not exist, so the diag.sort_id_collision tie-break cannot be implemented. Under G6, filling this gap belongs to the Pipeline as owner.
+- [RECOMMENDED] D.14b / D.8b / OQ 18: [main review, creative-director weights up] Mouse aim while CLAMPED can be off by up to field/2, and the lamp is the core verb. This is the finding closest to the pillars among the open items: wrong aim reads as the game lying to the player in a horror context where light is survival.
+- [RECOMMENDED] PR-4 rule 3 (L119), PR-11, D.17, frame-step AC: [main review] The promise 'base-pixel steps never twice in a frame at >= 60 fps' only holds for bodies moving at most 1 px/tick. Walk speed is 2 px/tick and run speed is 3 px/tick.
+- [RECOMMENDED] Acceptance Criteria evidence classes and Performance (L1063, L1172-1183, L1199): [main review] L1063 uses a class that is not defined. The performance ACs have no class tag. 'A miss logs, it does not fail' contradicts R12 and L1182.
+- [RECOMMENDED] Startup assertion ACs (L1158, L1161) vs PR-15 / PR-7: [main review] The ACs hard-code the canvas_items/integer values, so a correct wiring-(i) build would fail them.
+- [RECOMMENDED] Spike gating vs art bible 8.12: [main review] The gates reference spike steps 11-13, which do not exist. The art bible defines 10 steps.
+- [RECOMMENDED] Stale text and counts (L168, L889, OQ 27(e), registry referenced_by, systems index, dependents count): [main review, confirmed L168 by grep] L168 still says 'user ratification pending' although OQ 4 is resolved. Registry entries are still described as 'requested'. referenced_by is incomplete. The dependents count differs between 17 and 22.
+- [RECOMMENDED] Dependencies (L857-888): [main review] Four cite-only consumers are missing. The Settings and Accessibility rows do not use R9's 'undesigned - provisional contract' wording.
+- [RECOMMENDED] D.14b fixture (AC L1061) and f_q vs D.6b pose: [main review] The 60 fps fixture is stated two ways (alpha 0 and alpha 0.05). Also, floor-of-sum versus sum-of-floors can put the 'aim = picture centre' result 1 px off.
+- [RECOMMENDED] D.6b offset AC (L1071): [main review] The last-step times 0.62/0.78/0.67 s should be 0.63/0.79/0.67 s.
+- [RECOMMENDED] States BOOTING (L104, L268) vs kernel menu-idle BOOTING: [main review] The text does not say that the pipeline's BOOTING hold persists through the kernel's open-ended menu-idle BOOTING.
+- [RECOMMENDED] D.6 prose L441, L783: [main review, confirmed by grep] 'settles in the same 0.54 s' can be read as a claim about the settled pose.
+Reviewed-Content-Hash: design/gdd/pixel-perfect-render-pipeline-camera.md d6d0f000f954793bfc08d097a7f3a2cd958a7985
+Reviewed-Content-Hash: design/registry/entities.yaml c7c42b1a48216686518b8b47b2a01a34e276ab50

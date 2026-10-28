@@ -1304,8 +1304,10 @@ entities:
       - design/gdd/pixel-perfect-render-pipeline-camera.md
     attributes:
       kind: command vocabulary additions (provisional)
-      player_origin: pod_hop{target_id}, berth{derelict_id}, unberth
-      system_origin: pod_arrive{leg_epoch}, pod_settle{leg_epoch}, berth_step{berth_epoch, phase}, web_reconcile{record_ids} (allowed_origins SYSTEM, no actor binding; a PLAYER attempt is ORIGIN_NOT_ALLOWED)
+      # was: player_origin 'pod_hop{target_id}, berth{derelict_id}, unberth' (no kernel CR-6 registration fields) before 2026-10-28 (rr4; WM-9 declares the full registration)
+      player_origin: "pod_hop{target_id}, berth{derelict_id}, unberth; each registered with actor_binding OWNED_BY_ISSUER, actor_source body.state, coalesce NONE, max_age_ticks 120 (MAX_AGE_TICKS_ACTION)"
+      # was: system_origin '... (allowed_origins SYSTEM, no actor binding; a PLAYER attempt is ORIGIN_NOT_ALLOWED)' without coalesce or max_age_ticks before 2026-10-28 (rr4; WM-9)
+      system_origin: "pod_arrive{leg_epoch}, pod_settle{leg_epoch}, berth_step{berth_epoch, phase}, web_reconcile{record_ids}; each registered with allowed_origins SYSTEM, actor_binding NONE (no actor_source), coalesce NONE, max_age_ticks 120 (MAX_AGE_TICKS_ACTION, [PLACEHOLDER]); a PLAYER attempt is ORIGIN_NOT_ALLOWED"
       reasons: BUSY, IN_TRANSIT, OUT_OF_RANGE, NOT_LIT, NOT_DOCKED_HERE, TARGET_UNKNOWN, TARGET_ABSORBED, TARGET_HERE, TARGET_BERTHED, BERTH_PENDING, FUEL_LOW, ARRIVAL_BLOCKED, CAPACITY, POD_NOT_READY (reserved, never returned at MVP); berth adds NOT_BOARDED, NO_MATE_SOCKET, SOCKET_NOT_FREE, ALREADY_BERTHED; unberth adds NOT_BERTHED, SOCKET_NOT_FREE and never FUEL_LOW
       restore_reasons: WEB_RESTORE_VERSION, WEB_RESTORE_UNKNOWN_RECORD, WEB_RESTORE_EPOCH, WEB_RESTORE_POD_BODY, WEB_RESTORE_STATE, WEB_RESTORE_LEG_INEXACT, WEB_RESTORE_BERTH_INEXACT, WEB_RESTORE_LOADED_SET
       defect_reasons: WEB_DORMANCY_HOME, WEB_DORMANCY_AVATAR (apply defects, never reachable game states), WEB_RECONCILE_GUARD (log-only; web_reconcile applies the rest)
@@ -2189,10 +2191,22 @@ entities:
     attributes:
       kind: Save/Load diagnostic event (a log code, not a command or a state)
       rule: "raised when the pre-restore slot_epoch.bin write fails or exceeds RESTORE_EPOCH_WRITE_MAX_MS; sets save_status = FAILED; the restore proceeds with the advanced value in memory (listed exposure: a kill before the next successful write may replay the epoch once); the write is re-attempted with the next write job (SL-23 (2a), (2b))"
-      aliases: "SL_RESTORE_EPOCH_NOT_DURABLE (kernel CR-15 / KRN-EPO-05 wording) is the SAME event, not a second code; the publisher (Save/Load) spelling SL_EPOCH_NOT_DURABLE is canonical (G1) and the kernel conforms. SL_EPOCH_FILE_REBUILT (missing or bad-CRC slot_epoch.bin, rebuilt) is a separate Save/Load diagnostic"
+      aliases: "none; the publisher (Save/Load) spelling SL_EPOCH_NOT_DURABLE is canonical (G1) and the kernel GDD conforms (CR-15, KRN-EPO-05). SL_EPOCH_FILE_REBUILT (missing or bad-CRC slot_epoch.bin, rebuilt) is a separate Save/Load diagnostic"
     added: 2026-10-28
     revised: 2026-10-28
-    # Requested by the kernel writer as SL_RESTORE_EPOCH_NOT_DURABLE; registered under the owner's spelling (the Save/Load GDD uses SL_EPOCH_NOT_DURABLE in 9 places, the kernel GDD still quotes the alias in 3: CR-15 and KRN-EPO-05 owe a rename)
+    # was: aliases listed the kernel-spelling variant SL_RESTORE_EPOCH_NOT_DURABLE (CR-15 / KRN-EPO-05 wording) as the same event, before 2026-10-28 (rr4: the kernel GDD now uses SL_EPOCH_NOT_DURABLE everywhere; alias dropped, no live text uses it)
+
+  - name: control_plane_request_outcomes
+    status: active
+    source: design/gdd/command-simulation-layer.md
+    referenced_by: []
+    attributes:
+      kind: "kernel diagnostics enum (a log outcome, not a command result record): SERVED | DEFERRED | IGNORED"
+      rule: "every control-plane request (CR-15) is recorded when made and ends in exactly one outcome: SERVED (a tabled transition occurred, or for request_snapshot the capture completed), DEFERRED (made while an atomic step was active; kept in arrival order and evaluated at the first boundary after the step), IGNORED (the (state, trigger) pair is not in the table when evaluated: one invalid-transition entry, no state change); while SAVING every request is DEFERRED; while LOADING only request_shutdown is DEFERRED and every other request is IGNORED (matches Save/Load T-1)"
+      pair_count: "the first-boot BOOTING rows (BOOTING + request_new_game, BOOTING + request_restore, both to LOADING) raise the KRN-STATE-01 (state, trigger) pair count by 2; new ACs KRN-STATE-03 and KRN-STATE-04"
+    added: 2026-10-28
+    revised: 2026-10-28
+    # Requested by the kernel writer (rr4); Save/Load T-1 reuses these names identically (not yet cited by name there, so referenced_by stays empty until it does)
 
   - name: kernel_binding_table
     status: active
@@ -3871,7 +3885,7 @@ formulas:
     added: 2026-10-26
     revised: 2026-10-27
     # Worked example: last_save_T 432000, weld at 437400 -> elapsed 5400 >= 1800 -> EVENT; latch at 438700 due 439200
-    # F-1 re-review 2026-10-27: a single coalesced event_kind let a cut followed by a weld capture inside an open breach (defeating D54). Assembly D.9 asks for the unconditional form (T - last_shape_change_T) >= EVENT_SAVE_SETTLE_TICKS AND NOT ragged_breach_open(); not adopted here until Save/Load (owner) conforms
+    # F-1 re-review 2026-10-27: a single coalesced event_kind let a cut followed by a weld capture inside an open breach (defeating D54). (2026-10-28: Assembly withdrew the settle term and conforms to this form; reconciled)
   - name: autosave_gate
     status: active
     source: design/gdd/save-load-and-versioned-format.md
@@ -5232,14 +5246,15 @@ formulas:
       - design/gdd/web-map-and-transit.md
       - design/gdd/save-load-and-versioned-format.md
     attributes:
-      expression: "last_shape_change_T = max over welds[] of max(welded_at_T, cut_at_T), or NONE when welds[] is empty; consumer event_due = event_pending AND (T - last_save_T) >= AUTOSAVE_MIN_GAP_TICKS AND (T - last_shape_change_T) >= EVENT_SAVE_SETTLE_TICKS AND NOT ragged_breach_open()"
+      expression: "last_shape_change_T = max over welds[] of max(welded_at_T, cut_at_T), or NONE when welds[] is empty; consumer (Save/Load F-1, autosave_due) event_due = (pending_events != empty) AND (T - last_save_T) >= AUTOSAVE_MIN_GAP_TICKS AND NOT (ragged_breach_open() AND ASSEMBLY_CUT IN kinds(pending_events))"
+    # was: consumer event_due = event_pending AND (T - last_save_T) >= AUTOSAVE_MIN_GAP_TICKS AND a settle conjunct (T - last_shape_change_T) >= (the withdrawn settle constant) AND NOT ragged_breach_open() before 2026-10-28 (rr4; Assembly conforms to Save/Load F-1)
     # was: consumer event_due = event_pending AND (T - last_save_T) >= AUTOSAVE_MIN_GAP_TICKS (no withhold conjunct) before 2026-10-27 (user rulings X7 / D54)
-      variables: "welded_at_T and cut_at_T (int64 ticks, Layout welds[]), AUTOSAVE_MIN_GAP_TICKS 1800, event_kind (enum: ASSEMBLY_WELD iff the maximum is a welded_at_T, ASSEMBLY_CUT iff it is a cut_at_T; names the event only, the withhold no longer reads it), EVENT_SAVE_SETTLE_TICKS"
+      variables: "welded_at_T and cut_at_T (int64 ticks, Layout welds[]), AUTOSAVE_MIN_GAP_TICKS 1800, event_kind (enum: ASSEMBLY_WELD iff the maximum is a welded_at_T, ASSEMBLY_CUT iff it is a cut_at_T; names the event only, the withhold reads the pending-set kinds)"
       output: NONE or an int64 tick; two 32-bit parts or a string at the serialisation boundary (SL-2)
     added: 2026-10-26
-    revised: 2026-10-27
+    revised: 2026-10-28
     # D.9. Pure read polled by Save/Load (SL-13); event names ASSEMBLY_WELD / ASSEMBLY_CUT fixed (2026-10-27). MVP ships both events enabled (D17).
-    # was: consumer withhold NOT (event_kind = ASSEMBLY_CUT AND ragged_breach_open()), settle term omitted, before 2026-10-27 (re-review: a later weld bypassed the event_kind-keyed withhold). CONFLICT: Save/Load (owner of autosave_due) keeps NOT (ragged_breach_open() AND ASSEMBLY_CUT IN kinds(pending_events)) with no settle term; to be reconciled between the two owners
+    # was: consumer withhold NOT (event_kind = ASSEMBLY_CUT AND ragged_breach_open()), settle term omitted, before 2026-10-27 (re-review: a later weld bypassed the event_kind-keyed withhold). (2026-10-28: reconciled, G1 - Assembly conforms to Save/Load F-1; settle term withdrawn)
 
   - name: cascade_defer_deadline
     status: active
@@ -5525,8 +5540,9 @@ formulas:
     referenced_by: []
     # consumer hints (GDD exists, does not cite this name yet): design/gdd/player-controller-input.md [V_WALK], design/gdd/ship-body-and-interior-physics.md [V_CARRY, BDY-13], design/gdd/derelict-authoring-handmade-kits.md [DA-29]
     attributes:
-      expression: "UNFOLD_LO >= ceil5(t_out_max(V_WALK) + REACT_ALLOW_TICKS_HORROR + INPUT_LATENCY_TICKS + 1); UNFOLD_LO mod 5 = 0; UNFOLD_HI >= UNFOLD_LO; UNFOLD_TICKS = 5 x ceil_div(rng_int(UNFOLD_LO/5, UNFOLD_HI/5) x UNFOLD_SCALE_PCT, 100), drawn from rng_derive(world_seed, 'horror.tell', threat_counter(counter)) = rng_derive_epoch(world_seed, 'horror.tell', counter) (HE-42, R1; threat_epoch retired); UNFOLD_SCALE_PCT changes only through a hashed host command"
+      expression: "UNFOLD_LO >= ceil5(t_out_max(V_WALK) + REACT_ALLOW_TICKS_HORROR + INPUT_LATENCY_TICKS + 1); UNFOLD_LO mod 5 = 0; UNFOLD_HI >= UNFOLD_LO; UNFOLD_TICKS = 5 x ceil_div(rng_int(UNFOLD_LO/5, UNFOLD_HI/5) x UNFOLD_SCALE_PCT, 100), drawn from rng_derive_epoch(world_seed, 'horror.tell', counter) (HE-42, R1; threat_epoch retired); UNFOLD_SCALE_PCT changes only through a hashed host command"
       # was: draw source rng_derive(world_seed, 'horror.tell', counter) before 2026-10-27 (user rulings, X8/D16)
+      # was: draw written through a Horror-side alias of counter_eff (rng_derive(world_seed, 'horror.tell', alias(counter)) = rng_derive_epoch(...)) before 2026-10-28 (rr4, G1: the Horror-side alias name is retired; the kernel's rng_derive_epoch is the one name)
       # was: UNFOLD_LO >= ceil5(ceil(R_SNAP_PX / V_WALK) + REACT_ALLOW_TICKS_HORROR + 1); UNFOLD_TICKS = 5 x rng_int(...); before 2026-10-27 (design review)
       variables: "t_out_max(V_WALK) 37 (slowest of Body's 8 octants, the diagonal; HE-F2, AC-HE-130); R_SNAP_PX 72; V_WALK 2; REACT_ALLOW_TICKS_HORROR 54 [PH, unsourced C-HE-27]; INPUT_LATENCY_TICKS 0 [PH, unmeasured] (0..3 fit UNFOLD_LO 95); UNFOLD_SCALE_PCT 100..200 default 100 (accessibility, lengthens only); the +1 is the kernel's T+1 command application (KRN D.4)"
       output: "t_out_max(V_WALK) = 37 (diagonal), bound 37 + 54 + 0 + 1 = 92, rounded to UNFOLD_LO 95 (3 ticks of slack); UNFOLD_TICKS takes 18 values 95..180, mean 137.5 at UNFOLD_SCALE_PCT 100; a carrier needs 130, so is clear on 11 of 18 draws and struck on 7 of 18 (38.9 percent)"
@@ -5905,13 +5921,17 @@ formulas:
     source: design/gdd/boarding-and-salvage.md
     referenced_by: []
     attributes:
-      expression: "dwell = ceil(px_in / V_WALK) + T_open + n_cuts * SALVAGE_CHANNEL_TICKS + T_scan + px_out / V_CARRY; margin_pm = floor(1000 * dwell / T_crit); reserve_pm = floor(1000 * round_trip_ticks / (RESERVE_S * TICK_RATE)); n_lethal = floor((T_crit - dwell_fixed) / SALVAGE_CHANNEL_TICKS) + 1; reserve constraint RESERVE_S * TICK_RATE >= 2688 + 42 = 2730 (RESERVE_S >= 46)"
+      expression: "dwell = ceil(px_in / V_WALK) + T_open + n_cuts * SALVAGE_CHANNEL_TICKS + T_scan + px_out / V_CARRY; margin_pm = floor(1000 * dwell / T_crit); traverse_runs = ceil(round_trip_ticks / GRAPH_STEP_TICKS); reserve_cost_mgu = traverse_runs * R_BREATH; reserve_pm = floor(1000 * reserve_cost_mgu / arrival_reserve) with arrival_reserve = 0 -> reserve_pm = 1000, everything unserved (G5); n_lethal = floor((T_crit - dwell_fixed) / SALVAGE_CHANNEL_TICKS) + 1; reserve constraint (RESERVE_S - 30) * 10 >= 2 * 163 + traverse_runs (RESERVE_S >= 63 with no traverse, >= 81 for 22 tiles of round trip, >= 90 for the 34-tile gate)"
+    # was: reserve_pm = floor(1000 * round_trip_ticks / (RESERVE_S * TICK_RATE)), the share of a FULL reserve (the stale reading), before 2026-10-28 (rr4; Boarding D.4 arrival-reserve chain with the G5 guard)
+    # was: reserve constraint RESERVE_S * TICK_RATE >= 2688 + 42 = 2730 (RESERVE_S >= 46) before 2026-10-28 (rr4; presumed a full reserve; the RESERVE_S floor is 63 per Suit A15)
     # was: expression ended at reserve_pm, with no n_lethal restatement or reserve constraint, before 2026-10-27 (design review)
-      variables: "T_crit 2184 (DA D.10, cited); RESERVE_S 90 [PLACEHOLDER]; SALVAGE_CHANNEL_TICKS 240 [PLACEHOLDER]"
-      output: "design-time; dwell range is dwell_fixed + n_cuts * SALVAGE_CHANNEL_TICKS (dwell_fixed 306 at the defaults without a SCAN); htr_a reference dwell 546 ticks = 250 permille; worst case in the 7-tile bound with a SCAN 864 = 395 permille; eight cuts 2226 > 2184 (n_lethal 8 at the defaults only); B's 56-tile carried round trip 2688 ticks = 497 permille of RESERVE_S; RESERVE_S floor 45 leaves 12 ticks, drop-and-return leaves 24 ticks at 90 s; open-door a_spine cost is cited from DA D.18, not computed"
+      # was: variables 'T_crit 2184 (DA D.10, cited); RESERVE_S 90 [PLACEHOLDER]; SALVAGE_CHANNEL_TICKS 240 [PLACEHOLDER]' (no R_BREATH, arrival_reserve or px anchors) before 2026-10-28
+      variables: "T_crit 2184 (DA D.10, cited); RESERVE_S 90 (63-240) [PLACEHOLDER]; R_BREATH 300 mGU/run; arrival_reserve 222,600 to 222,900 mGU at the defaults (Suit D.1 pod derivation, quoted); px_in = px_out = 228 (DA-48 proposal, [PLACEHOLDER - derive at spike]); SALVAGE_CHANNEL_TICKS 240 [PLACEHOLDER]"
+      # was: output 'dwell_fixed 306; htr_a reference dwell 546 ticks = 250 permille; eight cuts 2226 > 2184; B's 56-tile carried round trip 2688 ticks = 497 permille of RESERVE_S; RESERVE_S floor 45 leaves 12 ticks, drop-and-return leaves 24 ticks at 90 s' before 2026-10-28 (rr4: 204 px anchor to 228 px DA-48 route; arrival-reserve reading; 497 permille is the share of a FULL reserve for the withdrawn 56-tile ceiling, kept as a stress row only)
+      output: "design-time; dwell range is dwell_fixed + n_cuts * SALVAGE_CHANNEL_TICKS (dwell_fixed 342 = 114 + 0 + 228 at the defaults without a SCAN); htr_a reference dwell 582 ticks = 266 permille (702 = 321 with a SCAN; the pre-ruling 204 px anchor gave 546 = 250); worst case in the 7-tile bound with a SCAN 864 = 395 permille; eight cuts 2262 > 2184 (n_lethal 8 at the defaults only); unbreathable branch against the arrival reserve, carried both ways: 22 tiles of round trip 1,056 ticks = 176 runs = 52,800 mGU = 236 to 237 permille; the Suit gate, 34 tiles of round trip, 1,632 ticks = 272 runs = 81,600 mGU = 366 permille of arrival (302 of a full reserve); the withdrawn 56-tile ceiling (2,688 ticks, 448 runs, 134,400 mGU = 602 to 603 permille, 497 of a full reserve) is a stress row only; open-door a_spine cost is cited from DA D.18, not computed"
     # was: output cited 'eight cuts 2226 > 2184' as a constant and had no reserve constraint before 2026-10-27 (design review)
     added: 2026-10-26
-    revised: 2026-10-27
+    revised: 2026-10-28
 
   - name: cap_versus_leave
     status: active
@@ -5957,11 +5977,12 @@ formulas:
       expression: "runs_aboard = floor(t_aboard_s * TICK_RATE / SANITY_DRIFT_DIVISOR); net_aboard = RING_EXPOSURE[ring] + ABOARD_EXPOSURE - REC_IDLE (0 ring term at ring 1, figures unchanged); dwell_msu = runs_aboard * net_aboard; t_stage1_s = ceil((SAN_MAX - STAGE_ENTER[1]) / net_aboard) / 5 defined only for net_aboard > 0, sentinel UNBOUNDED otherwise; second sortie: L_start(2) = L_end(1) + settled_runs * (REC_SETTLED - RING_EXPOSURE[ring]), t_stage1_s(2) = ceil((L_start(2) - STAGE_ENTER[1]) / net_aboard) / 5; envelopes nest iff t_target_s <= t_stage1_s"
     # was: dwell_msu = runs_aboard * (ABOARD_EXPOSURE - REC_IDLE); t_stage1_s = ceil((SAN_MAX - STAGE_ENTER[1]) / (ABOARD_EXPOSURE - REC_IDLE)) / 5, no guard, first sortie only, before 2026-10-27 (design review)
       variables: "SANITY_DRIFT_DIVISOR 12; ABOARD_EXPOSURE 20 mSU/run [PLACEHOLDER]; REC_IDLE 1; STAGE_ENTER[1] (Sanity)"
-      output: "design-time; stage 1 after 1579 runs (315.8 s) standing aboard in ring 1; a 300 s sortie spends 28,500 mSU (95 percent of the way); ordering 300 s <= 315.8 s < 480 s (T_SORTIE_SAFE_TICKS) < 1200 s (CELL_S); second sortie straight back out reaches stage 1 after 15.8 s (31.0 s if the pod leg and home walk count as settled, [UNV: Sanity]); full restoration takes 2,375 settled runs = 475 s; W_LOOP 300 s is the single target; the W_ABOARD target derives at about 259 s; t_target_s 300 s is the stage-1 ceiling on the median, not a second target (rec 5, BS-20, D.8, X-BS-1); a long sortie that enters stage 1 is intended (Default applied 2026-10-27, confirmed 2026-10-28 (delegated ruling R20), D73 part c, X11); 315.8 s is marked [UNV: Sanity re-runs D.4 and D.8 under the X11 band change]"
+      output: "design-time; stage 1 after 1579 runs (315.8 s) standing aboard in ring 1; a 300 s sortie spends 28,500 mSU (95 percent of the way); ordering 300 s <= 315.8 s < 480 s (T_SORTIE_SAFE_TICKS) < 1200 s (CELL_S); second sortie straight back out reaches stage 1 after 15.8 s (31.0 s if the pod leg and home walk count as settled, [UNV: Sanity]); full restoration takes 2,375 settled runs = 475 s; W_LOOP 300 s is the single target; the lint-guaranteed W_ABOARD is about 229 s (floor 38.6 s + DWELL_BUDGET_LOW 190 s) and the design expectation is about 259 s (D.1, OQ-BS-28 (d)); t_target_s 300 s is the stage-1 ceiling on the median, not a second target (rec 5, BS-20, D.8, X-BS-1); a long sortie that enters stage 1 is intended (Default applied 2026-10-27, confirmed 2026-10-28 (delegated ruling R20), D73 part c, X11); 315.8 s is marked [UNV: Sanity re-runs D.4 and D.8 under the X11 band change]"
     # was: output had no D73 part (c) intent note and no [UNV] mark on 315.8 s before 2026-10-27 (user rulings; description only, the expression is unchanged)
     # was: output had no second-sortie row and compared a fixed 300 s target against the stage-1 time before 2026-10-27 (design review)
+    # was: output 'the W_ABOARD target derives at about 259 s' before 2026-10-28 (rr4: the 259 s derivation double-counted the 30 s survey allowance against DA's witness-based lint D.23; 38.6 + 190 = 228.6 s; the 190 s line and the 180-300 s band are unchanged)
     added: 2026-10-26
-    revised: 2026-10-27
+    revised: 2026-10-28
 
   - name: loss_window_after_cut
     status: active
@@ -5984,11 +6005,12 @@ formulas:
       expression: "cell_share_pm = min(1000, floor(1000 * lit_ticks / (CELL_S * TICK_RATE))); sorties_per_cell = floor(CELL_S * TICK_RATE / lit_ticks) for lit_ticks >= 1 and the sentinel UNBOUNDED for lit_ticks = 0; sorties_to_empty = ceil(CELL_S * TICK_RATE / lit_ticks) (the sortie in which the cell reaches 0, no refill between sorties; renamed from sorties_to_strand because an empty cell no longer strands, BS-19); cell_after_refill = min(CELL_S * TICK_RATE, cell_left + refill_ticks)"
     # was: sorties_to_strand = ceil(CELL_S * TICK_RATE / lit_ticks), and no cell_after_refill term, before 2026-10-27 (user rulings X5, X2)
     # was: cell_share_pm = floor(1000 * lit_ticks / (CELL_S * TICK_RATE)); sorties_per_cell = floor(CELL_S * TICK_RATE / lit_ticks) (no clamp, no lit_ticks = 0 guard) before 2026-10-27 (design review)
-      variables: "CELL_S 1200 s [PLACEHOLDER]; RESERVE_S 90 s [PLACEHOLDER]; GLOWSTICK_START_COUNT 2 [PLACEHOLDER]; refill_ticks 0 to the deficit per lit bare-hand top_up TAP at a home BATTERY port (cited from Suit D.9, cell_deficit_ticks and CELL_STOCK_PER_KTICK, not defined here); lit_ticks 0 to 28,800 safe, 1,278 to 18,000 realistic, and counts ticks with the lamp left on during a pod leg (945 per leg) because the statuses run in the pod (D60; whether the leg drains the cell is Suit's and Web Map's to state, OQ-BS-32)"
-      output: "design-time; reference line lit 1278 ticks (21.3 s) = 17 permille of CELL_S, 56 sorties per cell (28 to 112 across CELL_S 600 to 2400); a 300 s survey sortie = 250 permille, 4 per cell and sorties_to_empty 4 (campaign reading: the cell empties in about four survey sorties between refills; no choice strands the player because the dock console is lit by the pod's status glow, BS-19; the player refills with top_up, goes dark or spends sticks); a 28,800-tick safe sortie = 400 permille, 2 per cell"
+      variables: "CELL_S 1200 s [PLACEHOLDER]; RESERVE_S 90 s (63-240) [PLACEHOLDER]; GLOWSTICK_START_COUNT 2 [PLACEHOLDER]; refill_ticks 0 to the deficit per lit bare-hand top_up TAP at a home BATTERY port (cited from Suit D.9, cell_deficit_ticks and CELL_STOCK_PER_KTICK, not defined here); lit_ticks 0 to 28,800 safe, 1,278 to 18,000 realistic, and counts 6 ticks per lit run in the pod (D60, R6: Suit drains GRAPH_STEP_TICKS per lit run, SE-8; Web Map WM-17 conforms; OQ-BS-32 closed): a nominal 945-tick leg holds 157 or 158 runs so a fully lit leg debits 942 to 948 lit ticks, up to 978 on the 975-tick slack leg (163 runs)"
+      output: "design-time; reference line lit 1278 ticks (21.3 s) = 17 permille of CELL_S, 56 sorties per cell (28 to 112 across CELL_S 600 to 2400); a 300 s survey sortie = 250 permille, 4 per cell and sorties_to_empty 4 (campaign reading: the cell empties in about four survey sorties between refills; no choice strands the player because the dock console is lit by the pod's status glow, BS-19; the player refills with top_up, goes dark or spends sticks); a 28,800-tick safe sortie = 400 permille, 2 per cell; built-route reading (28 tiles): 2,358 lit ticks = 39.3 s = 32 permille, 30 sorties per cell; beam left lit across both nominal pod legs adds 1,884 to 1,896 ticks (reference line 3,162 to 3,174 = 43 to 44 permille, 22 sorties per cell; a 300 s survey 19,884 to 19,896 = 276 permille, 3 per cell, sorties_to_empty 4)"
     # was: output range 1 to about 56 and lit_ticks bound 18,000 before 2026-10-27 (design review)
+    # was: lit_ticks 'counts ticks with the lamp left on during a pod leg (945 per leg) ... whether the leg drains the cell is Suit's and Web Map's to state, OQ-BS-32' and RESERVE_S 90 s without its range before 2026-10-28 (rr4; D60, R6: 6 ticks per lit run in the pod, OQ-BS-32 closed); output had no built-route or lit-pod-leg reading
     added: 2026-10-26
-    revised: 2026-10-27
+    revised: 2026-10-28
 
   - name: lie_displayed_value
     status: active
@@ -7068,16 +7090,17 @@ formulas:
   - name: rng_derive_epoch
     status: active
     source: design/gdd/command-simulation-layer.md
-    referenced_by: []
+    referenced_by:
+      - design/gdd/horror-entities.md
     attributes:
       expression: rng_derive_epoch(world_seed, stream_name, rng_counter) = rng_derive(world_seed, stream_name, counter_eff), counter_eff = rng_counter + RESTORE_KEY_STRIDE x restore_epoch (threat draws only; the stream-name hash stays cached and unchanged)
       variables: "rng_counter < RESTORE_KEY_STRIDE (2^20), else RNG_COUNTER_RANGE_VIOLATION; restore_epoch in 0..2^32-1 read from kernel.clock, else RESTORE_EPOCH_RANGE"
       output: "u64; goldens (seed 0x5EED000000002026, stream horror.tell, counter 17): epoch 0 0xB2AA94991B52A02E, epoch 1 0x6EFE2D9E722654C6, epoch 2 0xA46E009E591F2390"
-      alias: threat_counter(c) = c + RESTORE_KEY_STRIDE x restore_epoch is Horror's name for counter_eff (HE-42); not a separate formula
     added: 2026-10-27
-    revised: 2026-10-27
+    revised: 2026-10-28
+    # was: alias line 'c + RESTORE_KEY_STRIDE x restore_epoch is Horror's own name for counter_eff (HE-42)' before 2026-10-28 (rr4, G1: Horror no longer defines the alias; HE-14, HE-42, HE-F5, AC-HE-24/80/82/136 call rng_derive_epoch; value and derivation unchanged)
     # Delegated ruling R1 (KRN D.10): the one epoch-keyed derivation; replaces Attention's inline key and Horror's private threat_epoch seed
-    # consumer hints (GDD exists, does not cite this name yet): design/gdd/attention-system.md, design/gdd/horror-entities.md, design/gdd/save-load-and-versioned-format.md
+    # consumer hints (GDD exists, does not cite this name yet): design/gdd/attention-system.md, design/gdd/save-load-and-versioned-format.md
   - name: follow_offset_quantised
     status: active
     source: design/gdd/pixel-perfect-render-pipeline-camera.md
@@ -15431,6 +15454,7 @@ constants:
     source: design/gdd/suit-and-equipment.md
     referenced_by:
       - design/gdd/derelict-authoring-handmade-kits.md
+      - design/gdd/boarding-and-salvage.md
     attributes:
       value: 27
       unit: "s; derived floor(((RESERVE_S - RESERVE_WARN_S) * RUNS_PER_S - 2 * leg_runs) / RUNS_PER_S), VACUUM_BUDGET_RUNS 274; leg_runs = ceil((HOP_LEG_TICKS + ARRIVE_SETTLE_TICKS + IN_POD_SLACK_TICKS) / GRAPH_STEP_TICKS) = 163"
@@ -15438,7 +15462,8 @@ constants:
     revised: 2026-10-27
     # Suit D.11: exported breath-clause budget for Derelict Authoring's gate (AC-SE-75a), replacing the withdrawn RESERVE_S / 2 one-way bound
     # 2026-10-28: Derelict Authoring now consumes it via D.7, DA-28 and TRAVERSE_TOO_LONG (reads VACUUM_BUDGET_RUNS 274); value 27 and source unchanged
-    # consumer hints (GDD exists, cites by intent): design/gdd/derelict-authoring-handmade-kits.md, design/gdd/boarding-and-salvage.md, design/gdd/web-map-and-transit.md
+    # 2026-10-28: Boarding & Salvage D.4, D.10, BS-20 and AC-BS-52 quote it (22 tiles each way walking out and carrying back, 34 tiles of round trip carried both ways)
+    # consumer hints (GDD exists, does not cite this name yet): design/gdd/web-map-and-transit.md (rr4: 0 mentions of VACUUM_BUDGET_S in the GDD, so not listed in referenced_by until it cites the name)
   - name: A_DWELL_BUDGET_MIN_S
     status: active
     source: design/gdd/derelict-authoring-handmade-kits.md

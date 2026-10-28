@@ -123,3 +123,21 @@ Findings:
 - [RECOMMENDED] OQ-BS-28 (d); sibling DA-48 L682: [main review] The 259 s dwell derivation may double-count the survey allowance, so the lint may guarantee only about 229 s. The 180 to 300 s band still holds. DA-48 still says 'HEAVY' for the intake.
 Reviewed-Content-Hash: design/gdd/boarding-and-salvage.md 15f905664f6d732042f2055dd75715fb714a5b1b
 Reviewed-Content-Hash: design/registry/entities.yaml cafe6d1169a1fe5dd043eae35c2c07a90c93b4c6
+
+## Review — 2026-10-28 — Verdict: APPROVED
+Scope signal: L
+Specialists: none (lean confirming re-review after the third cross-GDD fix pass)
+Blocking items: 0 | Recommended: 8
+Summary: APPROVED. Nothing blocks implementation. This is the sixth pass, and all 10 earlier blockers are resolved. The main review re-derived the D.1-D.10 arithmetic at registry defaults and it held. I spot-checked the stale-tag findings, which carry the most weight:  - **Pod status glow:** the 'blocked until it lands' wording is still at L794, L1576, L1637 and L1672. The Derelict Authoring lints it waits on are present (15 hits in derelict-authoring-handmade-kits.md). - **AC-BS-112:** it is still tagged blocked at L1580, but interaction-system.md L304-306 publishes the IA-37 registration rule it waits on.  So the remaining work is bookkeeping. Some tags and phrasings still say 'blocked' or 'is aske
+Prior verdict resolved: Yes (confirming review of 2026-10-28)
+Findings:
+- [RECOMMENDED] Dependencies 'Blocking dependencies'; C-BS-9; AC-BS-51b, AC-BS-78 and AC-BS-92 tags; OQ-BS-4, OQ-BS-29; AC Gaps and Counts (L830, L1341, L1576, L1637, L1651, L1661, L1672): [main review] The pod status glow is still tagged 'blocked until Web Map's and Derelict Authoring's parts land', but both have landed. [creative-director] I confirmed this: derelict-authoring-handmade-kits.md has 15 hits for DOCK_GLOW_LIT_AT_CONSOLE, DOCK_GLOW_ARRIVAL_DARK and DECISION_REACH_MISSING, and the stale wording is still at L794, L1576, L1637 and L1672. This is the same stale-tag pattern as the old '0 BURDEN hits', and it inflates the blocked tally.
+- [RECOMMENDED] AC-BS-112 and the Gaps list (L1580, L1651): [main review] AC-BS-112 is still tagged 'blocked on Interaction's published registration rule'. [creative-director] I confirmed that interaction-system.md publishes IA-37 at L304-306, and that the GDD tag at L1580 is still present.
+- [RECOMMENDED] D.3 liveness paragraph, EC-BS-68, ASK-BS-D4 (d), OQ-BS-29 (3): [main review] The decision-reach request to Derelict Authoring is still phrased as an open ask, but DA-48 and AC-DA-160 answer it. EC-BS-68 also mixes the door centre from the plan of record, (420, 504), with the arithmetic from the n=12 proposal, whose centre is (420, 1,080).
+- [RECOMMENDED] Interactions B Horror row (L336) and Dependencies row 15 (L822): [main review] Both Horror rows still read 'none', even though BS-13, EC-BS-26 and ASK-BS-H1 now depend on Horror's HE-26 and E-HE-59, and Horror's own Dependencies row records the link. Boarding's side is missing the matching entry.
+- [RECOMMENDED] AC-BS-5 and AC-BS-12c (L1465, L1483): [main review] AC-BS-5 passes on either branch of its disjunction, so it can never fail, and AC-BS-53 depends on it. AC-BS-12c has no threshold, so a tester cannot decide pass or fail.
+- [RECOMMENDED] Registry route_ticks against D.1 (L418, L420, L1430): [main review] The registry output still labels N=24 as the 'provisional design value'. After the 2026-10-28 amendment, D.1 makes 28 tiles the reference carry and 24 a band sample. The figures themselves match.
+- [RECOMMENDED] AC-BS-132 and AC-BS-123 (d): [main review] The K3 criterion is circular: (d) reduces to whether the lowest variant passes. The outcome is still decidable.
+- [RECOMMENDED] Header L7, BS-20, D.10, Visual/Audio step 3, Pacing table: [main review] Housekeeping residue: a stale Last Updated line, a doubled amendment marker, a phrase repeated in D.10, 'visible only inside the beam' contradicting the pod glow, and pacing-table ticks from before the ruling.
+Reviewed-Content-Hash: design/gdd/boarding-and-salvage.md 22e123be63c10a3c2d6d922e80c888bcbd61bdcd
+Reviewed-Content-Hash: design/registry/entities.yaml c7c42b1a48216686518b8b47b2a01a34e276ab50

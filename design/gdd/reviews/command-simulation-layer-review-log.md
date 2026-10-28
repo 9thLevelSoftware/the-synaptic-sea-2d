@@ -156,3 +156,25 @@ Findings:
 - [RECOMMENDED] Acceptance Criteria L959, L1069: [main review] These two ACs are review checkboxes with no mechanical pass line.
 Reviewed-Content-Hash: design/gdd/command-simulation-layer.md c71079bdce9f0c49d899a1eb710c3e20dea8eb4e
 Reviewed-Content-Hash: design/registry/entities.yaml cafe6d1169a1fe5dd043eae35c2c07a90c93b4c6
+
+## Review — 2026-10-28 — Verdict: APPROVED
+Scope signal: M
+Specialists: none (lean confirming re-review after the third cross-GDD fix pass)
+Blocking items: 0 | Recommended: 12
+Summary: Verdict: APPROVED. This confirms the 2026-10-28 approval of design/gdd/command-simulation-layer.md.  I spot-checked the transition table at L181-196. The BOOTING first-boot rows exist, and the restore_epoch and SL_EPOCH_NOT_DURABLE threads hold. The FAULTED exits at L192 and L196 do lack a qualifier for a FAULTED entered from BOOTING, so the main review's new finding is real. It is not a blocker: it is a one-clause fix and does not undermine the architecture.  None of the 12 recommended findings is a true blocker. Most were carried over from earlier passes: the driver loop around an atomic restore, tuning ranges that break constraints, the H1 allow-list, the D.12 hash spec, OQ 17, and stale 
+Prior verdict resolved: Yes (confirming review of 2026-10-28)
+Findings:
+- [RECOMMENDED] States and Transitions L192/L196 + KRN-STATE-03: [main review, confirmed by creative-director] L192 and L196 make FAULTED -> LOADING on request_new_game/request_restore with no qualifier on how FAULTED was entered. A FAULTED entered from BOOTING because registry validation failed can therefore be re-entered into LOADING from the Chart Table's New campaign option. This would run on an invalid, unfrozen registry, which contradicts 'No partial order is ever used'. This is the most important item. It stays below BLOCKING only because the expected fix is a single clause.
+- [RECOMMENDED] L199 / KRN-STATE-01 vs L201 / KRN-STATE-04: [main review] The old rule that 'every other pair is invalid' contradicts the new DEFERRED and IGNORED outcomes for SAVING and LOADING. Nothing asserts SERVED, and the outcome log is missing from the diagnostics AC.
+- [RECOMMENDED] CR-1a / D.5 (carried over from reviews 4-6): [main review] When a SAVING or LOADING request is served mid-catch-up inside a tick hook, the kernel ends up back in RUNNING. The remaining ticks then run on the loaded world, and acc can go negative.
+- [RECOMMENDED] Tuning Knobs + constraints 1/8 + KRN-BND-01: [main review] The range ends break the coupled constraints (MAX_CMDS_PER_TICK 32, QUEUE_CAPACITY 3840, MAX_PAYLOAD 64 KiB, budget floor 8 MiB below the 8.29 MiB default need). There is also a MB/MiB unit mix-up.
+- [RECOMMENDED] AC L1076 / CR-14 H1: [main review] The H1 member allow-list leaves out state that a conforming kernel needs: pending_requests, request_outcomes, subscribers, counters, knobs.
+- [RECOMMENDED] D.12 state_hash / 0x09 PACKED: [main review] The fold glyph is ambiguous, the length and version widths are unspecified, and the PACKED element-type bytes are not enumerated. state_hash is persisted in the Save/Load header.
+- [RECOMMENDED] Open Questions 17/20/24: [main review] OQ 17 is still owned by the user, even though R21 delegated it. OQs 20 and 24 have no per-item status.
+- [RECOMMENDED] Cross-GDD stale references: [main review] Some sibling GDDs still contradict CR-1a: Player Controller L1021 / AC-PCI-003, Suit L1441, and Pixel-Perfect L227/L297/L1219 all still use the physics-callback tick source. Attention AT-8 calls rng_derive inline instead of rng_derive_epoch.
+- [RECOMMENDED] Dependencies / systems-index / header: [main review] Seven kernel edges are missing from systems-index.md. The Co-op row is not labelled as a provisional contract (R9). CD-GDD-ALIGN has not been re-run since 2026-10-25.
+- [RECOMMENDED] AC L1074, KRN-EPO-05, L1101: [main review] Three ACs are untestable as written: a human checkbox, an undefined 'one poll' duration, and an overhead AC with no pass line.
+- [RECOMMENDED] D.10 L540, D.6 L424/L428: [main review] The golden-vector stream attribution is wrong. The D.6 example uses a P3 of 2.9 ms, above the 2.0 ms target. FRAME_SIM_BUDGET_MS(4) computes to 6.001, not 6.0.
+- [RECOMMENDED] States L166 / OQ 15: [main review] The BOOTING cell over-cites Chart Table TX-30/EC-CT-37. The path for applying the PROFILE image on a first boot is unstated (VS only).
+Reviewed-Content-Hash: design/gdd/command-simulation-layer.md c271251e84a0b4236b788cdb4c4c2e9caf08bbdf
+Reviewed-Content-Hash: design/registry/entities.yaml c7c42b1a48216686518b8b47b2a01a34e276ab50

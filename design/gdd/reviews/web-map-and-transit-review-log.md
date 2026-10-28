@@ -150,3 +150,27 @@ Findings:
 - [RECOMMENDED] ASK-PC-1, ASK-MSA-1, ASK-G1b, ASK-L1; AC-WM-133/134: [main review] Nothing on the owners' side answers these asks yet. WM's defensive guards cover them for now.
 Reviewed-Content-Hash: design/gdd/web-map-and-transit.md 3f64f34c17a25b19b20a28d8b8193550537a802a
 Reviewed-Content-Hash: design/registry/entities.yaml cafe6d1169a1fe5dd043eae35c2c07a90c93b4c6
+
+## Review — 2026-10-28 — Verdict: APPROVED
+Scope signal: L
+Specialists: none (lean confirming re-review after the third cross-GDD fix pass)
+Blocking items: 0 | Recommended: 14
+Summary: Verdict: APPROVED. Sixth pass, read-only.  There are 0 BLOCKING items, 10 RECOMMENDED and 4 NICE. I merged the main review's no-defect verification note out of the list, which is why NICE drops from 5 to 4.  **Prior blocker.** The pass-3 blocker, the kernel CR-6 registration in WM-9, is resolved. The main review checked it against the kernel, Body, Interaction and Controller, and none of the sibling diffs reopens it.  **What I checked myself.** I spot-checked the one new finding that could look like a blocker, AC-WM-23 at L1556. It does pin 'first pod tick 1 mod 6' and quotes 157 runs / 47,100 mGU. Suit now runs suit.vitals at (6, 2) (Suit L1444) and pins 3 mod 6 for N_lo = 157 (Suit L535, L
+Prior verdict resolved: Yes (confirming review of 2026-10-28)
+Findings:
+- [RECOMMENDED] AC-WM-23 (L1556), phase pin: [main review, verified by creative-director] AC-WM-23 pins 'a first pod tick of 1 mod 6' and expects 157 runs and 47,100 mGU. suit.vitals now runs at (6, 2) (Suit L1444). I recounted a 945-tick window from t0 = 1 mod 6: vitals ticks land at offsets 1, 7, ..., 943, which is 158 runs (47,400 mGU). Suit's own oracle (L535, L1707) pins 3 mod 6 for N_lo = 157. This BLOCKING Logic AC fails on a correct build. That is the one finding that could mislead an implementer.
+- [RECOMMENDED] Banner item (6); AC-WM-15a/15b/54/76; WEB_RESTORE_EPOCH: [main review] The determinism ACs compare state_hash across restores, but under R13/R14 a non-QUIT restore advances restore_epoch. The ACs never pin it. The restore reason WEB_RESTORE_EPOCH also collides with the kernel term.
+- [RECOMMENDED] Tuning Knobs HOP_LEG_TICKS_MAX; WM-17; WM-34; registry: [main review] The safe range runs to 2190, which goes past Suit's 1,494-tick no-pod-death bound. Suit OQ-48 (f) is still unanswered.
+- [RECOMMENDED] WM-8, Interactions intro, ASK-L3 row, OQ-WM-22: [main review] ASK-L3 is still marked OPEN although Layout console_role and Authoring DA-46/AC-DA-158 answered it.
+- [RECOMMENDED] Formulas conventions, Tuning Knobs intro, Cross-References, AC-WM-70: [main review] The canonical constant list has 22, 23 and 24 names in different places, and AC-WM-70's '+ 30' regex matches the document itself.
+- [RECOMMENDED] D.11, MAX_WORLD_RECORDS row, WM-3, AC-WM-75: [main review] '2,360 B' should be 2,381 B. The block size is quoted as ~700, ~735 and ~756 B in different places.
+- [RECOMMENDED] D.9, E-44, OQ-WM-27: [main review] 'No overrun' does not count the console anchors that WM-8 itself requires. DA records {home+B} at 130 subjects with instruments.
+- [RECOMMENDED] Registry hop_fuel / HOP_LEG_TICKS comments; Tuning Knobs; Cross-References: [main review] Text from before R6 survives: withdrawn_ext_ml, the THIN-band justification, and rows that cite the 'breath fallback'.
+- [RECOMMENDED] AC-WM-29, AC-WM-67(h)/G-2, AC-WM-78, AC-WM-81d, G-6: [main review] These ACs cannot be pass/failed as written: a sign-off with no checklist, a clearance with no number, a wall-clock assertion tagged (auto), a non-gating note inside a BLOCKING row, and an undefined 'typical draw'.
+- [RECOMMENDED] Whole document (amendment history; reason-order duplication): [main review] About 40 inline amendment markers are mixed into the rules, and the pod_hop reason order is written out in four places. This is the mechanism behind the repeated drift.
+- [RECOMMENDED] D.15 G1 / AC-WM-127a: [main review] margin_E is not quoted. Emitter fixes it at 100 permille, and d_c = 24 sits exactly on the boundary.
+- [RECOMMENDED] WM-17, WM-8 first sentence: [main review] WM-17 mixes nominal and with-slack figures. WM-8 says 'the only simulation write' although berth and unberth are also PLAYER writes.
+- [RECOMMENDED] Gate table Performance row; AC-WM-77: [main review] The Performance row does not name the R12 reference machines. AC-WM-77 does not say whether the P99 target or the per-apply lines are the pass line.
+- [RECOMMENDED] AC-WM-82b; Feel checklist: [main review] AC-WM-82b has a duplicated reference, and the Feel checklist still says 'a four-leg session' although AC-WM-82b now tests two scripts.
+Reviewed-Content-Hash: design/gdd/web-map-and-transit.md 3b784f45353c38d8d09bb315fa5e48d94f178ade
+Reviewed-Content-Hash: design/registry/entities.yaml c7c42b1a48216686518b8b47b2a01a34e276ab50

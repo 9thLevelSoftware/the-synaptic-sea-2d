@@ -1,0 +1,1 @@
+ultracode Let's create a dynamic workflow of Sonnet 5.5 high subagents to run the map-systems next command for each of the remaining 22 systems we're presently missing, since those design docs can effectively be done in parallel.  Ensure there is an advisor in place to guide them if anything get confused or drift.

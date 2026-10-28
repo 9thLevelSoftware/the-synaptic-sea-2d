@@ -1,0 +1,7 @@
+<task-notification>
+<task-id>woiwbnpsz</task-id>
+<tool-use-id>toolu_01Q5LK8Z2ySTQRUGymgTTCvf</tool-use-id>
+<status>stopped</status>
+<summary>Background workflow "design-mvp-gdds" (run wf_81e5f95e-865) didn't finish before the previous session ended</summary>
+<note>No completion record was found for it in the previous session. It may have been stopped or paused (for example via the UI — this leaves no transcript marker), or it may have been running when the previous Claude Code process exited. To pick up where it left off, relaunch with Workflow({scriptPath, resumeFromRunId}) using the run id from the summary — completed agent() calls return cached.</note>
+</task-notification>

@@ -116,9 +116,9 @@ requirements:
 - id: TR-cmd-010
   system: cmd
   gdd: design/gdd/command-simulation-layer.md
-  requirement: "Command payloads pass a recursive Variant.Type whitelist (finite floats, depth <= 8, uniform dict key type, no Object/Callable/NodePath/RID) and `var_to_bytes(payload,false).size()` <= MAX_PAYLOAD (4 KiB) or are rejected MALFORMED."
+  requirement: "Command payloads pass a recursive Variant.Type whitelist (finite floats, depth <= 8, uniform dict key type, no Object/Callable/NodePath/RID) and `var_to_bytes(payload).size()` <= MAX_PAYLOAD (4 KiB) or are rejected MALFORMED."
   created: 2026-10-28
-  revised: ""
+  revised: 2026-10-28
   status: active
 
 - id: TR-cmd-011

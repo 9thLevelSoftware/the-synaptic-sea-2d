@@ -1,0 +1,17 @@
+{
+  "tool_use_id": "a73e7faac4ffd3154",
+  "agent_id": "a73e7faac4ffd3154",
+  "subagent_type": "workflow-subagent",
+  "files": [
+    "docs/architecture/adr-0004-change-notification-and-dirty-keys.md"
+  ],
+  "token_usage": {
+    "input_tokens": 80,
+    "cache_creation_tokens": 305613,
+    "cache_read_tokens": 7474445,
+    "output_tokens": 108772,
+    "api_call_count": 36
+  },
+  "started_at": "2026-10-28T16:53:41.5190456-04:00",
+  "completed_at": "2026-10-28T17:14:55.477543-04:00"
+}

@@ -1,0 +1,116 @@
+{
+  "cli_version": "0.12.2",
+  "checkpoint_id": "01M62C7M40AEAGJYVVEPCTB01V",
+  "session_id": "fa83e522-d141-4ccc-a7dd-8f377b168354",
+  "strategy": "manual-commit",
+  "created_at": "2026-10-28T23:06:43.6226319Z",
+  "branch": "main",
+  "checkpoints_count": 4,
+  "save_step_count": 1,
+  "files_touched": [
+    "docs/architecture/adr-0001-kernel-tick-driver-and-frame-order.md",
+    "docs/architecture/adr-0002-authority-model-and-command-pipeline.md",
+    "docs/architecture/adr-0003-state-block-registry-and-owner-contract.md",
+    "docs/architecture/adr-0004-change-notification-and-dirty-keys.md",
+    "docs/architecture/adr-0005-determinism-keyed-rng-canonical-encoding-and-hashing.md",
+    "docs/architecture/adr-0006-save-container-generations-versioning-and-restore-epoch.md",
+    "docs/architecture/adr-0007-static-content-data-pipeline-and-stable-type-ids.md",
+    "docs/architecture/adr-0008-render-pipeline-wiring-and-integer-scaling.md",
+    "docs/architecture/adr-0009-presentation-subscriber-contract.md",
+    "docs/architecture/adr-0010-source-layout-static-typing-and-lint-enforcement.md",
+    "docs/registry/architecture.yaml"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-opus-5-5",
+  "turn_id": "641230f957f9",
+  "checkpoint_transcript_start": 718,
+  "transcript_lines_at_start": 718,
+  "compact_transcript_start": 75,
+  "token_usage": {
+    "input_tokens": 64,
+    "cache_creation_tokens": 88044,
+    "cache_read_tokens": 8902005,
+    "output_tokens": 41045,
+    "api_call_count": 26,
+    "subagent_tokens": {
+      "input_tokens": 2562,
+      "cache_creation_tokens": 7505795,
+      "cache_read_tokens": 152798079,
+      "output_tokens": 2325382,
+      "api_call_count": 966
+    }
+  },
+  "redaction": {
+    "replacements": 3,
+    "layers": {
+      "betterleaks": 0,
+      "connection_string": 0,
+      "credential_key": 0,
+      "credential_value": 0,
+      "credentialed_uri": 0,
+      "entropy": 125,
+      "key_context": 0,
+      "provider_token": 0,
+      "shell_stdin": 0
+    }
+  },
+  "skill_events_version": 1,
+  "skill_events": [
+    {
+      "id": "prompt-skill-claude-code-architecture-decision-2026-10-28T19:38:35.0384181Z",
+      "event_type": "prompt_invocation",
+      "skill": {
+        "name": "architecture-decision"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "prompt_slash_command",
+        "confidence": "explicit"
+      },
+      "turn_id": "62b57cbf75fe",
+      "timestamp": "2026-10-28T19:38:35.0384181Z",
+      "native": {
+        "command": "/architecture-decision"
+      },
+      "collapse": {
+        "target": "user_message",
+        "label": "/architecture-decision",
+        "default_collapsed": true
+      }
+    },
+    {
+      "id": "claude-skill-toolu_01Y9VUi1fZMRtTYxevXNM28s",
+      "event_type": "tool_invocation",
+      "skill": {
+        "name": "workflow-authoring"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "skill_tool_use",
+        "confidence": "explicit"
+      },
+      "turn_id": "641230f957f9",
+      "transcript_anchor": {
+        "unit": "line",
+        "start": 734,
+        "end": 735,
+        "entry_ids": [
+          "814b07df-03a4-48e8-ac03-d33c851d63fb"
+        ],
+        "tool_use_id": "toolu_01Y9VUi1fZMRtTYxevXNM28s"
+      },
+      "native": {
+        "tool_name": "Skill",
+        "tool_use_id": "toolu_01Y9VUi1fZMRtTYxevXNM28s"
+      },
+      "collapse": {
+        "target": "tool_pair",
+        "label": "Skill: workflow-authoring",
+        "default_collapsed": true
+      }
+    }
+  ],
+  "session_metrics": {
+    "turn_count": 10
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "tool_use_id": "acabc197187ea8cdb",
+  "agent_id": "acabc197187ea8cdb",
+  "subagent_type": "workflow-subagent",
+  "files": [
+    "docs/architecture/adr-0001-kernel-tick-driver-and-frame-order.md"
+  ],
+  "token_usage": {
+    "input_tokens": 40,
+    "cache_creation_tokens": 103299,
+    "cache_read_tokens": 1936639,
+    "output_tokens": 27875,
+    "api_call_count": 20
+  },
+  "started_at": "2026-10-28T18:10:28.2100766-04:00",
+  "completed_at": "2026-10-28T18:14:17.8878344-04:00"
+}

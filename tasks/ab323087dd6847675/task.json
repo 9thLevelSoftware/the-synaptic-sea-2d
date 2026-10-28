@@ -1,0 +1,17 @@
+{
+  "tool_use_id": "ab323087dd6847675",
+  "agent_id": "ab323087dd6847675",
+  "subagent_type": "workflow-subagent",
+  "files": [
+    "docs/architecture/adr-0010-source-layout-static-typing-and-lint-enforcement.md"
+  ],
+  "token_usage": {
+    "input_tokens": 12,
+    "cache_creation_tokens": 55079,
+    "cache_read_tokens": 287579,
+    "output_tokens": 12927,
+    "api_call_count": 5
+  },
+  "started_at": "2026-10-28T17:30:06.5290983-04:00",
+  "completed_at": "2026-10-28T17:31:25.1372266-04:00"
+}

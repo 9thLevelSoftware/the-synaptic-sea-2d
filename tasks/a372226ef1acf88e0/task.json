@@ -1,0 +1,17 @@
+{
+  "tool_use_id": "a372226ef1acf88e0",
+  "agent_id": "a372226ef1acf88e0",
+  "subagent_type": "workflow-subagent",
+  "files": [
+    "docs/architecture/adr-0006-save-container-generations-versioning-and-restore-epoch.md"
+  ],
+  "token_usage": {
+    "input_tokens": 100,
+    "cache_creation_tokens": 487736,
+    "cache_read_tokens": 8648721,
+    "output_tokens": 100866,
+    "api_call_count": 46
+  },
+  "started_at": "2026-10-28T16:53:45.1127721-04:00",
+  "completed_at": "2026-10-28T17:12:59.9374303-04:00"
+}

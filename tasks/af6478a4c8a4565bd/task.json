@@ -1,0 +1,17 @@
+{
+  "tool_use_id": "af6478a4c8a4565bd",
+  "agent_id": "af6478a4c8a4565bd",
+  "subagent_type": "workflow-subagent",
+  "files": [
+    "docs/architecture/adr-0008-render-pipeline-wiring-and-integer-scaling.md"
+  ],
+  "token_usage": {
+    "input_tokens": 74,
+    "cache_creation_tokens": 294838,
+    "cache_read_tokens": 6179963,
+    "output_tokens": 103878,
+    "api_call_count": 33
+  },
+  "started_at": "2026-10-28T16:53:45.1143268-04:00",
+  "completed_at": "2026-10-28T17:12:57.7455056-04:00"
+}

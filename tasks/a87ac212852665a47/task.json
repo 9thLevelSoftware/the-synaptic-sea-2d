@@ -1,0 +1,17 @@
+{
+  "tool_use_id": "a87ac212852665a47",
+  "agent_id": "a87ac212852665a47",
+  "subagent_type": "workflow-subagent",
+  "files": [
+    "docs/architecture/adr-0009-presentation-subscriber-contract.md"
+  ],
+  "token_usage": {
+    "input_tokens": 30,
+    "cache_creation_tokens": 100079,
+    "cache_read_tokens": 1224977,
+    "output_tokens": 24866,
+    "api_call_count": 14
+  },
+  "started_at": "2026-10-28T17:30:06.6415104-04:00",
+  "completed_at": "2026-10-28T17:33:12.4802468-04:00"
+}

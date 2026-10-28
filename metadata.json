@@ -1,0 +1,57 @@
+{
+  "cli_version": "0.12.2",
+  "checkpoint_id": "01M62C7M40AEAGJYVVEPCTB01V",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 4,
+  "files_touched": [
+    "docs/architecture/adr-0001-kernel-tick-driver-and-frame-order.md",
+    "docs/architecture/adr-0002-authority-model-and-command-pipeline.md",
+    "docs/architecture/adr-0003-state-block-registry-and-owner-contract.md",
+    "docs/architecture/adr-0004-change-notification-and-dirty-keys.md",
+    "docs/architecture/adr-0005-determinism-keyed-rng-canonical-encoding-and-hashing.md",
+    "docs/architecture/adr-0006-save-container-generations-versioning-and-restore-epoch.md",
+    "docs/architecture/adr-0007-static-content-data-pipeline-and-stable-type-ids.md",
+    "docs/architecture/adr-0008-render-pipeline-wiring-and-integer-scaling.md",
+    "docs/architecture/adr-0009-presentation-subscriber-contract.md",
+    "docs/architecture/adr-0010-source-layout-static-typing-and-lint-enforcement.md",
+    "docs/registry/architecture.yaml"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": "/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 64,
+    "cache_creation_tokens": 88044,
+    "cache_read_tokens": 8902005,
+    "output_tokens": 41045,
+    "api_call_count": 26,
+    "subagent_tokens": {
+      "input_tokens": 2562,
+      "cache_creation_tokens": 7505795,
+      "cache_read_tokens": 152798079,
+      "output_tokens": 2325382,
+      "api_call_count": 966
+    }
+  },
+  "redaction": {
+    "replacements": 3,
+    "layers": {
+      "betterleaks": 0,
+      "connection_string": 0,
+      "credential_key": 0,
+      "credential_value": 0,
+      "credentialed_uri": 0,
+      "entropy": 125,
+      "key_context": 0,
+      "provider_token": 0,
+      "shell_stdin": 0
+    }
+  }
+}

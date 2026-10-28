@@ -1,0 +1,165 @@
+This session is being continued from a previous conversation that ran out of context. The summary below covers the earlier portion of the conversation.
+
+
+Summary:
+1. Primary Request and Intent:
+   The project is "The Synaptic Sea": a 2D HD-pixel-art co-op survival-horror game in Godot 4.7.2 / GDScript, built on the CCGS template.
+   - Project config: rigor full, automation autonomous, review_mode full.
+   - Standing CLAUDE.md rule: "No commits without user instruction". The user's pattern is to say "commit and push" after seeing a diffstat.
+   - Commit trailer:
+     - `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`
+     - `Claude-Session: https://claude.ai/code/session_01A1Hn3uVTKtAjVgscNshCEN`
+   - `.claude/workflows/` is always left untracked and out of commits.
+   - Earlier user decisions still in force: chest-mounted lamp, throwable glowsticks, lethal friendly fire, Zomboid-style zoom in/out, MVP death = restart from last autosave.
+   - The user asked earlier to use Sonnet/Haiku where applicable to save usage.
+
+   Requests in this segment:
+   - The full `/design-review` of all 26 MVP GDDs completed. I processed its results:
+     - applied registry requests;
+     - updated the systems index;
+     - ran a targeted consistency check;
+     - published a decisions page;
+     - got "commit and push" → commit 10d7800.
+   - The user said: "I agree with all of your recommendations on those decisions, please fill them in accordingly."
+     - Per the advisor, I split the decisions into tiers: stated recommendations; low-stakes defaults marked pending confirmation; 12 held items.
+     - I asked the user about the 12 held items and whether to commit first. The user committed first.
+   - The user said "yes to all" on the 12 held items. I applied all rulings, then got "commit and push" → commit 34a701a (pushed).
+
+2. Key Technical Concepts:
+   - **Workflow tool**
+     - Uses `parallel()`/`pipeline()`/`agent()` with model/effort/schema/agentType options.
+     - Results come from the task output JSON `{summary, logs, result, ...}`. Per-agent results are in `journal.jsonl` (`started`/`result` entries keyed by key).
+     - Resume cache is prefix-based. Re-running the same scriptPath without `resumeFromRunId` runs live.
+   - **Agent caveats**
+     - Some agents fail StructuredOutput (29/160 specialists in the review).
+     - Translator agents sometimes annotate names, e.g. "harm_step (expression)". Strip the suffix before matching.
+   - **CCGS registry** (`design/registry/entities.yaml`)
+     - Sections in order: entities / items / formulas / constants.
+     - Each section is preceded by column-0 comment blocks.
+     - Fields: `source:` (the owning GDD), `referenced_by` (block list), `added`/`revised`, `# was:` comments.
+     - Entries are never deleted; retired ones get `status: deprecated`.
+     - `registry.sh validate` is grep-based. Strict YAML parsing is now also maintained via `yaml_quote.py`.
+   - **Amendment tags used**
+     - `*(Amended 2026-10-27 — design review)*`
+     - `*(Amended 2026-10-27 — consistency pass after design review)*`
+     - `*(Amended 2026-10-27 — user rulings)*`
+     - `*(Amended 2026-10-27 — user rulings, consistency follow-up)*`
+   - **Ruling markers in GDDs**
+     - `Resolved 2026-10-27 — user ruling (design-review decisions): ...`
+     - `Default applied 2026-10-27, pending user confirmation: ...`
+   - **Helpers**
+     - `log_decision skill point options chosen reason category` (6 positional args) lives in `.claude/hooks/yaml-helper.sh` and writes to `production/session-logs/decision-log.md`.
+     - `review-receipts.sh` makes review receipts. All 26 are now stale, so the next `/design-review` re-reviews everything.
+   - **Other conventions**
+     - Large-file reads go through grep of headings plus offset/limit (`validate-read.sh` refuses whole files over 40 KB).
+     - The Bash heredoc via this tool mangles backslashes: write Python scripts to files with the Write tool instead.
+     - LF files; core.autocrlf warnings are harmless.
+   - **Artifacts**: published via the `mcp__claude-artifacts__*` tools (`publish_files`, `edit_version` with `base_version`).
+
+3. Files and Code Sections:
+   - **design/gdd/*.md (26 MVP GDDs)**
+     - Edited by the review fixers, consistency agents and rulings editors.
+     - Final review verdicts:
+       - Approved: ship-section-and-layout-data-model, sanity-and-hallucination-rules.
+       - Major Revision: boarding-and-salvage.
+       - Needs Revision: the other 23.
+   - **design/gdd/reviews/<slug>-review-log.md (26 files, new, committed in 10d7800)**
+     - I corrected the "Specialists:" lines in 19 logs to read: `Specialists: <ok list> (spawned but returned no output: <failed>)`.
+   - **design/gdd/systems-index.md**
+     - Statuses: 2 Approved, 24 Needs Revision.
+     - Progress tracker: "Design docs reviewed | 26 (2026-10-27; Boarding & Salvage: major revision)" and "approved | 2".
+     - The MVP sentence was amended to "one weld plus one player seam cut and one install *(Amended 2026-10-27 — user rulings, X1)*".
+   - **design/gdd/game-concept.md**: MVP item 3 now reads "One weld, one player seam cut, and one install".
+   - **design/art/art-bible.md**: section 7.3 hold grid / 500 ms / flash unit, plus pod-glow luminance separation (placeholder hex #886C35).
+   - **design/registry/entities.yaml**
+     - Now 1023 entries; validates clean and parses as strict YAML.
+     - Design-review pass: 399+ edits and 139 new entries; 15 values quoted.
+     - Rulings pass: 144+44+manual edits and 51 new entries.
+     - `SUPPRESSANT_START_CHARGES` is deprecated.
+     - `subject_budget` output updated to S3 144 / S4 S_int 146 / S_total 176.
+     - `CONFIRM_HOLD_S` referenced_by gained save-load.
+     - `survivable_dark_floor` variables gained the g_dock term.
+     - `MAX_PROBES_PER_TICK` status set to active.
+     - Backups in scratchpad/tail: `entities.pre-dr.yaml`, `entities.pre-rul.yaml`.
+   - **docs/consistency-failures.md** (gitignored)
+     - Rows were appended into the summary table, plus `###` blocks for 58 + 44 conflicts.
+     - The 58 rows use the placeholder "(registry owner of X)" in the GDD-A column.
+   - **production/session-logs/decision-log.md** (gitignored): I rewrote one malformed entry; the design-review and rulings decisions are logged.
+   - **production/session-state/active.md** (gitignored): appended design-review completion, registry pass, rulings tiers, rulings applied, and CONSISTENCY-CHECK breadcrumbs.
+   - **Scratchpad** (C:/Users/dasbl/AppData/Local/Temp/claude/D--the-synaptic-sea-2d/e887ccb9-1186-40d9-9566-5eacccbd9b44/scratchpad/tail/)
+     - Data files:
+       - `dr-result.json`: review output.
+       - `decisions.txt`: 98 numbered decisions D1–D98.
+       - `rulings.md`: the ruling sheet X1–X14 plus per-GDD lines, the Application tiers, and the UPDATE noting the user said yes to all; X14 stays open.
+       - `dr-reg-*.json`, `rul-result.json`, `rul-cc.json`, `dr-cc.json`, `dr-changed.json`.
+     - Scripts:
+       - `apply_dr.py` / `apply_rul.py`: block-scoped edits; new entries inserted after the section's last real entry.
+       - `yaml_quote.py`: quotes failing scalars until strict YAML parses.
+       - `reapply_skipped.py`: strips the "(...)" name suffix and trims old_text that spans into the next entry.
+       - `gen_page.py`: decisions page generator.
+     - Page: `page/design-review-decisions.html`.
+   - **Artifact "MVP Design Review Decisions"**: https://claude.ai/artifact/UNo92EM7YkgjjWc7YDi63c (slug ddb1cbf6-30c5-49f1-9db8-a85e2faaf3d3), latest version 1793137826-ec28.
+     - Contents: tally, coverage caveat, Boarding major note (corrected), 13 shared rulings, the "Ruled 2026-10-27: proposals accepted" section, per-GDD table and details.
+   - **Workflow scripts** (C:\Users\dasbl\.claude\projects\D--the-synaptic-sea-2d\e887ccb9-1186-40d9-9566-5eacccbd9b44\workflows\scripts\):
+     - `design-review-all-mvp-wf_b9110abc-a1b.js`
+     - `dr-registry-translate-wf_3dd6711b-2b3.js`
+     - `dr-consistency-targeted-wf_a88dc7cf-498.js`: reads `dr-changed.json`; reused for the rulings check, run wf_783e4c1c-e83.
+     - `apply-user-rulings-wf_6da5d660-b1c.js`
+     - `rulings-leftovers-wf_a4c6dd44-0df.js`
+
+4. Errors and fixes:
+   - **Workflow output parse**: the result lives under the `result` key of the output JSON, and `applied` is sometimes an int → handled.
+   - **Review logs listed failed specialists as consulted** → corrected the 19 affected logs.
+   - **Bash heredoc corrupted Python backslashes / quotes** → wrote the scripts with the Write tool.
+   - **New registry entries appended after trailing column-0 comment templates** → insert after the last real entry instead.
+   - **Some edits spanned into the next entry, or old_text had extra quotes** → applied manually.
+   - **V_WALK/V_RUN/V_CARRY combined into one name** → split per entry.
+   - **The registry already failed strict YAML parsing before this session** → `yaml_quote.py`.
+   - **log_decision was called with the wrong args** → removed and rewrote the entry with 6 args.
+   - **The artifact claimed "GDD not edited after the verdict" for Boarding**, but the consistency pass had changed 7 values → corrected via `edit_version`.
+   - **Rulings translator names carried suffixes** ("harm_step (expression)") → `reapply_skipped.py` re-applied 44 of the 50 skipped edits; the rest were already applied or done by hand.
+
+5. Problem Solving:
+   - **Advisor guidance followed**
+     - Don't attribute un-recommended picks to the user: tiered them and asked about the 12 held items.
+     - X4 resolved by the creative-director call under coordination rule 3.
+   - **Boarding carry tell (X3) is only marginally viable**
+     - At 7,000 mAU/tick the choice is live only at about 28 tiles, with about a 6% margin.
+     - The 1.05 × threshold acceptance is impossible (L_CEIL is 1.02); the criteria were re-derived.
+     - The intake was applied to any carried item rather than HEAVY only, because the reference payoff htr_a is MEDIUM.
+     - Values are marked PLACEHOLDER until the spike.
+   - **Other placeholders**: pod glow values, SUBJECT_WINDOW_HOPS radius, look-ahead weight, the derelict's 28-tile layout, spine_corridor spill (26 px vs the 24 px bound).
+
+6. All user messages:
+   - "I agree with all of your recommendations on those decisions, please fill them in accordingly."
+   - "commit and push" (after the review pass; committed 10d7800)
+   - "yes to all" (to the 12 held items)
+   - "commit and push" (after the rulings pass; committed 34a701a)
+   - Earlier standing instructions: "No commits without user instruction" (CLAUDE.md); leave `.claude/workflows/` out of commits; use Sonnet/Haiku where applicable to save usage.
+
+7. Pending Tasks:
+   - X14 reference machine: the user must name the minimum-spec machine and build type. Then fill it into the kernel OQ 22, Assembly OQ6, Pixel Pipeline and project.yaml. Do not invent one.
+   - Recommended next steps (do not start without the user):
+     1. Re-run `/design-review` on all 26, since every receipt is stale.
+     2. Then `/review-all-gdds`.
+     3. Then `/gate-check`.
+   - The user can strike any "pending user confirmation" default.
+
+8. Current Work:
+   I had just committed and pushed the rulings pass:
+   - Commit `34a701a docs: apply the user's rulings on the 98 design-review decisions` (`10d7800..34a701a main -> main`).
+   - The working tree is clean except the untracked `.claude/workflows/`.
+   - The rulings pass covered 30 files, +3319/-1938: 26 GDDs, game-concept, art-bible, systems-index and registry.
+
+9. Optional Next Step:
+   Tell the user the commit succeeded:
+   - 34a701a is pushed; `.claude/workflows/` stays untracked.
+   - The reference machine is still open.
+   - The suggested next step is a fresh `/design-review` of the 26 GDDs, then `/review-all-gdds` and `/gate-check`.
+
+   Do not start any of these without the user's instruction. As I said before the commit: "Every GDD has changed since its review, so the next `/design-review` will review all 26 again. That re-review should come before `/review-all-gdds` and `/gate-check`. ... Name the reference machine whenever you're ready, and I'll fill it in."
+
+If you need specific details from before compaction (like exact code snippets, error messages, or content you generated), read the full transcript at: C:\Users\dasbl\.claude\projects\D--the-synaptic-sea-2d\e887ccb9-1186-40d9-9566-5eacccbd9b44.jsonl
+Continue the conversation from where it left off without asking the user any further questions. Resume directly — do not acknowledge the summary, do not recap what was happening, do not preface with "I'll continue" or similar. Pick up the last task as if the break never happened.
+
+The messages after this summary are the most recent messages from before compaction, kept verbatim. The summary was written without seeing them, so something it says has not happened yet may already have happened in them.

@@ -1,0 +1,15 @@
+{
+  "tool_use_id": "toolu_01UFXkhcnjaYWU1SxhzbAid2",
+  "agent_id": "a1b2e3c2a2e69aa5c",
+  "subagent_type": "godot-specialist",
+  "task_description": "Engine review of ADR-0007",
+  "token_usage": {
+    "input_tokens": 6,
+    "cache_creation_tokens": 71976,
+    "cache_read_tokens": 80258,
+    "output_tokens": 17198,
+    "api_call_count": 3
+  },
+  "started_at": "2026-10-28T15:44:54.8594636-04:00",
+  "completed_at": "2026-10-28T15:47:24.0485511-04:00"
+}

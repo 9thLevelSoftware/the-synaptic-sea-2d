@@ -1,0 +1,15 @@
+{
+  "tool_use_id": "toolu_01KeNnXPmJCNaqfgVAnew8Ya",
+  "agent_id": "a72bedbe741bb380d",
+  "subagent_type": "technical-director",
+  "task_description": "TD-ADR review of ADR-0007",
+  "token_usage": {
+    "input_tokens": 24,
+    "cache_creation_tokens": 88488,
+    "cache_read_tokens": 603387,
+    "output_tokens": 14782,
+    "api_call_count": 10
+  },
+  "started_at": "2026-10-28T15:44:54.8594636-04:00",
+  "completed_at": "2026-10-28T15:50:01.2808794-04:00"
+}

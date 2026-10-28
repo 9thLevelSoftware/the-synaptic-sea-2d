@@ -3,7 +3,7 @@
   "checkpoint_id": "01M60GZJR2B1W3JGR2DXR8DDHF",
   "session_id": "e887ccb9-1186-40d9-9566-5eacccbd9b44",
   "strategy": "manual-commit",
-  "created_at": "2026-10-28T05:51:17.1080452Z",
+  "created_at": "2026-10-28T05:51:34.1156138Z",
   "branch": "main",
   "checkpoints_count": 1,
   "save_step_count": 1,
@@ -19,11 +19,11 @@
     "output_tokens": 0,
     "api_call_count": 0,
     "subagent_tokens": {
-      "input_tokens": 128,
-      "cache_creation_tokens": 474211,
-      "cache_read_tokens": 8316509,
-      "output_tokens": 69064,
-      "api_call_count": 64
+      "input_tokens": 34,
+      "cache_creation_tokens": 91702,
+      "cache_read_tokens": 2769088,
+      "output_tokens": 39625,
+      "api_call_count": 17
     }
   },
   "redaction": {

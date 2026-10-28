@@ -96,3 +96,31 @@ Findings:
   Return "ok" and the hash lines.
 Reviewed-Content-Hash: design/gdd/hud-and-suit-layer.md b678ea6a8c7163aa496698ade86c24900331df94
 Reviewed-Content-Hash: design/registry/entities.yaml 9f5a7ba4a6da931db8091a4c0e4f949a0d3f8bd8
+
+## Review — 2026-10-28 — Verdict: APPROVED
+Scope signal: XL
+Specialists: none (lean confirming re-review after the cross-GDD fix pass, delegated rulings R12-R21)
+Blocking items: 0 | Recommended: 17
+Summary: My verdict is APPROVED: nothing blocks implementation of design/gdd/hud-and-suit-layer.md. I agree with the main review's call that no blocking items remain.  **Prior blocker is fixed.** The previous review's only blocking item, the give_up conflict between the HUD and the Player Controller, is resolved on both sides. Neither of the CD disagreements from last time is still open: - The NOT_LIT dim is refused, so the dim applies only while MOVING. - No default arrangement is baked into the layout maths.  **What I checked myself:** - **Ship-alarm key:** perception-filter.md has no `suit.alarm` key. This is a gap in that document, not in the HUD. The HUD can be built now against the documented s
+Prior verdict resolved: Yes (confirming review of 2026-10-27)
+Findings:
+- [RECOMMENDED] HS-37, HS-42(b), AC-HS-147(a), States DOWNED: [main review] [creative-director, priority 1] Nothing in the design stops an object prompt from showing next to the give_up plate. HS-37 (l.278) draws the prompt whenever focus_view.prompt_state != HIDDEN. Interaction's prompt_state HIDDEN list has no DOWNED case: ia:375 clears carry and channel but not focus. So a downed player near a lit valve could see an ENABLED prompt for an action the Controller will ignore. That is a P3 truth-channel lie, which is the one thing this HUD exists to prevent. I am leaving it RECOMMENDED rather than BLOCKING because the fix is a one-clause, HUD-owned rule that depends on no other team.
+- [RECOMMENDED] Open Questions OQ-HS-81, D.8 arr, R21: [main review] [creative-director] OQ-HS-81 still states the CD's lean toward COLUMN, which the CD withdrew on 2026-10-28 because COLUMN breaks P1 (the upper 70 percent of the screen must stay HUD-free). Under R21, a ruling cannot be left without a default.
+- [RECOMMENDED] AC-HS-145, OQ-HS-83, HS-20: [main review] AC-HS-145 is written so that it is expected to fail, and Visual/UI criteria are BLOCKING. It would block every story that touches the Graphite-lit strokes. OQ-HS-83 is still undecided, which R21 does not allow.
+- [RECOMMENDED] D.3 l.528, Tuning Knobs l.1131, Cross-References, OQ-HS-80(3), AC-HS-91: [main review] The HUD cites a RESERVE_S range of 45-240 (confirmed at l.528 and l.1131), but the Suit-owned registry says 63-240. AC-HS-91 fails as written. Under G1 the owner's value wins.
+- [RECOMMENDED] D.2, HS-14, Tuning Knobs MARK_DUTY_PM, AC-HS-73, AC-HS-123, registry: [main review] The 400-600 MARK_DUTY_PM range breaks the flash-ceiling window proof once duty goes above about 531 at period 128. A data file that breaks the proof still passes validation.
+- [RECOMMENDED] HS-6, HS-25, AC-HS-33(e), OQ-HS-79(2); perception-filter.md: [main review] perception-filter.md has zero occurrences of suit.alarm (confirmed). The user-ruled D89 ship-alarm mark therefore cannot be fed end to end. This is a G6 GAP for the owner to close. The HUD can still be built against the documented stub.
+- [RECOMMENDED] HS-18, D.14, EC-HS-20; registry: [main review] WARMTH_EDGE_PM[1..4] is read by name, but there is no registry entry and the Suit gives the values only in prose.
+- [RECOMMENDED] D.2 variable e and non-deferrable list, HS-47 class B, AC-HS-72, weights paragraph, AC-HS-135: [main review] The give_up plate show-start is classified inconsistently across the flash budget, and the plate has no area or weight.
+- [RECOMMENDED] AC-HS-147(c): [main review] The AC tests H 2, which is never offered (HUD_MIN_SCALE is 3), and does not test H 5 or 6.
+- [RECOMMENDED] UI Requirements item 2 (l.1558); registry bottom_row_fit.output: [main review] The text still says a single 100 px per-side budget and a single offered set. That contradicts the ROW and COLUMN tables in D.8 and HS-54.
+- [RECOMMENDED] HS-23, HS-30, Visual C-E (l.1361), OQ-HS-4, OQ-HS-61: [main review] Leftovers from the R20 sweep: 'still subject to user confirmation' remains at l.1361 (confirmed) and in other places.
+- [RECOMMENDED] K16/OQ-HS-18, HS-6, registry input_view: [main review] One view still has three names and two field sets (confirm_view hold_pm, confirm_view b, input_view).
+- [RECOMMENDED] AC-HS-46, AC-HS-51: [main review] These are review-only criteria with nothing that can be checked, so they cannot fail independently.
+- [RECOMMENDED] Game Feel step 4, GF-HS-3: [main review] The CONFIRM_HOLD_S range is stale: it says 0.6-1.2 s, but the registry says 0.6-1.9 s.
+- [RECOMMENDED] Player Fantasy anchor table, Anti-pillar 4, Visual truth-channel table: [main review] The DOWNED beat and the give_up plate are missing from the fantasy and anti-pillar text and from the class table.
+- [RECOMMENDED] HS-26, EC-HS-50: [main review] Nothing says what happens for BREATH or an unknown motion mode.
+- [RECOMMENDED] D.15, header, citations; sibling EM-22, Horror AC-59b: [main review] Housekeeping: the D.15 example says pm 467, but the formula gives 466. The Last Verified date is stale and some line citations have drifted. Two sibling documents still describe the prompt as following lit(ref).
+Return "ok".
+Reviewed-Content-Hash: design/gdd/hud-and-suit-layer.md 194a7b1d91d36d1416bc6276d5b0a8d530279ba3
+Reviewed-Content-Hash: design/registry/entities.yaml 259f2c28b21a009ca35000d94fe3ef5b4d3ef301

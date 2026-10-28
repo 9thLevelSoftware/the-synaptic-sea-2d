@@ -1,0 +1,744 @@
+# ADR-0009: Presentation Subscriber Contract
+
+## Status
+Proposed
+
+## Date
+2026-10-28
+
+## Last Verified
+2026-10-28 (against `design/gdd/command-simulation-layer.md` CR-10 and CR-11; `pixel-perfect-render-pipeline-camera.md` PR-4, PR-8, PR-9, PR-15 and C2; `perception-filter.md` PF-35 and PF-37; `2d-lighting-and-occlusion.md` LO-1; `hud-and-suit-layer.md` AC-HS-89 and OQ-HS-44/51; `docs/architecture/architecture.md` § Data Flow, § API Boundaries, § Required ADRs; `tr-baseline.md` and `requirements-traceability.md` rows citing ADR-0009; ADR-0001, ADR-0002, ADR-0003, ADR-0005 § 2.6, ADR-0007; the sibling drafts ADR-0004 (§ 2 `subscribe`, § 3 `ChangeBatch`, `DirtyAccumulator`, P5 and load delivery), ADR-0008 (§ 5, § 6.1, § 6.2) and ADR-0010 (§ 1.1, § 2.2, PRES rules), re-read 2026-10-28; and `docs/engine-reference/godot/` `VERSION.md`, `breaking-changes.md`, `deprecated-apis.md`, `current-best-practices.md`, `modules/rendering.md`, `modules/physics.md`). No code exists. The engine facts marked "probed 2026-10-28" were run on the installed 4.7.2 editor: the first set headless (dummy renderer, so nothing about draw timing), and the engine-review set (2026-10-28) re-ran the interpolation and `process_priority` probes and added a **windowed Vulkan run of the 4.7.2 mono editor** that settled the per-frame order for the editor binary only (§ Engine Compatibility, item 4). A release export, the D3D12 default on Windows and the Steam Deck are not covered. Every other engine claim not in the pinned reference is marked UNVERIFIED with the story or spike that settles it.
+
+## Decision Makers
+Claude (author), running under modes.automation: autonomous (project.yaml); decisions logged for the user's review; the user has not yet reviewed this ADR.
+
+## Summary
+Every visual, audio and UI system in the game is a kernel subscriber, and eleven approved GDDs each restate "marks dirty in the notification, draws in the render callback, writes only engine-side nodes" without a single place that fixes what that means in code, in which order the presenters run, how a fractional simulation position becomes a whole base pixel, or which class may submit commands. This ADR fixes one contract: subscriber handlers only mark dirty and return `ctx.complete()`; one `PresentationDriver`, hosted by `PipelineRoot` (which is the single `PresentationHost`), runs every presenter once per rendered frame in a fixed named stage order and hands them one `PresentFrame`; every moving thing is placed by the single function `Placement.at` (`floori` of the lerp at `tick_alpha`) with `physics_interpolation` pinned off; presentation holds only non-persisted scalars that are reset on a restore edge (`PresentationClock.load_seq`); and `INPUT_SURFACE` is the only class that can be issued submit rights, which still require a `SurfaceHandle` (at MVP only the Input Adapter holds one).
+
+## Engine Compatibility
+
+| Field | Value |
+|-------|-------|
+| **Engine** | Godot 4.7.2 (stable), GDScript |
+| **Domain** | Core and Rendering (frame loop, node processing, 2D canvas placement), with an Input boundary |
+| **Knowledge Risk** | MEDIUM. Every API this ADR uses (`Node._process`, `Node.process_priority`, `Node.physics_interpolation_mode` with `Node.PHYSICS_INTERPOLATION_MODE_OFF`, `SceneTree.physics_interpolation`, `floori`, `RenderingServer.frame_pre_draw`, `CanvasItem`, `Node2D.position`, `Callable.is_standard` and `get_argument_count`, `AnimationPlayer.advance`) exists in 4.7.2 (the interpolation, ordering, `floori` and `get_argument_count` items were probed 2026-10-28; `Callable.is_standard` and `AnimationPlayer.advance` are documented class members used as documented), and none is listed in `breaking-changes.md` for 4.4 to 4.7. The pinned reference is silent on 2D physics interpolation, on cross-node `process_priority` order in a rendering build, and on `frame_pre_draw` ordering, so those claims are probes (editor binary) or spike-bound (release export, D3D12, Deck). 4.7 rows that matter: `CanvasItem` lines lose their antialiasing feather (Risk R5), the typed-return override rule (does not bite here because presenters register `Callable`s; Implementation Guidelines carry the rule for a future base class), packed-array element writes skip setters (presenters keep no setter-driven caches). |
+| **References Consulted** | `docs/engine-reference/godot/VERSION.md`, `breaking-changes.md` (4.6 to 4.7 GDScript, Rendering, Input rows), `deprecated-apis.md` (patterns table), `current-best-practices.md` (GDScript 4.5 and 4.7, Rendering 4.7), `modules/rendering.md`, `modules/physics.md` (3D interpolation note; 2D not covered), `modules/input.md` (not read in full; device IDs are ADR-0019's) |
+| **Post-Cutoff APIs Used** | None required. `Node.is_physics_interpolated()` and `SceneTree.physics_interpolation` exist in 4.7.2 (probed); the version that introduced 2D physics interpolation is not in the reference (UNVERIFIED, not needed: this ADR turns it off). |
+| **Verification Required** | (1) **Probed 2026-10-28 (headless, 4.7.2):** `ProjectSettings` has `physics/common/physics_interpolation`, default `false`; `SceneTree.physics_interpolation` reads `false`; `Node2D` has no `get_global_transform_interpolated` (only `Node3D` does), which confirms the Pipeline's PR-4 rule 8 claim that no 2D script can read an engine-interpolated pose; `rendering/2d/snap/snap_2d_transforms_to_pixel` and `snap_2d_vertices_to_pixel` exist and default `false` (so the Pipeline's guard rails must set them); `floori(10 + 1 * 0.99999994) = 10`, `floori(-3 + 1 * 0.5) = -3`, `floori(10 + 1 * 1.0) = 11` (the lerp is exact at alpha 1.0 and rounds toward negative infinity); `float(999999) / float(1000000)` gives 0.999999 and the unmarked `/` on two `int`s gives 0. `Array.sort_custom` is **not stable** (a 40-element array with duplicate keys came back out of insertion order), so the driver sorts packed integer keys (§ 3). (2) **Probed and re-run by the engine review, sharper than first stated:** `Node.is_physics_interpolated()` resolves `physics_interpolation_mode` inheritance **lazily, not only "in a running tree"**: an `INHERIT` child under an `OFF` parent reads `true` inside `_initialize` and `false` after the first `SceneTree.process_frame`, and a child added later reads `false` immediately. Also, `is_physics_interpolated()` **ignores the global enable flag** (a default node reads `true` even with `SceneTree.physics_interpolation` false; `is_physics_interpolated_and_enabled()` reads `false`), so the boot walk asserts explicit `Node.PHYSICS_INTERPOLATION_MODE_OFF` inheritance, not effective interpolation. The walk therefore runs after the first `process_frame` (§ 5). (3) **Probed (headless, and consistent in the windowed run):** with `process_priority` -50, 0, 0 and 5 on four sibling nodes, `_process` ran -50, then the two 0s in tree order, then 5, on all three frames; ties at one priority run in tree order, which is why this ADR hosts all presentation work in one node (§ 3). The release-export result belongs to KRN-LAT-02 (ADR-0001). (4) **Probed in a windowed Vulkan run of the 4.7.2 mono editor (2026-10-28):** per frame, `SceneTree` `_process`, then node `_process` in priority order (-50, 0, 5), then `RenderingServer.frame_pre_draw`, then `frame_post_draw`. `frame_pre_draw` "never fired" in the headless run only because of the dummy renderer. This confirms that a `canvas_transform` write in `frame_pre_draw` lands after every presenter, and that a camera solve placed inside it would be invisible to the HUD stage (ADR-0008 adopts the solve in stage 1, § 3). `thread_model` read 1 (Single-Safe). **UNVERIFIED:** a release export, the D3D12 default on Windows, the Steam Deck, and `rendering/driver/threads/thread_model` = 2 (the thread that emits `frame_pre_draw` is not documented in the pinned reference); ADR-0008 pins `thread_model` at its default 1 and treats 2 as unsupported (TD-20); ADR-0008 pipeline spike steps 11 and 12 settle the rest. (5) **UNVERIFIED:** whether assigning an unchanged `Node2D.position` costs anything; `Placement.put` skips an equal write by design, so the ADR does not depend on the answer. (6) **Probed headless on 4.7.2:** `AnimationPlayer.speed_scale = 0` does not advance; `Tween.set_speed_scale(0)` does not advance; `AnimationPlayer.callback_mode_process = ANIMATION_CALLBACK_MODE_PROCESS_MANUAL` with `advance(dt)` works exactly. **Inconclusive or untested:** `AnimatedSprite2D.speed_scale = 0` (inconclusive) and `GPUParticles2D.speed_scale = 0` (the dummy renderer does not simulate particles; the class docs say 0 pauses, not run). The primary pattern (§ 5) therefore needs none of the unverified cases; the particle case is a story-level check (§ Validation). (7) **Snap flags:** what `snap_2d_transforms_to_pixel` and `snap_2d_vertices_to_pixel` snap to is ADR-0008's (they snap in base-pixel space under pass B, and `canvas_transform` is in base-pixel units, probe E8 there); nothing here relies on them. |
+
+## ADR Dependencies
+
+| Field | Value |
+|-------|-------|
+| **Depends On** | ADR-0001 (`PresentationClock` including the requested read-only `state` and `load_seq` fields, `ProcessPriority.PRESENTATION`, injection of narrow facets, no `Kernel` global; Proposed), ADR-0002 (`SurfaceHandle`, the rule that subscribing as `INPUT_SURFACE` confers no submit right, `issue_surface_handle` as the single list of submit sites; Proposed), ADR-0003 (`PresentationViews` and its two faces selected by `perception_access`, `interpolated` blocks, `snap_baseline`, `NotifyContext` and the `CompletionToken` rule for kernel-invoked handlers; Proposed), ADR-0004 (`ChangeBatch`, `DirtyAccumulator`, `NotifyFacet.subscribe`, `SubscriberClass`, delivery cadences, `deliver_all`, subscribe-time checks 1 to 6; Proposed), ADR-0010 (source layout and the `src/kernel/facets/` placement of the facet-side types, the PRES lint rules, the `_process` exemption set's lint; Proposed). ADR-0005 is a reference (`Ihash`, § 2.6), not a dependency. |
+| **Enables** | ADR-0008 (PipelineRoot is the single `PresentationHost`; it hosts the driver and supplies `present_time`; the `frame_pre_draw` write. ADR-0008 is asked to list ADR-0009 under its Depends On and drop it from its own Enables), ADR-0019 (Adapter and Presenter split), ADR-0024 (Filter facet with `perception_access` and its query surface), ADR-0028 (Lighting is a stage and a write allow-list), ADR-0029 (Audio is a stage), ADR-0030 (HUD and menus are stages and INPUT_SURFACE objects), ADR-0031 (DIAGNOSTIC facet), ADR-0034 (PROJECTOR class rules; shape and Y-sort are its own). |
+| **Blocks** | Epics: Pixel-Perfect Pipeline (host and driver), Player Controller (Avatar Presenter), 2D Lighting, Perception Filter, Failure & Trail, HUD & Suit Layer, In-World Instruments, Adaptive Audio, Chart Table, Debug Overlay. |
+| **Ordering Note** | **Sibling drafts (written 2026-10-28, Proposed, not yet Accepted):** ADR-0004 owns `ChangeBatch`, the dirty-key layout, `DirtyAccumulator`, the subscriber class enumeration, the per-block `subscribe` signature, subscribe-time check 6 (`PERCEPTION_OUT`) and the notification event records; this ADR consumes them and restates only the properties it needs (§ 2). ADR-0008 owns `present_time`, the viewport stack and the `frame_pre_draw` handler and, per the cross-ADR ruling TD-03, declares `PipelineRoot` the single `PresentationHost`; this ADR adopts that. ADR-0010 owns the lint tool and placement of the facet-side types (TD-01) and decides which "lint" rules are regex, AST or boot walks (TD-16, TD-17, TD-21). ADR-0034 owns the PROJECTOR scene shape, Y-sort key and z-bands. **Amendments requested of neighbours (all go into one batch per owner, none applied by this ADR):** ADR-0001 (`PresentationClock.state` and `load_seq`, `ProcessPriority.HOST_SERVICE`, § 6); ADR-0003 (the two faces of `PresentationViews`, § 1); ADR-0004 (subscribe-time check 6, § 1); ADR-0010 (PRES-01 reword, ARCH-08 deny list, facets placement, § 3 and Key Interfaces); ADR-0008 (PipelineRoot host, solve in `CAMERA_SOLVE`, ADR-0009 in Depends On, § 3). **Acceptance requires** ADR-0001 (with the `state` and `load_seq` amendment applied), ADR-0002, ADR-0003, ADR-0004 and ADR-0010 Accepted, and the **order half of spike KRN-LAT-02 passed on a desktop release export** (host `_process` after the TickDriver). Nothing else gates Acceptance: `frame_pre_draw` ordering on a release export goes to ADR-0008 pipeline spike steps 11 and 12, `speed_scale` freezing to the first story that freezes a particle or animation, and driver overhead to the Pipeline story's performance check on RM-DESKTOP and RM-DECK (§ Validation). **Engine review:** the engine seat reviewed this ADR on 2026-10-28 (verdict NOTES, findings E1 to E10 applied below); a confirming engine re-read of the revised text is still owed before Acceptance, and the release export, D3D12 and Deck results stay UNVERIFIED until the spikes run. |
+
+## Context
+
+### Problem Statement
+The kernel notifies subscribers once per tick, after commit, with no state in the payload, and merges presentation batches across a catch-up frame (CR-10). Eleven presentation systems consume that: Pipeline camera, Avatar Presenter, Perception Filter, Lighting, Failure & Trail, HUD, Instruments, Audio, Chart Table, the layout PROJECTOR and the Debug Overlay. Each GDD restates the same contract in its own words, and four things are still undecided in a way that would let two programmers build incompatible presenters:
+
+1. **Where "the render callback" is.** `architecture.md` shows each presenter polling `Kernel.tick_alpha` in its own `_process`; Pipeline PR-8 item 3 says reading and drawing happen in "the pipeline root's `frame_pre_draw` handler"; the HUD GDD (OQ-HS-44, OQ-HS-51, ADR candidate F) asks for "an explicit driver".
+2. **In what order presenters run.** Three approved texts disagree: HUD AC-HS-89 (camera solver, Avatar, Filter, HUD, Lighting), `architecture.md` Data Flow (Avatar, Lighting, Trail, Instruments, HUD, Audio) and PF-35 (Filter after the Avatar Presenter and before Lighting). Six TR rows depend on it.
+3. **How a position reaches a pixel.** PR-4 says `floor(prev + (curr - prev) * tick_alpha)` everywhere with the engine snap flags as "belt-and-braces", and that physics interpolation is off; nothing says who owns the function, what enforces it, or how a hook-divisor presenter derives its alpha.
+4. **What presentation may keep and what happens at a restore.** Instruments, the Filter and the camera each hold cosmetic scalars that must vanish on a restore, a camera cut and `hard_start`; the kernel delivers `ALL` after a restore but `ALL` also means "more than 256 keys changed".
+
+A fifth point is a conflict between texts, not a gap: the architecture's example handler is `-> void`, while ADR-0003 (Proposed) makes every kernel-invoked subscriber handler `(record, ctx: NotifyContext) -> CompletionToken`.
+
+### Constraints
+- **Presentation never writes the simulation (kernel H4, CR-11).** It never causes a tick, never blocks one, and a presentation fault must not fault the kernel.
+- **Handlers run inside P5 with writes disabled.** A long handler stalls every other subscriber (PR-8 item 3). P5 is inside the frame budget (ruling R12): total frame P99 at most 14.9 ms desktop and 30.0 ms Deck, release export, RM-DESKTOP and RM-DECK.
+- **One interpolator (PR-4 rule 8).** `tick_alpha` plus previous and current read-view values; the engine's 2D interpolation machinery is not used for sim-owned transforms.
+- **Integer base-pixel placement in the current body frame (PR-4 rules 2 and 3).** Snap is a floor, not a filter; interpolate, then quantise; `Camera2D.zoom` stays (1, 1).
+- **`tick_alpha` is 1.0 while the kernel is not `RUNNING`, and `present_time` is frozen while `PAUSED` (ADR-0001 § 4; PR-9).**
+- **Frame order is `INPUT_ADAPTER` (-100), `TICK_DRIVER` (-50), `HOST_SERVICE` (-40, requested of ADR-0001 for `SaveHost`; no presentation work runs there), `PRESENTATION` (0), set from code (ADR-0001 § 2).** A node that forgets to set its priority lands after the driver. Two nodes at one priority run in tree order, which is not a contract (ADR-0001), so exactly one node does presentation work at `PRESENTATION`.
+- **No autoload, no static, no group lookup exposes the kernel or a read view (ADR-0001 § 5).** Presentation receives `subscribe`, read views and a read-only clock through `setup()`.
+- **Kernel-invoked callables return only `ctx.complete()` (ADR-0003 § 3).** The kernel checks the token's identity, which also rejects a coroutine state.
+- **Main thread only.** All presentation runs on the main thread.
+- **Static typing, doc comments on public APIs, dependency injection, headless tests (coding standards).**
+
+### Requirements
+- A written read and write manifest per subscriber class that a lint and a boot check can enforce.
+- A handler that cannot stall P5 or draw.
+- One place that decides presenter order, testable without a scene.
+- One placement function every presenter uses, including the camera and the beam chest point.
+- A single detectable restore edge, distinct from a large-change `ALL`.
+- Exactly one class that may be issued submit rights, with the issue point checked at boot.
+- Presentation output that is a pure function of committed state, `tick_alpha`, `present_time` and resettable scalars, so a restore needs no special draw path.
+
+## Decision
+
+### Architecture Diagram
+
+```
+ one rendered frame (ADR-0001 order)
+ │
+ ├─ -100 INPUT_ADAPTER  Input Adapter: the only SurfaceHandle holder at MVP (ADR-0002); later INPUT_SURFACE objects with a handle follow § 7
+ │                        latch intents in UI callbacks, submit() from the object's own _process only
+ │
+ ├─  -50 TICK_DRIVER    KernelHost -> TickDriver.frame()
+ │         0..4 x Kernel.step() ... P5: subscriber handlers run (writes disabled)
+ │              PRESENTATION / PROJECTOR / DIAGNOSTIC: one merged batch after the frame's last tick
+ │              INPUT_SURFACE: every tick's batch
+ │              handler = _dirty.absorb(batch); return ctx.complete()               <- the whole job (§ 2)
+ │         result buffer flushed -> INPUT_SURFACE result handlers (also mark only)
+ │         tick_alpha, state and load_seq published (tick_alpha 1.0 while not RUNNING)
+ │
+ ├─  -40 HOST_SERVICE   SaveHost (ADR-0001 amendment); no presentation work
+ │
+ └─    0 PRESENTATION   PipelineRoot._process(delta)   (ONE node = the PresentationHost, ADR-0008 § 6.1; presenters have no _process)
+           (1) advance present_time  (2) zoom cooldown  (3) RESCALING re-derive if dirty  (4) driver.frame(delta, present_time)       (§ 3)
+           driver.frame: PresentFrame filled once (alpha / T / running / present_time / present_delta / render_delta)             (§ 3, § 4)
+           if clock.load_seq changed -> every presenter.on_discontinuity(PresentationDiscontinuity.RESTORE) before any present                (§ 6)
+           stage  0 PROJECT        PROJECTOR builds / rebuilds (chunked): layout projector, body.projector, then Lighting's occluder builder
+                  1 CAMERA_SOLVE   CameraSolver.solve: pose_q, world_to_hud (no canvas write yet)
+                  2 AVATAR         Avatar Presenter: position, frame, flip, beam pose
+                  3 FILTER         Perception Filter: step, decoy list, perceived() memo
+                  4 INSTRUMENTS    Instruments (perceived() reads)
+                  5 HUD            HUD (world_to_hud, perceived())
+                  6 LIGHTING       Lighting (reads beam pose, decoy list)
+                  7 TRAIL          Failure & Trail
+                  8 AUDIO          Audio presenter (cue requests)
+                  9 DEBUG          Debug Overlay (dev and playtest builds)
+       .. later, in the engine's draw phase (probed after every node _process, windowed 4.7.2 editor):
+       RenderingServer.frame_pre_draw -> PipelineRoot writes the world viewport canvas_transform and the parallax layer offsets from the
+                                         ALREADY SOLVED pose_q (no solve here)                                                    (ADR-0008 § 6.2)
+```
+
+### 1. Subscriber classes and what each may read and write
+
+The class is chosen by the composition root at facet-issue time, not by the presenter. A presenter cannot subscribe as a class its facet was not issued for.
+
+```gdscript
+# src/kernel/facets/presentation_facet.gd (placement requested of ADR-0010, see "Facet-side types" in Key Interfaces).
+# Issued by the composition root in BOOTING, one per presentation object, never the whole Kernel (ADR-0001 § 5).
+# This is the class-bound wrapper around NotifyFacet: the composition root binds the SubscriberClass at issue (ADR-0004 § 2).
+class_name PresentationFacet extends RefCounted
+var views: PresentationViews          # ADR-0003 § 7; getter-only facades; the face (default or perception) follows perception_access
+var clock: PresentationClock          # ADR-0001; read-only: tick_alpha, T, running, state, load_seq (§ 6)
+var key_capacity: int                 # ADR-0004 NotifyFacet.key_capacity; sizes each presenter's DirtyAccumulator
+var perception_access: bool           # read-only; set by the composition root at issue; true only on the Filter's facet and DIAGNOSTIC facets
+## Subscription is per block (ADR-0004 § 2); a presenter that needs two blocks subscribes twice with the same method Callable.
+## The class is fixed at issue; this forwards to NotifyFacet.subscribe(cls, block_id, handler, name). The handler must be a method Callable
+## taking two arguments (ADR-0004 subscribe-time check 1: lambdas and .bind() results are refused). A subscription to a PERCEPTION_OUT block
+## on a facet with perception_access == false is refused with SUBSCRIBE_REFUSED (ADR-0004 subscribe-time check 6) and returns an inactive handle.
+func subscribe(block_id: StringName, handler: Callable, subscriber_name: StringName) -> SubscriptionHandle
+# Content catalogs (ADR-0007) arrive as their own setup() arguments; they are frozen and read-only.
+```
+
+| Class | Facet is issued to | Reads | Writes | Submit |
+|---|---|---|---|---|
+| `PRESENTATION` | Camera solver, Avatar Presenter, Lighting, Failure & Trail, HUD, Instruments, Audio, the Filter's host object | `PresentationViews` of SIM blocks (previous and current pairs), `PresentationClock`, the frame's `PresentFrame`, frozen content catalogs, **products of strictly earlier stages** (§ 3), the Filter's `perceived()` for corruptible values | Only the allow-list below | Never. The facet has no submit method. |
+| `INPUT_SURFACE` | Input Adapter (holds the one `SurfaceHandle` at MVP), the Interaction prompt object (no handle), Chart Table menu objects (no handle at MVP) | As `PRESENTATION` | As `PRESENTATION` | **May be issued a `SurfaceHandle` (ADR-0002); the class alone confers nothing.** Receives every tick's batch. A facet issued as `INPUT_SURFACE` is itself a registration whether or not it ever subscribes (§ 7). |
+| `PROJECTOR` | Layout projector, `body.projector`, Lighting's occluder builder | As `PRESENTATION` | Engine-side *derived* objects its block owner's GDD names (nodes it creates, frees or reparents; tile and occluder content); declares the engine classes it may instantiate at registration | Never |
+| `DIAGNOSTIC` | Debug Overlay (dev and playtest builds only; ADR-0031) | Everything, including kernel internals and `PERCEPTION_OUT`, through a separate diagnostics facet (`perception_access` true) | Its own overlay nodes only | Never |
+| `REPLICATION` | Nobody at MVP (dormant until VS-B; ADR-0032) | n/a | n/a | n/a |
+
+The scene shape that `body.projector` builds (per-body root, reparenting, Y-sort) is ADR-0034's; this ADR fixes only its class rights and its place in stage 0.
+
+**Read rules, each lint- or boot-checked:**
+- Presentation reads simulation state only through `PresentationViews` and `PresentationClock`. It never holds `Kernel`, `SimViews`, `WriteScope`, `Command`, `BlockDescriptor` or a tick-phase context (`CallContext`, `ValidateContext`, `ApplyContext`, `HookContext`, `SnapshotContext`). A lint forbids exactly those names in `src/presentation/` (ADR-0003 Risks already commits to it; the list is ADR-0010 ARCH-08's explicit deny list per TD-01). A handler legitimately names `ChangeBatch`, `NotifyContext` and `CompletionToken`, which are facet-side types (Key Interfaces).
+- **`PERCEPTION_OUT` blocks are not subscribable or readable through a default `PresentationFacet`.** `perception_access` is `true` **only on the Perception Filter's facet and on `DIAGNOSTIC` facets, and `false` on every other facet** (the composition root sets it at issue; this ADR only declares which facets carry it). Enforcement is not ADR-0009's: (a) **subscribe time**, ADR-0004 subscribe-time check 6 (TD-08) refuses a subscription to a `PERCEPTION_OUT` block from a facet without access with `SUBSCRIBE_REFUSED`, which closes ADR-0004 OQ-7; (b) **read time**, ADR-0003 § 7 (amended by TD-07 item 10) gives `PresentationViews` two faces selected by the same flag: the default face returns the block's `empty_view` and counts `PERCEPTION_READ_BLOCKED`, the perception face returns the real facade. Lighting reads the Filter's per-viewer decoy list, an object the Filter owns, not the block. This follows `architecture.md` § API Boundaries ("Filter and Debug only") and Principle 3 over the broader wording in the kernel GDD's CR-10 table. ADR-0024 owns only the shape of the Filter's query surface.
+- Presentation never reads another presenter's private state. A presenter may call a getter on a **strictly earlier stage's** product (the camera pose, the beam pose, the decoy list). Each presenter declares `reads: Array[int]` of stage ids at registration and the driver's freeze check fails boot if any entry is not strictly less than the presenter's own stage. A visual presenter never reads the Audio presenter or any audio level, bus meter, cue or voice state (TR-audio-042); Audio is stage 8 and nothing reads from it.
+- The simulation (`src/kernel/`, `src/sim/`) never names a presentation class, a `Node`-derived class, `CanvasItem`, `Camera2D` or `Viewport`. `zoom`, `k`, `k_auto` and `field_h` appear only under `src/presentation/` and the Pipeline root (TR-shipbody-044); a lint checks the identifiers.
+- Presentation reads settings (reduced motion, reduce flashing) from the settings store; **no simulation callable reads a setting**, and no toggle writes a block. A test runs one command stream with each toggle on and off and compares the tick count and `state_hash` (TR-pxl-034).
+- **Cosmetic randomness: presentation hashes use `Ihash` or `Ihash.h32` (ADR-0005 § 2.6) with a fixed non-zero per-system seed**, never the global RNG, never `RandomNumberGenerator`, and **never `DetRng.derive` (ADR-0005 bans it in presentation)**. PF-37's "no dependence on integer overflow" wording is waived for the `Ihash` family because 64-bit wrap is the pinned, golden-tested behaviour (TD-29); the Perception Filter's D.14 keeps its masked hash until ADR-0024 migrates it, and D.14's specific form is ADR-0024's. A truth-channel visual that must be reproducible (a trail) **reads `Ihash` keyed by `world_seed` (ADR-0005 § 2.6)** with a fixed per-system seed, because the simulation never draws the `trail.vis` value (TD-28); it writes nothing back.
+
+**Write allow-list (PRESENTATION and INPUT_SURFACE):** `CanvasItem` properties (including `position`, `visible`, `modulate`, `z_index`, `frame`, `flip_h`, `texture` and so on, with the placement rule of § 4), `Material` and shader parameters, `Light2D`, `LightOccluder2D` and `CanvasModulate` properties, particle properties, and audio-player and audio-bus properties through the Audio presenter. Never: a block, a command (outside § 7), a physics body, `Camera2D.*`, `Viewport.*`, `SubViewport.*`, `SubViewportContainer.*` or `CanvasLayer.*` members **outside the Pipeline root and the camera host** (PR-8 item 4 and its lint AC), `Engine.time_scale`, `SceneTree.paused` (pause is the control plane's `PauseGate`, ADR-0002), synthetic input (`Input.parse_input_event`, `Input.action_press`), and file I/O (Settings and the Save host have their own owners).
+
+**The Layout PROJECTOR never creates `Light2D` or `LightOccluder2D`** (TR-section-024); Lighting's occluder builder is also a PROJECTOR and is the one class that does. The declared-classes list at registration is what the lint compares. The PROJECTOR scene shape, the Y-sort key and `entity_id` namespaces belong to ADR-0034 (this ADR owns placement only).
+
+A presenter output signal that crosses into simulation does not exist: the flow is state, notification, presentation, and never the reverse (CR-10 "Sim never calls presentation").
+
+### 2. Dirty-mark-then-draw
+
+**The handler contract.** The kernel invokes each subscriber handler through a registered `Callable` with a reused `NotifyContext` (ADR-0003 § 3), exactly like every other kernel-invoked callable. The shape is ADR-0003's, as fixed by ADR-0004 § 2 (re-read 2026-10-28; it matches):
+
+```gdscript
+func _on_changes(batch: ChangeBatch, ctx: NotifyContext) -> CompletionToken:
+	_dirty.absorb(batch)        # ADR-0004 DirtyAccumulator (capacity facet.key_capacity); allocates nothing; is_all on overflow
+	return ctx.complete()       # last statement; nothing follows it
+```
+
+This replaces the architecture document's `-> void` example (§ GDD sync). A handler **must** do only this: copy the batch's keys into the presenter's pre-sized dirty structure, copy the scalar fields it needs from an event record into a fixed-size ring, and return. A handler **must never**: read a view, touch a node, create a `Callable` or a container, emit an engine signal, `await`, call `submit`, or write any property. A handler returns its `CompletionToken` synchronously, so `await` is banned **lexically** in any script registered through a `PresenterDescriptor` or that calls `.subscribe(` (ADR-0010 PRES rule, TD-16, with a bad fixture); the kernel's token-identity check is the runtime backstop and records anything other than the armed token, including a suspended coroutine state, as `INCOMPLETE` (ADR-0004 § 2), which counts against the handler. A handler fault is counted and never fatal (ADR-0003).
+
+**Why the handler does not draw.** It runs inside P5 with writes disabled and its cost is added to every other subscriber's; a catch-up frame already runs the tick loop up to four times (`MAX_TICKS_PER_FRAME`) and `INPUT_SURFACE` handlers run once per tick. Reading views there would also read a state that a later tick in the same frame is about to replace.
+
+**Delivery recap (properties this ADR relies on; ADR-0004 owns the mechanism):**
+- PRESENTATION, PROJECTOR and DIAGNOSTIC batches arrive **once per rendered frame**, after the frame's last tick, one `ChangeBatch` per dirty block per subscription, with the union of the frame's keys (`is_all` true past `MAX_DIRTY_KEYS` 256; this text's "`ALL`" means `batch.is_all`). INPUT_SURFACE and REPLICATION get every tick's batch. A 0-tick frame delivers nothing.
+- A restore delivers one `is_all` batch per block to every class when `LOADING` becomes `RUNNING`, with `batch.tick` set to the restored `T` (ADR-0004 P5/load delivery). **`ChangeBatch` carries no load marker, by design** (ADR-0004 § 6 states it; see `PresentationClock.load_seq`), so `is_all` is indistinguishable from a mass change; the restore edge is `load_seq` (§ 6).
+- Notifications carry no state; event records (`BODY_TRANSFER`, `POD_ARRIVED`, `DERELICT_LOADED`) carry identifiers only.
+
+**The draw side.** Each presenter keeps two things, and its `present(frame)` early-outs only when both are empty:
+- `dirty`: which blocks or keys changed since its last draw. Dirty drives **bulk and structural reads** (lists, queries, rebuilds, layout of plates): a presenter performs a bulk read of a block only when that block, or `ALL`, is dirty (TR-instr-005: derived inputs refresh once per Graph step because the Graph dirties its keys once per step, never per frame).
+- `animating`: whether anything still moves on `tick_alpha` or `present_time` (an interpolated position, a needle ramp, a fade, flow scroll). **Interpolation needs a draw on frames with no notification**, because a 144 fps frame between two ticks has a new `tick_alpha` and no new state; the example in `architecture.md` that returns when `_dirty.is_empty()` would freeze motion on those frames and is corrected. Cheap scalar getters on the `interpolated` pair (previous and current position) may be read every frame while `animating`.
+- `ALL` means "rebuild everything from the views, and draw the end state with no transition": the correct and sufficient response both to a restore and to a mass change. A presenter bounds a rebuild by its own budget (PROJECTOR: `BUILD_TILES_PER_FRAME`, chunked across frames, continuing to draw the last complete state until the chunks finish).
+- Event records are copied into a fixed ring; ring overflow degrades to a full rebuild and counts `PRESENTER_EVENT_OVERFLOW`. Events are never dropped silently, and a `BODY_TRANSFER` is delivered to the camera as a rebase, not a cut (TR-shipbody-049; the rebase math is ADR-0008's).
+
+**Coherence by construction.** The driver runs inside `PipelineRoot._process` at `PRESENTATION` (0), after the TickDriver (-50) in the same `_process` pass, and the kernel cannot tick while presentation runs, so every presenter in a frame reads the same committed tick `T`. No presenter copies state to be consistent.
+
+**Latency, stated honestly.** Discrete committed state (a bead appears, a light toggles) is drawn in the same rendered frame as the P5 that announced it, with zero frames of delay (TR-assembly-045). Continuously interpolated motion lags the commit by up to one tick by construction, because `tick_alpha` is clamped at 1 and never extrapolates (PR-4 rule 3, PR-9 rate table).
+
+**A debug-build safety net, in addition to ADR-0004's check that every changed block marked a dirty key.** A presenter that applies **key-level incremental updates** (the PROJECTOR chunks, the Trail, Lighting's occluder builder) exposes `rebuild_signature() -> int` in debug and test builds only (a hash of its derived draw model). The dirty-correctness test (Validation) runs a scripted command stream through that incrementally updated presenter and a fresh presenter fed `ALL`, and requires equal signatures. A presenter that forgot to react to a key is caught by that test, not in play. A presenter that rebuilds a whole block whenever any of its keys is dirty is **exempt**, because the equivalence proves nothing for it. This is a story-level definition-of-done item for the presenter's story that references this ADR, not a blanket ADR requirement.
+
+### 3. One driver, one frame object, fixed named stages
+
+**`PipelineRoot` is the `PresentationHost`** (ruling TD-03; ADR-0008 owns the edit to its § 6.1, § 6.2 and § 7.3). It is one `Node` with `process_mode = PROCESS_MODE_ALWAYS` and `process_priority = ProcessPriority.PRESENTATION`, set from code, and it owns a `PresentationDriver` (`RefCounted`, no scene tree). Its single `_process(delta)` does, in this order: (1) advance `present_time` (frozen while the kernel is `PAUSED`), (2) the zoom cooldown, (3) the `RESCALING` re-derive if dirty, (4) `driver.frame(delta, present_time)`. **No second node runs at `PRESENTATION` for presentation work**, so the priority-0 tie is removed by construction rather than by tree order, and `present_time` is current when the driver runs (this closes the host and ordering questions that earlier drafts left to ADR-0008). **Presenters define no `_process`.** They register a `PresenterDescriptor` with the driver in `BOOTING`; the driver freezes the registry with the kernel and sorts it once by stage.
+
+This is the "explicit driver" the HUD GDD asks for (OQ-HS-44, OQ-HS-51, ADR candidate F). It replaces N nodes whose relative order would depend on priority sub-constants and tree order with one loop over a fixed-size array, which is testable headless with stub presenters (AC-HS-89) and does not depend on the cross-node `process_priority` result for any presenter. Only the order **host after TickDriver** depends on ADR-0001's verified order, which the windowed 4.7.2 editor run confirmed and KRN-LAT-02 confirms on a desktop release export.
+
+**Why the solve is in the driver and not in `frame_pre_draw`.** The windowed probe shows `frame_pre_draw` firing after every node `_process`, so a camera solve placed inside it is invisible to the HUD stage and gives the HUD a one-frame lag on `world_to_hud`. The solve therefore runs in stage `CAMERA_SOLVE`, and the `frame_pre_draw` handler only writes `canvas_transform` and the parallax offsets from the solved pose. **Fallback**, used only if `frame_pre_draw` fails the release-export spike (ADR-0008 pipeline spike step 12): that write moves to the end of `PipelineRoot._process`, after `driver.frame`; no new priority constant is needed.
+
+```gdscript
+# src/presentation/pipeline/presentation_stage.gd (no new directory: the shared files live in the existing Pipeline module, ADR-0010)
+# Named constants only; nobody writes a literal stage number.
+class_name PresentationStage extends RefCounted
+const PROJECT: int = 0         # PROJECTOR builds and rebuilds, chunked: layout projector, body.projector, then the occluder builder
+const CAMERA_SOLVE: int = 1    # CameraSolver computes pose_q and world_to_hud; the canvas write is in frame_pre_draw
+const AVATAR: int = 2          # Avatar Presenter: position, frame, flip, beam pose
+const FILTER: int = 3          # Perception Filter step, decoy list, perceived() memo
+const INSTRUMENTS: int = 4
+const HUD: int = 5
+const LIGHTING: int = 6        # reads the beam pose (AVATAR) and the decoy list (FILTER)
+const TRAIL: int = 7           # Failure & Trail (truth channel, reads no Filter product)
+const AUDIO: int = 8
+const DEBUG: int = 9
+
+# src/presentation/pipeline/presentation_discontinuity.gd
+class_name PresentationDiscontinuity extends RefCounted
+const RESTORE: int = 0         # restore, cold load or new game: PresentationClock.load_seq changed
+const CAMERA_CUT: int = 1      # the camera stage called driver.notify_camera_cut()
+```
+
+**Stage 0 holds three registrants, and their order is declared, not incidental.** The layout projector, `body.projector` and Lighting's occluder builder all register at `PROJECT`. The occluder builder depends on the tiles the layout projector builds, so a tie would otherwise be an order that varies. `Array.sort_custom` is not stable in Godot (probed, § Engine Compatibility), so the driver does **not** sort descriptors with a comparator: `freeze()` builds one packed integer key per descriptor, `stage * 1024 + registration_index`, sorts the `Array[int]` with plain `Array.sort()` (ADR-0005 § 1.7's recommendation) and runs the descriptors in key order. Within a stage the order is therefore **registration order, fixed by the composition root**, and a descriptor that needs a same-stage predecessor names it in `after`; `freeze()` fails boot if a named predecessor is not registered earlier in the same stage. The composition root registers the layout projector, then `body.projector`, then the occluder builder.
+
+**The pinned partial order and why this total order satisfies it.** Every source that states an edge is satisfied:
+- HUD AC-HS-89 and TR-hud-022: camera solver, Avatar Presenter, Filter, HUD, Lighting. Stages 1, 2, 3, 5, 6.
+- PF-35 and TR-percfilter-025: Avatar, then Filter, then Lighting reads the decoy list. Stages 2, 3, 6.
+- TR-pc-040: the Presenter's beam pose is written before Lighting applies. Stages 2, 6.
+- Instruments call `perceived()`, so they follow the Filter. Stages 3, 4.
+- The rest (Trail, Audio, Debug after Lighting) is a convention. It differs from the order in `architecture.md` § Data Flow (Avatar, Lighting, Trail, Instruments, HUD, Audio), which the three GDD-stated edges override; § GDD sync lists the rewrite. The technical-director ruled (TD-22) that this stage order stands because it satisfies AC-HS-89 and PF-35.
+- **Camera versus Avatar.** Pipeline C2 asks for the camera "ordered after the actor" so that both compose the same interpolated position. This ADR gets the same guarantee by construction, not by order: the solver and the Avatar Presenter both call `Placement.at` with the same `PresentFrame` values, so they cannot disagree. The solver runs first because the HUD needs `world_to_hud` before it draws (TR-hud-022). Step 12 of the pipeline spike (zero render-px disagreement) tests the claim.
+
+```gdscript
+# src/presentation/pipeline/presenter_descriptor.gd
+# RefCounted by rule: a descriptor that became a Node or Resource would collide `name` with Node.name / Resource.resource_name.
+class_name PresenterDescriptor extends RefCounted
+var name: StringName
+var stage: int                        # a PresentationStage constant
+var reads: Array[int]                 # stages whose products this presenter calls; each must be < stage
+var after: Array[StringName]          # same-stage presenters that must be registered earlier (intra-stage order); usually empty
+var present: Callable                 # (frame: PresentFrame) -> void; standard method Callable, exactly one argument
+var on_discontinuity: Callable        # (kind: int) -> void; kind is a PresentationDiscontinuity constant; standard method Callable, exactly one argument
+
+# src/presentation/pipeline/present_frame.gd
+class_name PresentFrame extends RefCounted     # one object, reused every frame; fields overwritten, never reallocated
+var alpha: float            # clock.tick_alpha read ONCE per frame; in [0, 1]; 1.0 while not RUNNING
+var T: int                  # last committed tick; may feed values the simulation also computes, never cosmetic phase
+var running: bool
+var present_time: float     # supplied by PipelineRoot (ADR-0008); frozen while PAUSED; the only cosmetic clock
+var present_delta: float    # present_time minus the previous frame's present_time; 0.0 while PAUSED; drives manual animation advance (§ 5)
+var render_delta: float     # engine _process delta, scaled by Engine.time_scale, CLAMPED by the driver to ADR-0008's DT_MAX; smoothing filters only, never a phase
+
+# src/presentation/pipeline/presentation_driver.gd
+class_name PresentationDriver extends RefCounted
+func register(desc: PresenterDescriptor) -> void          # BOOTING only
+func freeze() -> void                                      # builds packed stage*1024+index keys, Array.sort(); fails boot on any check below
+func frame(host_delta: float, present_time: float) -> void # fills PresentFrame, handles load_seq, runs the stages
+func notify_camera_cut() -> void                           # called by the camera stage; next frame every presenter gets CAMERA_CUT
+```
+
+**`freeze()` checks, all boot failures:** names are unique; every `reads` entry is strictly less than the descriptor's `stage`; every `after` name is a presenter of the same stage registered earlier; `present.is_valid()`, `present.is_standard()` and `present.get_argument_count() == 1`; and the same three for `on_discontinuity`. `present` and `on_discontinuity` are untyped `Callable`s, so without the arity check a wrong signature would fail only at call time on the first frame the presenter runs (`Callable.get_argument_count` exists in 4.7.2, probed).
+
+`present` and `on_discontinuity` are registered `Callable`s returning `void`. They are **not** kernel-invoked owner callables, so ADR-0003's `CompletionToken` rule does not apply to them, and registering `Callable`s rather than overriding a base class avoids the 4.7 typed-return override rule altogether (ADR-0003 § 1 makes the same choice for owners). That rule would bite only if a base presenter class declared a typed non-void virtual for handlers, which this ADR forbids unless ADR-0010 introduces one with the conditions in Implementation Guidelines. A `-> void` override under an `@abstract` base needs no `return`.
+
+**`render_delta` and `present_time`.** Both derive from the engine's `_process` delta, which is scaled by `Engine.time_scale` and arrives as one huge value after a main-loop stall (a Windows window drag or resize, focus loss, a shader-compile hitch). The driver therefore clamps `render_delta` to the same `DT_MAX` as ADR-0008's camera solver, so a smoothing filter fed it does not jump. `present_time` itself advances by whatever ADR-0008 says (this ADR does not decide whether a stall advances it); `present_delta` is whatever `present_time` advanced.
+
+**Driver rules.** The driver iterates a fixed-size array, allocates nothing, checks `present.is_valid()` before each call and skips and counts a freed presenter (`PRESENTER_DEAD`, as ADR-0002 does for result handlers), and **never runs a presenter inside a tick**. Presenter faults cannot fault the kernel: nothing here runs in a tick phase. Stage timing exists in dev and playtest builds through ADR-0001's diagnostics timer and is compiled out of release.
+
+**The frame object is the clock.** `PresentFrame.alpha` is read once; no presenter reads `PresentationClock.tick_alpha` directly (a lint allows the `tick_alpha` read only in `presentation_driver.gd`, ADR-0010 TD-17; tests inject a `PresentFrame`, and the camera solver's pure-function twin takes alpha as an argument). This guarantees one alpha per frame. A presenter may read `frame.T` for values the simulation also computes (the beacon aim at `T`, a Graph step index); it **must never** use `T` or any tick counter as cosmetic phase (registry `cosmetic_phase_from_tick_counter`), and uses `frame.present_time` for cosmetic phase.
+
+**Pause.** `PresentFrame.present_time` is frozen while the kernel is `PAUSED` and `alpha` is 1.0, so a presenter that computes from `present_time` and `alpha` is frozen without being told. Layers 3 and 4 (Chart Table) keep running on engine time because they must respond while paused (PR-9); they are INPUT_SURFACE objects and UI Controls, not world presenters.
+
+**The `_process` rule and its exemption set (this ADR owns the set; ADR-0010 PRES-01 is reworded to match, TD-02).** `_process` and `_physics_process` are forbidden in any object registered through `PresenterDescriptor`. They are allowed only in `PipelineRoot` (the `PresentationHost`), `INPUT_SURFACE` objects at `ProcessPriority.INPUT_ADAPTER`, and layer 3 and 4 UI Controls. The shared files in this section (`presentation_stage.gd`, `presentation_discontinuity.gd`, `presenter_descriptor.gd`, `present_frame.gd`, `presentation_driver.gd`, `placement.gd`) live in `src/presentation/pipeline/`, an existing module directory, so ARCH-01 and `modules.json` need no change and presentation-to-presentation imports are already allowed (ruling TD-02). There is no separate `PresentationHost` file.
+
+### 4. Integer placement at `tick_alpha`
+
+One function, one owner, no other rounding anywhere in presentation.
+
+```gdscript
+# src/presentation/pipeline/placement.gd
+class_name Placement extends RefCounted
+## Interpolate previous to current at alpha, then floor, per axis. alpha is clamped by the caller's PresentFrame.
+static func at(prev: Vector2i, curr: Vector2i, alpha: float) -> Vector2i:
+	return Vector2i(floori(prev.x + (curr.x - prev.x) * alpha), floori(prev.y + (curr.y - prev.y) * alpha))
+
+## Alpha for a block whose owner runs every n ticks and publishes the tick it last ran (Horror alpha_5, PR-9).
+static func alpha_n(run_tick: int, T: int, alpha: float, n: int) -> float:
+	return clampf((float(T - run_tick) + alpha) / float(n), 0.0, 1.0)
+
+## Floor a float vector to whole pixels, per axis. The integer helper for derived offsets that are not a prev/curr pair
+## (the camera host's parallax layer offsets are built from this, never from a bare floor(); ADR-0008 § 6.2).
+static func floor_v(v: Vector2) -> Vector2i:
+	return Vector2i(floori(v.x), floori(v.y))
+
+## The only assignment point for a Node2D position in presentation. Skips an unchanged write.
+static func put(node: Node2D, p: Vector2i) -> void:
+	var v: Vector2 = Vector2(p)
+	if node.position != v:
+		node.position = v
+
+## The same for a Control: HUD plates that follow world things (layer 2) are Controls (ADR-0008 § 5.5), and Control has no Node2D.position.
+static func put_control(c: Control, p: Vector2i) -> void:
+	var v: Vector2 = Vector2(p)
+	if c.position != v:
+		c.position = v
+```
+
+**Rules:**
+- Every moving thing in the current body frame is placed with `Placement.at` and written with `Placement.put` (a `Node2D`) or `Placement.put_control` (a `Control`): sprites, the avatar, hand tools, the beam chest point, light origins, **HUD world-anchored plates (layer 2, written with `put_control`)**, the single floored canvas offset of a non-avatar body (`Placement.at(off_prev, off_curr, alpha)` with both offsets taken relative to the avatar's body, TR-shipbody-033), and the camera pose. The beam's chest point and the Avatar sprite use the same rounded position, so light origin and sprite never disagree (PR-4 rule 2, TR-pc-026).
+- **`floori`, never `int()`, `round`, `roundi` or truncation.** Probed 2026-10-28: `floori(-3 + 1 * 0.5)` is -3. Truncation and rounding both move negative-coordinate bodies by a pixel relative to positive ones.
+- **Interpolate, then quantise (PR-4 rule 3).** Snap is a floor, not a filter: a body moving one base pixel per tick shows a k by k block step at interpolated timing, never twice in a frame at 60 fps and above, never backward. Nothing is rounded before the lerp.
+- `alpha` is `frame.alpha`, in [0, 1], never extrapolated. `alpha_n` is legal only for a block whose owner publishes its run tick, is clamped at 1, and is floored by `at`. The sprite pose of a stepped rig (Horror) is not tweened; only the record's position is placed with `alpha_n` (PR-9).
+- **Placement lint, scoped to what the decision covers.** The lint applies to `Node2D` and `Control` nodes under the world viewport's layer 0 and to the HUD's world-anchored plates (layer 2). Writes to a node's position, global position, offset or transform appear only in `placement.gd` and in the **named allow-list** below. The lint must cover the whole engine API surface, not a naive `position =` regex: besides assignment, the position is also written through `set_position()`, `set_global_position()`, `set_transform()`, `set_global_transform()`, `translate()`, `global_translate()`, `move_local_x()`, `move_local_y()`, `set_offset()`, `set("position")`, `Sprite2D.offset`, and through `AnimationPlayer` or `Tween` property tracks on those names. ADR-0010 owns the mechanics (TD-17): a token ban on those calls and on `global_position =` and `offset =` outside the allow-list; a resource scan rejecting `Animation` tracks on `:position`, `:global_position`, `:offset` or `:transform`, and `tween_property` calls on those names, for presentation nodes; the `sort_custom` ban extended to `src/presentation/pipeline/`; and the `tick_alpha` read confined to `presentation_driver.gd`.
+- **Allow-list (TD-18).** Outside `placement.gd` the following legitimately write geometry: `src/presentation/pipeline/viewport_wiring.gd` (`WorldContainer.position`, `HudRoot.size`, layer geometry) and the camera host's `frame_pre_draw` handler (the world viewport `canvas_transform` and the parallax layer offsets). **Parallax offsets keep Placement's integer math**: the handler builds them from `Placement.floor_v` (a `Vector2i` from `floori`), not from a bare `-floor(...)`; ADR-0008 § 6.2 adopts that form. Layer 3 and 4 UI Controls (Chart Table, menus) keep their own layout idioms and are outside the lint (PR-9, ADR-0030), because they are laid out by the Control system, not placed from sim state.
+- **The post-frame sweep reads `global_position`, not `position`.** A debug-build and integration-test sweep reads every `Node2D` and world-anchored `Control` under the world root once per frame in the scripted walk and asserts that `global_position` is integral within an epsilon of 0 (`PLACEMENT_FRACTIONAL` counts, test fails on non-zero). Local `position` is not enough: a parent at an odd offset, or a centred `Sprite2D` with an odd-sized texture (a 0.5 px offset), makes the drawn origin fractional even when local `position` is integral, so the sweep also checks the centred-plus-offset case. `Node2D.position` is a 32-bit `Vector2`, so integer exactness holds only up to 2^24 px, which is ample for this map.
+- No per-node scale animation; horizontal flip is `flip_h` or a scale of -1 on x only; `Camera2D.zoom` stays (1, 1); rotation of human-built geometry is 0 (PR-4 rules 4 and 5). Cosmetic offsets (tremor of plus or minus 1 art px) are integers added after placement.
+- `snap_2d_transforms_to_pixel` and `snap_2d_vertices_to_pixel` are on as a safety net, set to their required values in `project.godot` by the Pipeline's guard rails (PR-15; probed: both default `false`). **Nothing in this ADR relies on them**; they snap in base-pixel space under pass B and `canvas_transform` is in base-pixel units (ADR-0008 § 2.2 and § 4).
+- An asset or one-off sprite uses even cell dimensions or `centered = false` with an integer `offset` (PR-4 rule 6); the asset lint is ADR-0010's, and it also carries the animation-resource scan above.
+
+### 5. One interpolator: physics interpolation off, and no engine clock on sim-visible content
+
+**The pins.** `physics/common/physics_interpolation` is **absent or `false` in `project.godot`**; the effective value is checked through `ProjectSettings.get_setting` in the post-first-frame boot check and in a gdUnit4 test (ADR-0008 § 5.5(a), effective-value tier), because a value equal to the default is not serialised and a `ConfigFile` read cannot confirm an absent key's effective value (TD-21; ADR-0010 PRJ-02 moves this key from presence checks to the effective-value tier). The presentation root nodes set `physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF` (value 2; the bare word `OFF` is not valid GDScript) and children inherit. `Camera2D.position_smoothing_enabled = false` and `limit_smoothed = false` where a `Camera2D` exists at all (the primary camera variant has none in the world tree, PR-6 C2).
+
+**The boot check, after the first `SceneTree.process_frame`** (probed: inheritance propagates lazily, so a read before the first frame can disagree with a read after it, and a node added later reads correctly immediately): `ProjectSettings.get_setting("physics/common/physics_interpolation") == false`, `get_tree().physics_interpolation == false`, and a walk over every node under the presentation roots asserts `not node.is_physics_interpolated()`. Because `is_physics_interpolated()` **ignores the global enable flag** (probed), the walk asserts explicit `OFF` inheritance from an `OFF` root, not effective interpolation, and that is why the roots must be explicit `OFF`. A violation fails boot in dev and playtest builds and counts `PHYSICS_INTERPOLATION_ON` plus logs in release. A gdUnit4 test additionally turns `SceneTree.physics_interpolation` on, builds the presentation tree, and asserts `is_physics_interpolated_and_enabled()` is false for every node, which proves the `OFF` roots rather than only the project setting.
+
+**Why not use the engine's 2D interpolation.** (a) It would be a second interpolator on a second clock (PR-4 rule 8). (b) Probed: `get_global_transform_interpolated` does not exist on `Node2D`, so no script could read where an engine-interpolated body is actually drawn, and the camera, which follows the un-interpolated pose, would swim against the sprite by 1 to 3 render pixels at 144 fps while looking fine at 60. (c) The kernel's previous and current pair is the only definition of the previous pose that survives a restore, a body transfer and a snap (`snap_baseline`, ADR-0003).
+
+**Engine clocks on sim-visible content.** `Tween`, `AnimationPlayer`, `AnimatedSprite2D.play()` and `GPUParticles2D` at a non-zero `speed_scale` run on the engine's process time, which does not stop under kernel `PAUSED` (the tree is not paused, ADR-0001 § 6) and does not follow reduced motion. For world content (layer 0) and the HUD (layer 2) a presenter therefore drives animation from `frame.present_time`:
+- **Primary pattern, `AnimationPlayer`:** set `callback_mode_process = AnimationMixer.ANIMATION_CALLBACK_MODE_PROCESS_MANUAL` and call `advance(frame.present_delta)` from `present`. Probed on 4.7.2: this works exactly, and it is frozen under `PAUSED` (`present_delta` is 0) by construction, and a reduced-motion rule applied to `present_delta` or the played animation reaches it like any other `present_time`-driven content, with no engine clock involved.
+- **`AnimatedSprite2D`:** set `frame` and `frame_progress` from `frame.present_time` (a frame index computed from it); do not rely on `speed_scale`.
+- **Shader time:** a shader parameter set from `frame.present_time`.
+- **Particles:** call `restart()` in `on_discontinuity(RESTORE)` so no stale emission survives a restore, new game or camera cut; freeze under `PAUSED` with `speed_scale = 0` as a fallback only. The class docs say 0 pauses a `GPUParticles2D`, but the dummy renderer cannot simulate particles, so this is UNVERIFIED and is a story-level check on the first story that freezes particles (§ Validation); the stronger alternative is to avoid sim-visible particles on layer 0 and layer 2.
+- **`speed_scale = 0` as a fallback** for `AnimationPlayer` and `Tween` is probed (neither advances), but it is not the primary pattern, because `PROCESS_MANUAL` plus `advance` is exact and needs no clock reasoning.
+Engine-clocked animation is permitted only on layers 3 and 4 (Chart Table and menus), which must respond under pause, and on content that has no sim-visible meaning and is allowed to continue.
+
+The bounded presentation-owned animation states are those PR-8 admits (camera state, and the instruments' `settle_response`), plus the cosmetic scalars of § 6.
+
+### 6. Presentation-local state, the restore edge, and pure-function presenters
+
+**What presentation may keep.** A presenter may hold a scalar or small structure (a needle's settle triple, a dwell counter, a tremor envelope, a fade, a cull history, the camera's smoothing state, a numeral throttle) **if and only if**:
+1. it is never persisted, hashed, replicated or read by the simulation (`src/kernel/` and `src/sim/` import nothing from `src/presentation/`);
+2. it changes how a value *arrives* and never what it *settles to*, and never decides visibility of a truth-channel element (a trail's visibility depends only on the sim, which is why the Failure & Trail GDD calls it a pure reader);
+3. it is reset by `on_discontinuity` on a restore, a new game, a camera cut and `hard_start` (TR-instr-002, TR-attention-047);
+4. the presenter's registration lists it in a short doc comment so a reviewer can see the scalars (the lint cannot).
+
+**A presenter's drawn output is a pure function** of `(PresentationViews at this frame, PresentFrame, its resettable scalars)`. The first frame after a restore needs no special path: `ALL` rebuilds from views, `on_discontinuity(RESTORE)` clears the scalars, and the kernel's `snap_baseline` has made previous equal current, so there is no interpolation across the break (TR-cmd-046, TR-horror-041, TR-attention-047, TR-webmap-039 restore half). A multi-beat stall plays at most one beat and never replays (TR-attention-047): a presenter keeps the last-seen sequence value it was shown, compares it with the view's, and on a jump of more than one shows the end state.
+
+**Edge detection by sequence counters.** A presenter detects a discrete source change by comparing a view's sequence counter to the value it last saw (`breath_src_change_seq`, TR-suit-041), not by counting notifications, because merged delivery turns N ticks into one batch. Because the notification, the dirty mark and the draw happen in one rendered frame, a click can start in the Audio stage and the dial swap land in the Instruments stage of the same frame.
+
+**The restore edge is not `ALL`.** `ALL` also means "more than 256 keys changed this frame" (a weld can do it), and resetting an instrument's tremor on a weld is wrong. The driver therefore watches a dedicated counter, part of one combined amendment this ADR requests of ADR-0001 (TD-04), which also covers the Pipeline's kernel-state need:
+
+```gdscript
+# Requested of ADR-0001's PresentationClock (read-only, not a state block, never hashed or saved; backed by the TickDriver):
+var state: int       # the KernelState enum, read-only (the Pipeline's RUNNING / PAUSED / SAVING / LOADING / FAULTED need; no KernelStateView type)
+var load_seq: int    # +1 on every LOADING -> RUNNING transition, restore and new game and cold load alike, immediately before
+                     # deliver_all; never on PAUSED -> RUNNING or SAVING -> RUNNING; never hashed or saved
+```
+
+`load_seq` is backed by the kernel or TickDriver, not by the presentation driver, and ADR-0004 shows a new game also going `LOADING` to `RUNNING`, so no separate "and on every new game" rule exists. A cold Continue at boot is a `LOADING` to `RUNNING` transition and bumps it. ADR-0006's `restore_epoch` cannot substitute: it does not advance on Save & Quit then Continue (ADR-0006 § 3.2), and it is read only inside `RngFacet.draw_epoch`. ADR-0008 reads `PresentationClock.state` instead of a `KernelStateView` and takes its camera `CUT` trigger from the same `load_seq` change; **ADR-0001 is the owner of the edit and Acceptance of this ADR is gated on it being applied.**
+
+At the top of `frame(...)` the driver compares `clock.load_seq` with the last seen value and, on a change, calls every presenter's `on_discontinuity(PresentationDiscontinuity.RESTORE)` **before** any `present`. Camera cuts arrive the other way: the camera stage calls `driver.notify_camera_cut()` and the next frame delivers `PresentationDiscontinuity.CAMERA_CUT` (reset of instrument scalars and cull history; Instruments IW-33). `BODY_TRANSFER` is a rebase, not a cut, unless the new body's limits clamp (TR-shipbody-049, ADR-0008). The kernel's `snap_baseline` on entry to `RUNNING` (ADR-0001 § 4, ADR-0003) is the only restore-continuity mechanism for the previous/current pair; the `RESTORE` discontinuity resets presentation scalars and, for particles, restarts emission (§ 5).
+
+### 7. `INPUT_SURFACE` is the only submitting class, and a class is not a right
+
+- A command can be submitted only by an object that holds a `SurfaceHandle` (ADR-0002) **and** was registered as `INPUT_SURFACE`. Subscribing as `INPUT_SURFACE` confers no submit right (registry `presentation_submit_without_handle`): the Interaction prompt object subscribes without a handle. A `PRESENTATION` facet has no submit method and no way to obtain a handle.
+- **Boot check at the freeze, limited to `SurfaceHandle`s:** every name passed to `issue_surface_handle` has an `INPUT_SURFACE` registration with the same name, and no `SurfaceHandle` name matches a `PRESENTATION`, `PROJECTOR` or `DIAGNOSTIC` registration. A handle issued to a name with no `INPUT_SURFACE` registration, or to a `PRESENTATION` subscriber, fails boot. **`ControlHandle`s are outside this check:** ADR-0002 uses one issued-handle table for both kinds, and `save_load` and `pause_gate` hold `ControlHandle`s without any subscription (ADR-0006 § 1.12 makes Save/Load a control-plane caller, not a subscriber). **A "registration" is the composition root's facet issue**, not a subscription: a facet issued as `INPUT_SURFACE` under a name is a registration whether or not it ever subscribes to a block, so the Input Adapter is not forced to subscribe to anything just to pass the check. ADR-0004's `subscribe` carries the diagnostic name as its `name` argument for the subscribing case.
+- **Where a submit call may occur: the list is ADR-0002's, not restated here.** The submit sites are exactly the objects named at `issue_surface_handle` (ADR-0002; ADR-0010 KRN-04 implements the grep keyed to those names, not to a fixed file, per TD-06). **At MVP that is the Input Adapter only**, which submits from its own `_process` at `ProcessPriority.INPUT_ADAPTER`. The general `INPUT_SURFACE` rule below applies once a second `SurfaceHandle` is issued, and it is a condition attached to issuing that handle (ADR-0002): the holder **latches an intent in a plain field in its UI callback** and submits it from its own `_process` at `INPUT_ADAPTER`, so its commands are queued before the driver's tick loop and reach the same tick as the Adapter's. It **never** calls `submit` from an engine signal handler, `_gui_input`, `_input`, `_physics_process`, a notification handler or a `PRESENTATION` object. This is a wider rule than ADR-0001's "submit input only from the Input Adapter's `_process`", which is correct at MVP; the widening is a post-MVP condition, not a statement of current fact. The control plane is different: `ControlHandle` calls are recorded when made, from any phase (CR-15), so a UI button calling `PauseGate` from its signal handler is legal. This ADR therefore adds no second submit location and no driver stage for submission.
+- **Result handlers.** The kernel flushes the result buffer in the driver, before presentation; an `INPUT_SURFACE` result handler is a kernel-invoked callable and obeys the same contract as a subscriber handler: it records the result into a fixed ring and returns `ctx.complete()`. Display of a rejection happens in the object's own presenter step (the stage it is registered for), never in the handler.
+- **The rule is per object, not per system** (CR-10): a HUD that grows a button splits into the HUD presenter (`PRESENTATION`) and a small `INPUT_SURFACE` intent object.
+- Presentation predicts no outcome; the Adapter's pre-play of body motion and sound keyed by `correlation` is ADR-0019's, and light and effects change only on committed state (kernel anti-target: no client-side prediction at MVP).
+
+### 8. Engine signals stay inside presentation
+
+Engine signals (`signal`, `.connect(...)`) are used **between presentation objects for user-initiated events only** (a card opens, a setting changes, a button is pressed). They are never the kernel's notification transport (ADR-0004 § 1 decides a kernel-owned observer registry of Callables and no engine signals; this ADR agrees), never carry simulation values into a simulation module, and are never declared or connected in `src/kernel/` or `src/sim/` (a lint; the simulation is scene-tree free). A signal is not a way around the stage-read rule: a presenter that needs another presenter's per-frame product reads it through a declared `reads` edge, not through a connection.
+
+### Key Interfaces
+
+```gdscript
+# ----- Issued by the composition root (ADR-0001 § 5); presentation objects receive only these -----
+class_name PresentationFacet extends RefCounted        # see § 1; src/kernel/facets/
+class_name PresentationClock extends RefCounted        # ADR-0001: tick_alpha, T, running, state, load_seq (the last two requested, § 6)
+
+# ----- Handler (kernel-invoked; ADR-0003 callable contract; shape fixed by ADR-0004 § 2) -----
+func _on_changes(batch: ChangeBatch, ctx: NotifyContext) -> CompletionToken
+
+# ----- Pipeline module (src/presentation/pipeline/; PipelineRoot is the host, there is no PresentationHost file) -----
+class_name PresentationStage extends RefCounted          # stage constants, § 3
+class_name PresentationDiscontinuity extends RefCounted  # RESTORE, CAMERA_CUT, § 3
+class_name PresenterDescriptor extends RefCounted        # § 3
+class_name PresentFrame extends RefCounted               # § 3
+class_name PresentationDriver extends RefCounted         # register / freeze / frame / notify_camera_cut; the only reader of tick_alpha
+class_name Placement extends RefCounted                  # at / alpha_n / floor_v / put / put_control, § 4
+# PipelineRoot (ADR-0008) calls driver.frame(delta, present_time) from its single _process at ProcessPriority.PRESENTATION.
+```
+
+**Facet-side types this ADR requires (placement requested of ADR-0010, ruling TD-01).** A presenter handler must be typed `(batch: ChangeBatch, ctx: NotifyContext) -> CompletionToken`, so these types must be nameable from `src/presentation/` without breaching the import rule. They go under `src/kernel/facets/`: `PresentationClock`, `SurfaceHandle`, `ControlHandle`, `ModuleFacet`, `BlockRegistrar`, `ChangeBatch`, `NotifyContext`, `CompletionToken`, `NotifyEvent`, `DirtyAccumulator`, `KeyBuf`, `NotifyFacet`, `SubscriptionHandle`, `SubscriberClass`, `DirtyKey`, `PresentationFacet`, `PresentationViews`. ADR-0010 narrows ARCH-08 from the glob `*Context` to the explicit tick-phase deny list `Kernel, SimViews, WriteScope, Command, BlockDescriptor, CallContext, ValidateContext, ApplyContext, HookContext, SnapshotContext`; `NotifyFacet` may be named only by `src/game/` and by `PresentationFacet`, and presentation holds only the class-bound `PresentationFacet`. The `_process` rule's exemption set is § 3's; ADR-0010 PRES-01 is reworded to cite it.
+
+### Implementation Guidelines
+- **Must** subscribe through a `PresentationFacet` the composition root issued; **must never** hold `Kernel`, `SimViews`, `WriteScope`, `Command`, `BlockDescriptor` or a tick-phase context (`CallContext`, `ValidateContext`, `ApplyContext`, `HookContext`, `SnapshotContext`) in `src/presentation/`.
+- **Must** write a subscriber handler as "mark dirty, copy event scalars, `return ctx.complete()`"; **must never** read a view, touch a node, allocate, emit a signal, `await` (banned lexically, ADR-0010 PRES rule) or submit in a handler.
+- **Must** keep `dirty` and `animating` separate; **must never** return early on an empty dirty set while a value is animating.
+- **Must** perform bulk or structural reads only when the block (or `ALL`) is dirty; scalar getters on the interpolated pair may be read each frame while animating.
+- **Must** register one `PresenterDescriptor` per system with a stage from `PresentationStage` and a truthful `reads` list (and an `after` list for a same-stage predecessor); **must never** write a literal stage number, define `_process` or `_physics_process` in an object registered through a `PresenterDescriptor`, or read a product of the same or a later stage. The exemption set is § 3's: `PipelineRoot` (the `PresentationHost`), `INPUT_SURFACE` objects at `ProcessPriority.INPUT_ADAPTER`, and layer 3 and 4 UI Controls (PR-9). Descriptors **stay `RefCounted`** (a `Node` or `Resource` descriptor would collide `name` with `Node.name` or `Resource.resource_name`).
+- **Must not** declare a typed non-void virtual for handlers or presenters in any base class. If ADR-0010 introduces one (for example a base presenter class declaring `_on_changes(...) -> CompletionToken`), then in 4.7 every override must end in an explicit return, an untyped override still inherits the type, and a subclass that forgets the return fails to parse; every override must end in `return ctx.complete()` and the lint checks the last statement.
+- **Must** place every moving thing with `Placement.at` and `Placement.put` (`Node2D`) or `Placement.put_control` (`Control`); **must never** use `int()`, `round`, `roundi`, a tween, an engine interpolation or any other rounding for a sim-owned position, and **must never** write a node's position, global position, offset or transform, by assignment or by any setter, relative-move method or animation property track, outside `placement.gd` and the named allow-list of § 4 (ADR-0010 lint pack). Layer 3 and 4 UI Controls are outside this rule.
+- **Must** read alpha only from `PresentFrame` (the `tick_alpha` read is confined to `presentation_driver.gd`); **must never** read `PresentationClock.tick_alpha` in a presenter, extrapolate past 1, or use `T` or a tick counter as cosmetic phase.
+- **Must** animate sim-visible world and HUD content from `frame.present_time` (an `AnimationPlayer` in `PROCESS_MANUAL` advanced by `frame.present_delta` is the primary pattern); **must never** leave a free-running `Tween`, `AnimationPlayer`, `AnimatedSprite2D` or particle clock on layer 0 or layer 2 content.
+- **Must** keep `physics/common/physics_interpolation` absent or false (asserted by effective value), put `Node.PHYSICS_INTERPOLATION_MODE_OFF` on the presentation roots, and pass the post-first-frame boot walk; **must never** define `_physics_process` or `_integrate_forces` in `src/presentation/` (ADR-0001).
+- **Must** write only the allow-list of § 1; **must never** write `Camera2D.*`, `Viewport.*`, `SubViewport.*`, `SubViewportContainer.*` or `CanvasLayer.*` outside the Pipeline root and the camera host, and **must never** write a block, a command, a physics body, `SceneTree.paused`, `Engine.time_scale` or synthetic input.
+- **Must** reset every presentation scalar in `on_discontinuity`; **must never** persist, hash, replicate or feed back a presentation scalar, or let one decide a truth-channel element's visibility.
+- **Must** submit only from an object named at `issue_surface_handle` (ADR-0002; the Input Adapter only at MVP) that is also an `INPUT_SURFACE` registration; **must never** call `submit` from a signal handler, `_gui_input`, a notification handler or a `PRESENTATION` object, and **must never** infer submit rights from the subscriber class.
+- **Must** use signals only between presentation objects for user-initiated events; **must never** declare or connect an engine signal in `src/kernel/` or `src/sim/`.
+- **Should** drive the driver with an injected `PresentFrame` in tests (stub presenters, injected `present_time`, no scene); **should** record stage timing only in dev and playtest builds.
+
+## Alternatives Considered
+
+### Alternative 1: Each presenter runs in its own `_process` at a named sub-priority of `PRESENTATION`
+- **Description**: Add constants (`PRESENTATION + n`) per presenter in a presentation-owned file; every presenter node reads the clock itself. This is the shape `architecture.md`'s example implies and it keeps ADR-0001's "presentation nodes at `PRESENTATION` or greater" rule literally.
+- **Pros**: Idiomatic Godot; no new host node; each presenter is an ordinary node with its own `_process`; no driver to maintain.
+- **Cons**: Presenter order is N-way cross-node `process_priority` order, which has been verified only headless and in a windowed editor run for the three-constant case and not on a release export; ties at one priority run in tree order, which is not a contract; each presenter reads the clock separately (nothing guarantees they see one alpha); order is untestable without a scene; a forgotten priority silently lands at 0 and runs in tree order; the HUD GDD explicitly asks for an explicit driver.
+- **Rejection Reason**: The order is the contract (six TR rows), and an explicit array makes it testable and independent of an unverified engine behaviour. The cost is one small driver class. The decision is reversible: the `PresentationStage` constants map directly onto `PRESENTATION + n` priorities if the driver is ever dropped.
+
+### Alternative 2: Draw in a `RenderingServer.frame_pre_draw` handler on the Pipeline root (PR-8 item 3 as written)
+- **Description**: One engine signal handler on the Pipeline root reads views and draws for every presenter just before the frame is drawn.
+- **Pros**: Guarantees every presenter has run before the draw; one hook for the camera write and the presenters.
+- **Cons**: The windowed 4.7.2 editor probe shows `frame_pre_draw` firing after every node `_process`, so a camera solve or any presenter that feeds the HUD placed there is invisible to the HUD stage (a one-frame lag on `world_to_hud`); the signal never fires headless, so presenters would run in a callback the headless unit tests cannot trigger; its behaviour on a release export, D3D12 and the Deck is UNVERIFIED (ADR-0008 pipeline spike steps 11 and 12), so every presenter would inherit that unverified dependency; the kernel's tick order guarantee (driver before presentation) is stated for `_process`, not for this signal.
+- **Rejection Reason**: The only work that must happen in the draw phase is the `canvas_transform` and parallax-offset write from the already solved pose, and it stays there (ADR-0008). Presenters, including the camera solve, run in `_process` via the driver, where the order is stated, testable and already the foundation of ADR-0001.
+
+### Alternative 3: Handlers read views and update nodes directly (draw in the handler)
+- **Description**: The P5 handler does the reading and the node writes.
+- **Pros**: Least code; no dirty bookkeeping; the draw happens as soon as state is committed.
+- **Cons**: Writes happen inside P5, where a long handler stalls every other subscriber; in a catch-up frame it would redraw for intermediate ticks nobody will see (PRESENTATION delivery is already merged for exactly this reason); it cannot interpolate on frames that have no tick; it would read views that the kernel's own contract says are only coherent after P4.
+- **Rejection Reason**: Contradicts CR-10 and PR-8 item 3, and cannot serve a 144 fps render over a 60 Hz tick.
+
+### Alternative 4: Rely on the engine's snap flags (and `physics_interpolation`) instead of an explicit placement function
+- **Description**: Leave positions as floats, turn on `snap_2d_transforms_to_pixel` and the engine's 2D interpolation, and let the engine quantise.
+- **Pros**: Almost no presentation code.
+- **Cons**: Snapping happens on the engine's float transform after interpolation by the engine's clock (a second interpolator); the snap flags snap in base-pixel space only under ADR-0008's pass B variant, and rotated or parented nodes snap differently; the camera and the beam chest point would disagree with the sprite by a pixel; the result differs between 60 and 144 fps in ways no test can see.
+- **Rejection Reason**: PR-4 rule 2 already calls the snap flags a safety net, not the mechanism. One pure function is the only form of this rule that a unit test can pin.
+
+### Alternative 5: Presenters keep their own previous and current caches and interpolate locally
+- **Description**: Each presenter remembers last frame's value and lerps toward the new one.
+- **Pros**: No dependence on `interpolated` blocks exposing a pair.
+- **Cons**: Two definitions of "previous" (the presenter's and the kernel's); breaks at a restore, a body transfer or a hitch; moves the one interpolator into N places (PR-4 rule 8); a presentation that owns visibility-deciding state is no longer a truth channel (PR-8 rationale).
+- **Rejection Reason**: The kernel's previous and current pair with `snap_baseline` is the only definition that survives discontinuities.
+
+### Alternative 6: Let `PRESENTATION` subscribers submit through a shared handle
+- **Description**: Give the HUD and Chart Table a shared `SurfaceHandle` so UI can submit directly from its signal handlers.
+- **Pros**: Simple for menus and prompts.
+- **Cons**: Collapses the distinction ADR-0002 builds (a class is not a right); makes "presentation never writes the simulation" unenforceable; blocks co-op ingress from being added without changing owners.
+- **Rejection Reason**: Contradicts the registered `presentation_submit_without_handle` pattern and kernel H4.
+
+## Consequences
+
+### Positive
+- One place, one loop and one frame object decide presenter order and the alpha every presenter sees; the order is a list a headless test can assert, which closes the HUD GDD's ADR candidate F and settles the three-way disagreement over order.
+- A handler has a single permitted shape (mark, copy, `return ctx.complete()`), so P5 cost is bounded by batch size and cannot draw or fault the kernel.
+- Interpolation is one pure function; the camera, the beam, the sprite and a docked body's canvas offset agree by construction, and a cadence test needs no renderer.
+- A restore needs no special presenter path: `ALL` plus a reset hook plus the kernel's `snap_baseline`.
+- "Which class may submit" is now two checks (facet and handle) rather than a convention, and boot fails if a `SurfaceHandle` name and the `INPUT_SURFACE` registrations disagree.
+- The Layout PROJECTOR class rules and the write allow-list are stated once, in a form a lint can check.
+
+### Negative
+- A new class (`PresentationDriver`), a registration step and a frozen registry for presenters. Dynamic presenters (one per instrument) are not registered individually: one registration per system iterates its own children.
+- Presenters cannot use `_process`, so ordinary Godot idioms for animation (tweens, `AnimationPlayer`) are restricted on layer 0 and the HUD, which costs authoring convenience.
+- One combined request lands on ADR-0001 (`PresentationClock.state` and `load_seq`, plus `HOST_SERVICE`), and several others on neighbouring ADRs (ADR-0003 two-face view, ADR-0004 check 6, ADR-0010 placement and PRES rules, ADR-0008 host model), all gated on being applied before Acceptance; several lint rules depend on ADR-0010's tool.
+- The stage order beyond the three GDD-stated edges is a convention, and a GDD or `architecture.md` that disagrees must be edited (§ GDD sync). Stage 0 has three registrants whose order is registration order, so adding a projector means choosing its place in the composition root.
+- **Direction-asymmetric placement (informational, E10).** `floori` of the lerp means motion in +x or +y shows `prev` until alpha reaches 1.0, so it is displayed up to about one tick late, while -x and -y motion shows `curr` from the first alpha above 0. The sprite-to-background relationship is therefore direction-asymmetric by up to one tick of motion. The camera and the sprite stay consistent because both call `Placement.at`. This follows PR-4 rule 3 as written; the Visual/Feel sign-off should expect it.
+
+## Risks
+- **R1: `frame_pre_draw` ordering differs on a release export, D3D12 or the Deck, or under `thread_model` 2.** The windowed 4.7.2 editor run settled the order for the editor binary (all node `_process`, then `frame_pre_draw`, then `frame_post_draw`); the rest is UNVERIFIED. Mitigation: only the `canvas_transform` and parallax-offset write depends on it, and no presenter does (the camera solve runs in stage 1). The fallback (TD-03, PR-6 C2) moves that write to the end of `PipelineRoot._process`, after `driver.frame`, with no new priority constant. ADR-0008 pipeline spike steps 11 and 12 settle it, and ADR-0008 pins `rendering/driver/threads/thread_model` at its default 1 (value 2 is unsupported, TD-20).
+- **R2: Release-export `_process` order differs from the probes** (host not after the TickDriver). Mitigation: KRN-LAT-02 on a desktop release export is the one spike that gates this ADR's Acceptance (it is also a precondition of Accepting ADR-0001); the fallback is the sequential-parent design recorded in ADR-0001.
+- **R3: `Placement.put`'s equality skip is wrong for a node whose transform is also set elsewhere.** Mitigation: the lint makes `placement.gd` and the named allow-list the only writers, and the post-frame `global_position` sweep in tests catches a stray writer.
+- **R4: A presenter forgets to react to a key** (the dirty set is correct but the presenter ignores it). Mitigation: for key-level incremental presenters, the dirty-correctness equivalence test (`rebuild_signature`) as a story definition-of-done item, plus ADR-0004's debug check; the first catches presenter bugs, the second kernel-side marking bugs. Whole-block-rebuild presenters cannot have this bug class.
+- **R5: 4.7 `CanvasItem` lines lose their antialiasing feather**, which makes any `draw_line` hairline thinner than the art assumed. Mitigation: out of this ADR's decision, but the write allow-list does not make `draw_*` a placement mechanism; instruments use pre-rendered needle frames (TR-instr-010); ADR-0028 and ADR-0030 own the line-drawing consequence.
+- **R6: A freed presenter or a stale `Callable`** at teardown or scene change. Mitigation: `is_valid()` per call with `PRESENTER_DEAD`; the teardown test checks `Performance.OBJECT_COUNT` returns to its pre-boot value, as ADR-0003 requires of owners.
+- **R7: A given particle or animation node does not freeze under kernel `PAUSED`.** Mitigation: the primary pattern needs no engine clock (`AnimationPlayer` `PROCESS_MANUAL` plus `advance(frame.present_delta)`, `AnimatedSprite2D` frame from `present_time`); `speed_scale = 0` is a fallback, probed for `AnimationPlayer` and `Tween`; `GPUParticles2D` is UNVERIFIED and is a story-level check on the first story that freezes particles. A stale emission after a restore is covered by `restart()` in `on_discontinuity(RESTORE)`.
+- **R8: The stage list is wrong for a presenter nobody has designed yet** (Interaction prompt art, a future overlay). Mitigation: the stage list is a constants file; adding a stage renumbers nothing that anyone writes by hand (nobody writes a literal) and the `reads` check re-validates the graph at boot.
+- **R9: The combined ADR-0001 amendment (`PresentationClock.state` and `load_seq`) is not applied, or is applied with different semantics.** Mitigation: Acceptance of this ADR is gated on it (Ordering Note). There is no presentation-side fallback: ADR-0004 carries no load marker by design, a composition-root counter on the same object would be the same amendment under another name, and `restore_epoch` does not advance on Save & Quit then Continue.
+- **R10: Unstable sort in a future refactor.** Mitigation: the driver sorts packed integer keys with `Array.sort()`; ADR-0010 extends the `sort_custom` ban to `src/presentation/pipeline/` (TD-17).
+- **R11: `render_delta` or `present_delta` jumps after a main-loop stall.** Mitigation: `render_delta` is clamped to `DT_MAX` by the driver; `present_time`'s stall behaviour is ADR-0008's to state.
+
+## GDD Requirements Addressed
+
+Rows are cited by TR-ID from `requirements-traceability.md` (the 39 rows `/architecture-review` planned to ADR-0009, plus its two "Partial (needs ADR-0009)" rows, TR-cmd-046 and TR-pc-039). `tr-baseline.md` carries 27 of them; the other rows were added by the completeness pass. Rows marked "(half)" are split with the ADR named.
+
+### Addressed by this ADR
+
+| GDD System | Requirement | How This ADR Addresses It |
+|------------|-------------|--------------------------|
+| pixel-perfect-render-pipeline-camera.md | TR-pxl-020: every visual system is a `PRESENTATION` subscriber, reads last-committed views, treats notifications as dirty marks, draws in the render callback, writes only CanvasItem/Material/Light2D/particle/audio, never a block/command/physics body/camera/viewport property, interpolates with `tick_alpha` clamped at 1, never causes or blocks a tick; Debug Overlay alone is DIAGNOSTIC | § 1 (class table, read rules, write allow-list, `perception_access`), § 2 (handler contract, draw side, coherence), § 3 (render callback := the driver's `present`, hosted by PipelineRoot), § 4 (alpha) |
+| pixel-perfect-render-pipeline-camera.md | TR-pxl-005: integer base-px placement via `floor(prev + (curr - prev) * tick_alpha)`, one floor function everywhere including camera and beam chest point; snap flags are a safety net; no per-node scale; `Camera2D.zoom` stays (1,1) | § 4: `Placement.at`, `put`, `put_control`, `floor_v`, `floori`, the scoped placement lint with its named allow-list, the `global_position` sweep |
+| pixel-perfect-render-pipeline-camera.md | TR-pxl-034: reduced-motion and reduce-flashing alter presentation only; tick count and `state_hash` identical with the toggles on or off | § 1: no simulation callable reads a setting; two-run comparison test |
+| pixel-perfect-render-pipeline-camera.md | TR-pxl-017 and TR-pxl-018 (half): camera limits come from a PROJECTOR and are consumed by the solver alone; everything is placed in the current body frame; follow target is the local seat's controlled entity | § 1 (only the PROJECTOR publishes derived scene data; only the Pipeline root and camera host write camera and viewport members), § 4 (all placement in the body frame). Solver, parallax, `canvas_transform` and the limits rectangle: ADR-0008 |
+| 2d-lighting-and-occlusion.md | TR-light-001: Lighting reads only last-committed SIM views and the Filter's PERCEPTION_OUT-derived lists; handlers mark dirty; drawing is in the render callback | § 1 (perception facet rule; Lighting reads the Filter's decoy list), § 2, § 3 stage 6 (LIGHTING) |
+| 2d-lighting-and-occlusion.md | TR-light-003: Lighting writes only CanvasItem, Material, Light2D, LightOccluder2D and CanvasModulate properties inside layer 0 of the world viewport | § 1 write allow-list; the occluder builder is a declared-class PROJECTOR. Viewport ownership: ADR-0008 |
+| player-controller-input.md | TR-pc-026: Avatar Presenter writes only `frame`, `flip_h`, integer `position`, overlay `visible`, Light2D `position`/`rotation`; floored lerp with zero fractional part; no HOST/MIRROR branch | § 1 allow-list, § 4 (`Placement`, one function), § 1 (a presenter reads views, never the authority mode; HOST and MIRROR differ only at ingress) |
+| player-controller-input.md | TR-pc-040 (half): the Presenter's beam pose is written before Lighting applies in the same render callback; a beam toggle never changes light state before committed state | § 3: AVATAR (2) before LIGHTING (6); § 2 (discrete state changes only on committed state). Lighting's apply and the `enabled`/`energy`/`texture`/`color` writes: ADR-0028 |
+| player-controller-input.md | TR-pc-039 (half): Controller and Presenter outputs identical across 30, 60, 120 and 144 fps | § 3, § 4: presentation output is a pure function of committed state, `frame.alpha` and `present_time`, and the driver takes an injected frame, so a cadence test needs no renderer. **Qualifier:** per-frame placements vary with alpha by design, so the byte-identical claim holds for per-tick samples (alpha 1.0 or at commit), not for every rendered frame. The GDD edit is routed to the Player Controller GDD owner as a blocking item for the cadence story, not for this ADR (§ Migration Plan). The input-trace replay harness: ADR-0019 |
+| modular-ship-assembly.md | TR-assembly-030: PROJECTOR, Lighting and Trail rebuilds run after commit with writes disabled and coalesce to the latest committed state across catch-up ticks | § 2 (merged once-per-frame delivery, `ALL` rebuild, chunked PROJECTOR rebuild). The Emitter's own re-derivation is a simulation hook, not a subscriber (GDD wording note in § GDD sync) |
+| modular-ship-assembly.md | TR-assembly-045 (half): the weld bead, jambs and leaf appear in the first rendered frame whose committed tick is at least the apply tick, with zero frames of delay | § 2 latency: the P5 mark and the draw are in the same rendered frame. The scene shape that carries the bead: ADR-0034 |
+| perception-filter.md | TR-percfilter-025: frame order per render callback is Avatar, Filter, then Lighting reads the decoy list; latency up to one sanity run plus one frame | § 3 stage order and the `reads` check; § 2 latency |
+| hud-and-suit-layer.md | TR-hud-022: presenter order is camera solver, Avatar Presenter, Filter, HUD, Lighting | § 3: stages 1, 2, 3, 5, 6; closes OQ-HS-44 and OQ-HS-51; AC-HS-89 becomes the driver order test |
+| hud-and-suit-layer.md | TR-hud-037 (half): plate placement uses `world_to_hud` on the unjolted pose with floor snapping | § 4 (`floori`, one function), § 3 (CAMERA_SOLVE before HUD). Re-projection on a zoom step and layout on an `H` change: ADR-0008, ADR-0030 |
+| in-world-instruments-and-inspect-view.md | TR-instr-001: Instruments register zero blocks, hooks, mutators, commands, dirty keys or persisted fields; they are `PRESENTATION` subscribers writing only CanvasItem, Material, Light2D, particle and audio-request state | § 1 class table and allow-list; one `PresenterDescriptor` for the system |
+| in-world-instruments-and-inspect-view.md | TR-instr-002: Instruments persist and replicate nothing; all scalars are discarded on restore, cull, camera cut and `hard_start` | § 6: the scalar rule, `on_discontinuity(RESTORE or CAMERA_CUT)`; `hard_start` is the Filter's term and arrives as the same reset |
+| in-world-instruments-and-inspect-view.md | TR-instr-005: non-value `read_view` inputs refresh once per Graph step, never per frame | § 2: bulk reads only when the block is dirty; the Graph dirties its keys once per step |
+| in-world-instruments-and-inspect-view.md | TR-instr-012: honest motion ramps over one Graph step through the PR-8 interpolator (`tick_alpha`); settle in closed form on `present_time` | § 4 (`alpha_n` for a divisor-N block), § 5 (the `settle_response` exemption), § 6 (scalar rule). Formulas: ADR-0030 and the Instruments GDD |
+| in-world-instruments-and-inspect-view.md | TR-instr-013 and TR-instr-014 (state half): dwell counters and tremor envelope are presentation scalars | § 6 (allowed only if never persisted, hashed, replicated or fed back; reset on discontinuity). Dwell and tremor rules: the Instruments GDD |
+| ship-body-and-interior-physics.md | TR-shipbody-033: non-avatar body canvas offset is one floored integer per body per frame; `physics_interpolation` off for all presentation; `tick_alpha` is the one interpolator | § 4 (offsets via `Placement.at`), § 5 (pin, boot walk, test) |
+| ship-body-and-interior-physics.md | TR-shipbody-044 (half): body state is independent of render zoom; `zoom`, `k_auto`, `field_h` appear only in the Presenter or projector directory | § 1 read rules: lint on those identifiers outside `src/presentation/` and the Pipeline root. The zoom ladder: ADR-0008 |
+| ship-body-and-interior-physics.md | TR-shipbody-049 (half): `BODY_TRANSFER{weld or detach}` with `frame_delta_px` is a camera rebase, not a cut | § 2 (event records delivered, never dropped), § 6 (rebase is not a discontinuity). Camera math: ADR-0008 |
+| attention-system.md | TR-attention-047: a restored or hitched state shows the end state with no transition; a multi-beat stall plays at most one beat | § 6: `ALL` plus `on_discontinuity`, last-seen sequence comparison |
+| horror-entities.md | TR-horror-041: rig pose and mark rendering are pure functions of the published view, so the first frame after a restore needs no transition | § 6: pure-function presenters; § 4 `alpha_n` for the five-tick position alpha |
+| web-map-and-transit.md | TR-webmap-039 (half): the exterior composition is a pure function of persisted data and is identical after a restore at any leg tick | § 6 pure-function rule and `ALL` rebuild. Pod-local camera and the no-cut rule: ADR-0008 |
+| suit-and-equipment.md | TR-suit-041: a presenter detects source edges by comparing `breath_src_change_seq` to its last-seen value; the click starts no later than that edge frame and the dial swap lands the same frame | § 6 (sequence-counter edge detection), § 3 (INSTRUMENTS and AUDIO run in one driver pass) |
+| adaptive-audio-and-tells.md | TR-audio-042 (half): no presenter or shader symbol reads Audio; the visual twin never depends on audio | § 1 and § 3: Audio is the last stage and nothing declares a read from it. Audio architecture: ADR-0029 |
+| perception-filter.md | TR-percfilter-043 (half): the own-cone rim fringe reads the beam pose for the same frame with zero art-pixel error | § 3: the fringe is in the FILTER stage and reads the AVATAR stage's beam pose through a declared `reads` edge. If Lighting rather than the Presenter publishes the pose, a post-LIGHTING stage is needed (Open Questions). Fringe art and width: ADR-0028 |
+| ship-section-and-layout-data-model.md | TR-section-024 (half): the PROJECTOR is a separate subscriber that builds engine-side derived objects, never writes blocks, never creates Light2D or LightOccluder2D | § 1: PROJECTOR class rights, declared-class list, chunked rebuild. `entity_id` namespace and the 453-tile build rate: ADR-0034 and ADR-0013 |
+| command-simulation-layer.md | TR-cmd-046 (consumer half): `interpolated` blocks expose previous and current; `snap_baseline` makes them equal; `tick_alpha` is 1.0 while paused | § 4 and § 6: presenters take the pair only from the view; no presenter-side previous cache. The producer side: ADR-0001, ADR-0003 |
+
+### Owned elsewhere (loaded or checked here, decided by the named ADR)
+
+| GDD System | Requirement | Owner and what this ADR does |
+|------------|-------------|------------------------------|
+| pixel-perfect-render-pipeline-camera.md | TR-pxl-006: Y-sort key `(sort_y, class_rank, entity_id)` | ADR-0034. Not decided here. |
+| pixel-perfect-render-pipeline-camera.md | TR-pxl-007: door and doorway sort origin | ADR-0034 |
+| pixel-perfect-render-pipeline-camera.md | TR-pxl-008: z-band order is the contract | ADR-0034; dependents lint band names (ADR-0010) |
+| pixel-perfect-render-pipeline-camera.md | TR-pxl-009: Y-sort fallback above about 300 draws | ADR-0034 with the draw-call table in ADR-0008 (IC-6) |
+| ship-section-and-layout-data-model.md | TR-section-025: PROJECTOR scene shape decided by SP-YSORT-1 | ADR-0034 |
+| ship-body-and-interior-physics.md | TR-shipbody-032: `body.projector` is the only Body script that names Node2D, Camera2D or Viewport; per-body root; reparent without `Node.reparent` | ADR-0034 (scene shape). The dependency-direction lint ("simulation names no engine node class") is stated in § 1 and enforced by ADR-0010. See Open Questions on `Camera2D.limit_*`. |
+| failure-and-trail-system.md | TR-ftrail-017: draw bands | ADR-0034 |
+| boarding-and-salvage.md | TR-boarding-026: carried-module shape, size and palette | Art bible and asset specs; no architectural decision. The Avatar Presenter draws it on the tool layer in the AVATAR stage. |
+| in-world-instruments-and-inspect-view.md | TR-instr-010: needle as pre-rendered frames on whole art pixels, NEAREST, no antialiased drawn lines | ADR-0030 with ADR-0028 (4.7 line-drawing change). This ADR only requires that no draw call is a placement mechanism. |
+| pixel-perfect-render-pipeline-camera.md | TR-pxl-017, TR-pxl-018, TR-shipbody-049, TR-hud-037, TR-webmap-039 (camera halves) | ADR-0008: solver, limits rectangle, parallax, rebase, zoom ladder, layout recompute |
+| 2d-lighting-and-occlusion.md | TR-light-003, TR-pc-040, TR-percfilter-043 (halves) | ADR-0028: Lighting's writes, apply order inside Lighting, fringe |
+| adaptive-audio-and-tells.md | TR-audio-042 (half) | ADR-0029 |
+| modular-ship-assembly.md | TR-assembly-045 (scene-shape half) | ADR-0034 |
+| player-controller-input.md | TR-pc-039 (harness half) | ADR-0019 and ADR-0001: input-trace replay format |
+
+**Retagged rows are untraced, not covered.** The first eight rows above (TR-pxl-006 to 009, TR-section-025, TR-shipbody-032, TR-ftrail-017, TR-boarding-026) are tagged ADR-0009 in `tr-baseline.md` and are retagged here to ADR-0034 (not yet written) or to the art bible (TD-19: Architecture v2 moved the Y-sort, z-band and PROJECTOR-shape contract to ADR-0034; this ADR owns placement only). Until ADR-0034 exists they have no covering ADR. ADR-0008's TR table (rows TR-pxl-006 to 009, 017 and 018) and Ordering Note, which still point at ADR-0009 for the Y-sort and z-band contract, are asked to re-point to ADR-0034 and to ADR-0009 (placement only).
+
+GDD sync: checked 17 referenced GDDs (rules by TR row; CR-10, PR-4, PR-8, PR-9, PF-35, LO-1 and AC-HS-89 read in full); naming or placement inconsistencies in 7 GDDs and `architecture.md`, listed in § Migration Plan.
+
+## Performance Implications
+- **CPU**: The driver is a loop over at most 10 registered presenters with a validity check and a `Callable.call` each; it allocates nothing (one reused `PresentFrame`, one pre-sorted array of packed integer keys). Handler cost is O(batch) merge into a pre-sized structure; it never reads a view. `Placement.put` skips an unchanged write. This ADR claims **no new millisecond budget**: presenter costs are already budgeted in their own GDDs and sum in ADR-0008's single draw-call and frame-time table (pipeline `_process` at most 0.5 ms, light CPU at most 1.0 ms steady, total frame at most 14.9 ms desktop and 30.0 ms Deck, P99, release export). Driver overhead is measured in the Pipeline story's performance check on RM-DESKTOP and RM-DECK and reported against the pipeline row, not given a number here.
+- **Memory**: A fixed number of small objects at boot (driver, frame, one descriptor per presenter, one dirty structure per presenter; PipelineRoot hosts the driver). No per-frame allocation; verified by a flat `Performance.OBJECT_COUNT` over N frames plus `is_same` identity of the `PresentFrame` and the descriptor array (OBJECT_COUNT counts only Objects, not arrays, per ADR-0007's note).
+- **Load Time**: Presenter registration and the freeze happen in `BOOTING` with the kernel's registries; negligible.
+- **Network**: None. Presentation is local; co-op peers draw their own views (kernel CR-10 notifications are identical for HOST and MIRROR).
+
+## Migration Plan
+No code exists. **GDD sync required** (the ADR does not edit GDDs; `/architecture-review` or the owning authors apply the edits, and `docs/architecture/architecture.md` is updated by the orchestrator):
+- `docs/architecture/architecture.md` § API Boundaries "Presentation subscriber contract": the example `_on_kernel_changes(batch) -> void` and per-presenter `_process` with `if _dirty.is_empty(): return` become § 2's handler (`(batch, ctx) -> CompletionToken`) and § 3's `present(frame)` with the `dirty` and `animating` split; `Kernel.tick_alpha` becomes `frame.alpha`.
+- `docs/architecture/architecture.md` § Spikes that gate ADRs: ADR-0009 is gated only on KRN-LAT-02's order result on a desktop release export. The former PRES-SPIKE-1 is re-scoped as story-level evidence: `frame_pre_draw` ordering goes to ADR-0008 pipeline spike steps 11 and 12, `speed_scale` freezing of particles and animation to the first story that freezes one, and driver overhead to the Pipeline story's performance check on RM-DESKTOP and RM-DECK.
+- `docs/architecture/architecture.md` § Data Flow 1 (around line 279): "Avatar Presenter → Lighting → Trail → Instruments → HUD → Audio" is redrawn to the stage list of § 3 with PipelineRoot as the single presentation host (shared with TD-03 and TD-22).
+- `design/gdd/pixel-perfect-render-pipeline-camera.md` PR-8 item 3: "does its reading and drawing in the render callback (the pipeline root's `frame_pre_draw` handler)" becomes "in the `PresentationDriver`'s `present` step, run from the single `_process` of the Pipeline root at `PRESENTATION`; only the `canvas_transform` and parallax-offset write is in `frame_pre_draw`". PR-4 rule 8: "every presentation node `physics_interpolation_mode = OFF`" becomes "the presentation roots are `PHYSICS_INTERPOLATION_MODE_OFF` and children inherit; the post-first-frame walk is the check". Sync item: the TR-pxl-015 and Pipeline GDD wording follows the `snap_baseline`-only restore continuity (TD-22).
+- `design/gdd/pixel-perfect-render-pipeline-camera.md` C2: "`Node.process_priority` ordering it after the actor" becomes "the camera and the Avatar Presenter both call `Placement.at` with the same `PresentFrame` values".
+- `design/gdd/hud-and-suit-layer.md` OQ-HS-44 and OQ-HS-51 (ADR candidate F): close, citing § 3. AC-HS-89 becomes the driver order test. **GDD half of the stage-order ruling (TD-22, former OQ-A):** routed to the HUD GDD owner, who edits the architecture-side Data Flow and confirms AC-HS-89's order.
+- `design/gdd/command-simulation-layer.md` CR-10 table row `PRESENTATION`: "Read `SIM` and `PERCEPTION_OUT` views" becomes "reads `PERCEPTION_OUT` only through a facet with `perception_access` (the Filter's and DIAGNOSTIC facets; ADR-0004 subscribe-time check 6, ADR-0003 § 7)".
+- `design/gdd/perception-filter.md` PF-35 and `design/gdd/2d-lighting-and-occlusion.md` LO-1: "the render callback" is defined as the driver's `present` step for their stage. PF-37: the "no dependence on integer overflow" wording is waived for the `Ihash` family (TD-29).
+- `design/gdd/modular-ship-assembly.md` MSA-39: the Emitter's re-derivation is a simulation hook (`emitter.place`), not a subscriber rebuild.
+- `design/gdd/ship-body-and-interior-physics.md` BDY-33 and `design/gdd/pixel-perfect-render-pipeline-camera.md` C2 on camera limits: see Open Questions (OQ-C).
+- `design/gdd/player-controller-input.md` TR-pc-039 (former OQ-G): "Presenter frame/position/light logs byte-identical" becomes "per-tick samples". **Routed to the Player Controller GDD owner as a blocking item for the cadence story**, not for this ADR.
+- `docs/architecture/tr-baseline.md` and `requirements-traceability.md`: `/architecture-review` retags TR-pxl-006 to 009, TR-section-025, TR-shipbody-032 and TR-ftrail-017 to ADR-0034 and TR-boarding-026 to the art bible, and moves TR-pxl-017/018 camera halves to ADR-0008. Until ADR-0034 exists the retagged rows are untraced, not covered. ADR-0008 re-points its own TR rows (TD-19).
+- **Amendments to neighbours (each owner applies them; this ADR depends on them):** ADR-0001 (`PresentationClock.state` and `load_seq`; `ProcessPriority.HOST_SERVICE`; no `PRESENTATION_LATE`); ADR-0003 (`PresentationViews` two faces by `perception_access`; `NotifyContext` placed in `src/kernel/facets/`); ADR-0004 (subscribe-time check 6, closing its OQ-7; placement table for facet-side types; no load marker by design); ADR-0008 (PipelineRoot is the host, solve in `CAMERA_SOLVE`, `frame_pre_draw` writes only `canvas_transform` and `Placement.floor_v` parallax offsets, delete "subscribers draw from their own `_process`", `DT_MAX`, `thread_model` pin, ADR-0009 in Depends On); ADR-0010 (PRES-01 reword with § 3's exemption set, ARCH-08 deny list, facets placement, PRES rules for `await`, setter tokens, animation-track scan, `sort_custom` ban in `pipeline/`, `tick_alpha` confinement, PRJ-02 effective-value tier); ADR-0002 (submit grep keyed to `issue_surface_handle` names).
+
+## Validation Criteria
+- **Order test (AC-HS-89):** a driver built with stub presenters in every stage, a stub Filter whose slew advances in its step, and an injected `PresentFrame` runs the stages in the `PresentationStage` order; the HUD reads the post-step value. A registry with a `reads` edge that is not strictly earlier fails `freeze()`.
+- **Freeze checks:** `freeze()` fails on a duplicate name, an `after` name that is not a same-stage earlier registration, a `present` or `on_discontinuity` that is invalid, not a standard method `Callable`, or whose `get_argument_count()` is not 1. A stage-0 fixture with three registrants (layout projector, `body.projector`, occluder builder) runs them in registration order on every run and at any registration count (the packed `stage * 1024 + index` key, plain `Array.sort()`; a `sort_custom` implementation is the bad fixture).
+- **Dirty-correctness equivalence (key-level incremental presenters only):** for the PROJECTOR chunks, the Trail and Lighting's occluder builder, a scripted command stream through an incrementally updated presenter and a fresh presenter fed `ALL` yield equal `rebuild_signature()`. Whole-block-rebuild presenters are exempt; this is a story definition-of-done item referencing this ADR.
+- **Restore equivalence:** save at tick T, restore into a fresh presenter set, and compare the drawn signature with the continuing run after `on_discontinuity(RESTORE)`; both are the end state with scalars reset (TR-attention-047, TR-horror-041). A `load_seq` fixture: it changes on restore, new game and cold load, and does not change on `PAUSED` or `SAVING` to `RUNNING`.
+- **Placement:** property test over positive and negative prev and curr and alpha in [0, 1]: result is between `floor(prev)` and `curr`, never moves backward as alpha rises, equals `curr` at alpha 1.0, and `Placement.at` agrees across the camera and Avatar call sites for the same `PresentFrame`. The scripted-walk sweep reads **`global_position`** of every `Node2D` and world-anchored `Control` each frame (including a parent at an odd offset and a centred `Sprite2D` with an odd-sized texture) and reports zero `PLACEMENT_FRACTIONAL` within an epsilon of 0. A 144, 120, 60 and 40 fps injected-delta fixture checks "never twice in a frame at 60 fps and above" and "alternating +1 and +2 at 40 fps" (PR-4 rule 3). A fixture with a stalled 2 s `host_delta` shows `render_delta` clamped to `DT_MAX`.
+- **Cadence (TR-pc-039 half):** one command stream at 30, 60, 120 and 144 fps of injected delta: simulation blocks and per-tick presenter samples are byte-identical; per-frame placements are not claimed identical.
+- **No physics interpolation:** the boot walk after the first `process_frame` passes; a gdUnit4 test sets `SceneTree.physics_interpolation = true` and asserts `is_physics_interpolated_and_enabled()` is false for every node under the presentation roots; the effective value of `physics/common/physics_interpolation` is read with `ProjectSettings.get_setting` (ADR-0008 § 5.5(a)).
+- **Zero allocation:** `Performance.OBJECT_COUNT` flat over 10,000 injected frames with the full stub stage set, and `PresentFrame` / descriptor array identity (`is_same`) unchanged.
+- **Handler contract:** a handler fixture that reads a view, touches a node, allocates or awaits fails a counting stub (`HANDLER_VIEW_READ`, `HANDLER_NODE_WRITE` in test builds) or the lexical `await` rule; every handler's last statement is `return ctx.complete()` (CI check shared with ADR-0003).
+- **Class and handle:** a boot where a name passed to `issue_surface_handle` has no `INPUT_SURFACE` registration, or matches a `PRESENTATION`, `PROJECTOR` or `DIAGNOSTIC` registration, fails; a boot with `save_load` and `pause_gate` `ControlHandle`s and no matching subscription **passes**; the Input Adapter issued as a subscription-free `INPUT_SURFACE` registration passes; the Interaction prompt object subscribed as `INPUT_SURFACE` without a handle cannot submit.
+- **Perception access:** a `PRESENTATION` facet subscribing to a `PERCEPTION_OUT` block is refused with `SUBSCRIBE_REFUSED` and gets an inactive handle; its `PresentationViews.get` returns `empty_view` and counts `PERCEPTION_READ_BLOCKED`; the Filter's and DIAGNOSTIC facets subscribe and read normally (owner tests: ADR-0004 and ADR-0003).
+- **Toggle isolation (TR-pxl-034):** the same command stream with each accessibility toggle on and off yields equal tick count and `state_hash`.
+- **Lints (ADR-0010 decides the tool; each is regex, AST, resource scan or a boot walk):** writes outside the allow-list; `_physics_process` anywhere in `src/presentation/`, and `_process` in an object registered through a `PresenterDescriptor` (exempt set: `PipelineRoot`, `INPUT_SURFACE` objects at `INPUT_ADAPTER`, layer 3 and 4 UI Controls); `await` in a script registered through a `PresenterDescriptor` or calling `.subscribe(`; `tick_alpha` outside `presentation_driver.gd`; the position, offset and transform write tokens, setters, relative-move methods and animation-track and `tween_property` scan of § 4 outside `placement.gd` and the named allow-list; `int(`, `round(` on a placement path; `sort_custom` in `src/presentation/pipeline/`; `signal` or `.connect(` in `src/kernel/` and `src/sim/`; `submit(` in `src/presentation/` except in files of objects named at `issue_surface_handle` (ADR-0002 and ADR-0010 KRN-04; the Input Adapter only at MVP); `Camera2D`/`Viewport` members outside the Pipeline root and camera host; `Kernel`, `SimViews`, `WriteScope`, `Command`, `BlockDescriptor` and the tick-phase contexts in `src/presentation/`.
+- **Story-level engine evidence (no longer an acceptance gate; formerly PRES-SPIKE-1, T9/E4/E5):** (a) `frame_pre_draw` fires after the host's `_process` on a release export, D3D12 and the Deck: ADR-0008 pipeline spike steps 11 and 12; (b) `speed_scale = 0` freezing of `GPUParticles2D` and `AnimatedSprite2D` under kernel `PAUSED`, or the `PROCESS_MANUAL` pattern's own test: the first story that freezes a particle or animation; (c) driver overhead with ten stub presenters reported against the pipeline row: the Pipeline story's performance check on RM-DESKTOP and RM-DECK. The one acceptance gate is KRN-LAT-02's order result (host `_process` after the TickDriver) on a desktop release export.
+
+## Related
+- Depends on: ADR-0001, ADR-0002, ADR-0003, ADR-0004, ADR-0010 (all Proposed). ADR-0005 (`Ihash`, § 2.6) is a reference, not a dependency.
+- Forward references: ADR-0005 (hash family for presentation randomness), ADR-0006 (`restore_epoch`, Save/Load as a control-plane caller), ADR-0008 (PipelineRoot as the single host, `present_time`, `frame_pre_draw`, viewport and camera ownership, snap flags, the draw-call table; to list this ADR under its Depends On), ADR-0019 (Adapter), ADR-0024 (Filter query surface and truth channel), ADR-0028 (Lighting), ADR-0029 (Audio), ADR-0030 (UI), ADR-0031 (Diagnostics), ADR-0032 (replication), ADR-0034 (PROJECTOR scene shape, Y-sort and z-bands).
+- GDDs: `command-simulation-layer.md` (CR-10, CR-11, D.3), `pixel-perfect-render-pipeline-camera.md` (PR-4, PR-6 C2, PR-8, PR-9, PR-15), `perception-filter.md` (PF-35, PF-37), `2d-lighting-and-occlusion.md` (LO-1), `hud-and-suit-layer.md` (AC-HS-89, OQ-HS-44, OQ-HS-51), `in-world-instruments-and-inspect-view.md`, `player-controller-input.md`, `ship-body-and-interior-physics.md`.
+- `docs/architecture/architecture.md` § Data Flow 1 and 4, § API Boundaries, § Required ADRs, § Spikes that gate ADRs, Open Questions OQ-3, OQ-4, OQ-13.
+- `docs/registry/architecture.yaml`: entries proposed by this ADR (see "Registry Candidates" below) and `referenced_by` updates to `presentation_submit_without_handle`, `cosmetic_phase_from_tick_counter`, `kernel_autoload_or_global`, `tick_alpha`, `presentation_clock` and `owner_callable_contract`.
+
+## Open Questions
+Closed by rulings and removed from this list: former OQ-A (stage order stands, TD-22; GDD half routed to the HUD GDD owner), OQ-D and OQ-K (one combined ADR-0001 amendment: `PresentationClock.state` and `load_seq`, TD-04; § 6), OQ-E and OQ-L (PipelineRoot is the single host at `ProcessPriority.PRESENTATION`, TD-03; § 3), OQ-F (presentation hashes use `Ihash` or `Ihash.h32` from ADR-0005 § 2.6 with a fixed non-zero per-system seed; PF-37's no-overflow wording is waived for that family; PF D.14 keeps its masked hash until ADR-0024 migrates it; TD-29; § 1), OQ-G (a GDD edit routed to the Player Controller GDD owner as a blocking item for the cadence story; § Migration Plan), OQ-J (the solve runs in `CAMERA_SOLVE`; ADR-0008 owns the edit; TD-03; § 3).
+
+- **OQ-B. Who publishes the beam pose the rim fringe reads (TR-percfilter-043)?** The AVATAR stage (TR-pc-040) is assumed. If Lighting republishes it, the fringe needs a stage after LIGHTING. Decide with ADR-0028.
+- **OQ-C. Camera limits ownership.** TR-shipbody-032 says `body.projector` owns `Camera2D.limit_*`; Pipeline C2 says `Camera2D.limit_*` stays at engine defaults and the solver is the only clamp (and the primary variant has no `Camera2D` at all); TR-pxl-017 says the PROJECTOR sets limits "consumed by the solver alone". Reconciliation assumed: the PROJECTOR publishes a limits rectangle to the solver and never writes `Camera2D.limit_*`. ADR-0008 and ADR-0034 confirm, and BDY-33 needs a wording fix.
+- **OQ-H. The shape of the Perception Filter's query surface.** The read and subscribe rule for `PERCEPTION_OUT` is settled (`perception_access`, ADR-0004 check 6, ADR-0003 § 7 two faces, § 1). What remains is what the Filter exposes to other presenters (`perceived()`, the per-viewer decoy list), which ADR-0024 owns.
+- **OQ-I. Whether a PROJECTOR build chunk may run longer than one frame's slice** during a weld (453 tiles at 256 per frame is 2 frames; the weld frame may exceed the P99 ceiling by at most one frame, TR-section-025). ADR-0034 and ADR-0008.
+
+## Registry Candidates
+Proposed for `docs/registry/architecture.yaml`; the orchestrator merges them serially after the revisions land. Corrected by the cross-ADR rulings (TD-33): `present_time` is owned by PipelineRoot (ADR-0008), `load_seq` is owned by the kernel through `PresentationClock`, and the frame order has no `PRESENTATION_LATE`.
+
+```yaml
+# interfaces
+  - contract: presentation_facet
+    status: active           # ADR-0009 is Proposed
+    pattern: direct_call
+    producer: composition-root
+    consumers:
+      - presentation-subscribers
+    adr: docs/architecture/adr-0009-presentation-subscriber-contract.md
+    signal_signature: "PresentationFacet {views: PresentationViews, clock: PresentationClock, key_capacity: int, perception_access: bool (read-only; true only on the Perception Filter's facet and DIAGNOSTIC facets), subscribe(block_id: StringName, handler: Callable, subscriber_name: StringName) -> SubscriptionHandle}; class-bound wrapper around NotifyFacet (bound by the composition root at issue), lives in src/kernel/facets/; subscription is per block (ADR-0004); handler is a 2-argument method Callable (batch: ChangeBatch, ctx: NotifyContext) -> CompletionToken ending in return ctx.complete(); a PERCEPTION_OUT subscription without perception_access is refused with SUBSCRIBE_REFUSED (ADR-0004 check 6)"
+    referenced_by:
+      - docs/architecture/adr-0009-presentation-subscriber-contract.md
+    added: 2026-10-28
+    revised: ""
+  - contract: presentation_stage_order
+    status: active           # ADR-0009 is Proposed
+    pattern: direct_call
+    producer: pipeline-root (PresentationDriver)
+    consumers:
+      - presenters
+    adr: docs/architecture/adr-0009-presentation-subscriber-contract.md
+    signal_signature: "PresentationStage PROJECT 0, CAMERA_SOLVE 1, AVATAR 2, FILTER 3, INSTRUMENTS 4, HUD 5, LIGHTING 6, TRAIL 7, AUDIO 8, DEBUG 9; PresentationDiscontinuity RESTORE 0, CAMERA_CUT 1; PresenterDescriptor {name, stage, reads: Array[int] (each strictly earlier), after: Array[StringName] (same-stage predecessors), present: Callable(frame: PresentFrame) -> void, on_discontinuity: Callable(kind: int) -> void; both standard method Callables of exactly one argument}; PresentationDriver.register / freeze (packed stage*1024+registration_index keys, Array.sort) / frame(host_delta, present_time) / notify_camera_cut; files in src/presentation/pipeline/"
+    referenced_by:
+      - docs/architecture/adr-0009-presentation-subscriber-contract.md
+    added: 2026-10-28
+    revised: ""
+
+# state_ownership
+  - state: present_frame
+    status: active           # ADR-0009 is Proposed
+    owner_system: presentation-driver (PresentationDriver, hosted by PipelineRoot)
+    adr: docs/architecture/adr-0009-presentation-subscriber-contract.md
+    interface: "PresentFrame {alpha: float in [0, 1] read once per frame from PresentationClock, T: int, running: bool, present_time: float supplied by PipelineRoot (owner ADR-0008), present_delta: float, render_delta: float scaled by Engine.time_scale and clamped to DT_MAX}; one reused RefCounted; presentation-only, never a state block, never hashed or saved"
+    write_access: presentation-driver-only
+    referenced_by:
+      - docs/architecture/adr-0009-presentation-subscriber-contract.md
+    added: 2026-10-28
+    revised: ""
+  - state: load_seq
+    status: active           # ADR-0009 is Proposed; applied by the ADR-0001 amendment batch
+    owner_system: kernel (TickDriver, exposed through PresentationClock)
+    adr: docs/architecture/adr-0009-presentation-subscriber-contract.md
+    interface: "PresentationClock.load_seq: int, read-only; +1 on every LOADING to RUNNING transition (restore, new game, cold load) immediately before deliver_all, never on PAUSED or SAVING to RUNNING; never hashed or saved; consumed only by PresentationDriver (and ADR-0008's camera CUT trigger)"
+    write_access: kernel-only
+    referenced_by:
+      - docs/architecture/adr-0009-presentation-subscriber-contract.md
+    added: 2026-10-28
+    revised: ""
+
+# api_decisions
+  - purpose: sim_motion_interpolation
+    status: active           # ADR-0009 is Proposed
+    api: "Placement.at(prev: Vector2i, curr: Vector2i, alpha: float) = per-axis floori(prev + (curr - prev) * alpha), written only through Placement.put (Node2D) or Placement.put_control (Control), with Placement.floor_v for derived integer offsets (parallax); alpha from PresentFrame; physics/common/physics_interpolation absent or false (asserted by effective value), SceneTree.physics_interpolation false, presentation roots Node.PHYSICS_INTERPOLATION_MODE_OFF, snap_2d_* flags as a safety net"
+    not: "int(), round, roundi or truncation on a placement path; engine 2D physics interpolation; Tween or AnimationPlayer position/offset/transform tracks on sim-owned nodes; presenter-side previous/current caches; writing position, global_position, offset or transform by assignment, setter or relative-move method outside placement.gd and the named allow-list (viewport_wiring.gd, the camera host's frame_pre_draw handler)"
+    adr: docs/architecture/adr-0009-presentation-subscriber-contract.md
+    reason: "One interpolator on one clock; Node2D has no get_global_transform_interpolated (probed 4.7.2) so an engine-interpolated pose is unreadable; floori is correct for negative coordinates; the kernel's prev/curr pair with snap_baseline survives restore and body transfer"
+    referenced_by:
+      - docs/architecture/adr-0009-presentation-subscriber-contract.md
+    added: 2026-10-28
+    revised: ""
+  - purpose: presentation_render_callback
+    status: active           # ADR-0009 is Proposed; KRN-LAT-02 confirms the host order on a release export
+    api: "PipelineRoot is the single PresentationHost: its one _process at ProcessPriority.PRESENTATION advances present_time, the zoom cooldown and the RESCALING re-derive, then calls PresentationDriver.frame(); presenters register Callables and define no _process; CameraSolver.solve runs in stage CAMERA_SOLVE; RenderingServer.frame_pre_draw only writes canvas_transform and the parallax offsets from the solved pose"
+    not: "per-presenter _process nodes ordered by priority offsets or tree order; a second node doing presentation work at PRESENTATION; PRESENTATION_LATE; reading views or drawing inside a notification handler; presenters or the camera solve running in a frame_pre_draw handler"
+    adr: docs/architecture/adr-0009-presentation-subscriber-contract.md
+    reason: "Order is a contract (HUD AC-HS-89, PF-35) and must be testable headless; the windowed 4.7.2 editor probe shows frame_pre_draw after every node _process, so a solve inside it would lag the HUD by a frame; one host node removes the priority-0 tie; release export, D3D12 and Deck remain UNVERIFIED (ADR-0008 spike steps 11 and 12)"
+    referenced_by:
+      - docs/architecture/adr-0009-presentation-subscriber-contract.md
+    added: 2026-10-28
+    revised: ""
+
+# forbidden_patterns
+  - pattern: draw_or_read_in_notification_handler
+    status: active           # ADR-0009 is Proposed
+    description: "A subscriber, result or control-outcome handler only marks dirty (DirtyAccumulator.absorb), copies event scalars into a pre-sized ring and ends in return ctx.complete(); it never reads a view, touches a node, allocates, emits a signal, awaits (banned lexically in presenter and subscriber scripts) or submits."
+    why: "Handlers run inside P5 with writes disabled and their cost is added to every other subscriber; views read there may be replaced by a later tick in the same frame; interpolation needs draws on frames with no notification."
+    adr: docs/architecture/adr-0009-presentation-subscriber-contract.md
+    added: 2026-10-28
+  - pattern: presentation_write_outside_allow_list
+    status: active           # ADR-0009 is Proposed
+    description: "Presentation writes only CanvasItem, Material, Light2D, LightOccluder2D, CanvasModulate, particle and audio members; never a block, a command, a physics body, Camera2D, Viewport, SubViewport, SubViewportContainer or CanvasLayer members (Pipeline root and camera host excepted), SceneTree.paused, Engine.time_scale or synthetic input; simulation code never names a presentation or Node-derived class."
+    why: "Presentation never writes the simulation (kernel H4); a corruptible display must be a transform of presentation nodes only."
+    adr: docs/architecture/adr-0009-presentation-subscriber-contract.md
+    added: 2026-10-28
+  - pattern: engine_signal_in_kernel_or_sim
+    status: active           # ADR-0009 is Proposed; consistent with ADR-0004 section 1 (kernel-owned observer registry, no engine signals)
+    description: "No signal is declared or connected in src/kernel or src/sim; engine signals are used only between presentation objects for user-initiated events and never carry simulation values into a simulation module or replace a declared stage-read edge."
+    why: "The simulation is scene-tree free and testable headless; signals are hidden synchronous dependencies that bypass the stage-read check."
+    adr: docs/architecture/adr-0009-presentation-subscriber-contract.md
+    added: 2026-10-28
+  - pattern: unrounded_or_foreign_placement
+    status: active           # ADR-0009 is Proposed
+    description: "Position, global position, offset and transform of a Node2D or world-anchored Control (world layer 0, HUD layer 2) are written only in placement.gd (Placement.put / put_control) and the named allow-list (viewport_wiring.gd; the camera host's frame_pre_draw handler for canvas_transform and Placement.floor_v parallax offsets), by assignment, setter, relative-move method or animation property track; sim-owned positions are never rounded with int(), round or roundi and never animated by Tween or AnimationPlayer; presenters read alpha only from PresentFrame (tick_alpha is read only in presentation_driver.gd). Layer 3 and 4 UI Controls are outside the pattern."
+    why: "One floor function and one alpha per frame keep the camera, the beam chest point and the sprite on the same pixel at every render rate."
+    adr: docs/architecture/adr-0009-presentation-subscriber-contract.md
+    added: 2026-10-28
+  - pattern: presentation_state_fed_back_or_persisted
+    status: active           # ADR-0009 is Proposed
+    description: "A presentation-local scalar is never persisted, hashed, replicated or read by the simulation, never decides visibility of a truth-channel element, never changes what a value settles to, and is reset by on_discontinuity on restore, new game, camera cut and hard_start."
+    why: "Restore must need no special draw path and a truth channel must stay a pure reader of the simulation."
+    adr: docs/architecture/adr-0009-presentation-subscriber-contract.md
+    added: 2026-10-28
+
+# revise_existing: presentation_clock (owner ADR-0001; replaces the existing entry in full)
+  - contract: presentation_clock
+    status: active
+    pattern: direct_call
+    producer: command-simulation-layer (TickDriver)
+    consumers:
+      - presentation-subscribers
+    adr: docs/architecture/adr-0001-kernel-tick-driver-and-frame-order.md
+    signal_signature: "PresentationClock.tick_alpha: float; PresentationClock.T: int; PresentationClock.running: bool; PresentationClock.state: int (KernelState enum); PresentationClock.load_seq: int (+1 on every LOADING to RUNNING, immediately before deliver_all; never on PAUSED/SAVING to RUNNING); all read-only, never hashed or saved"
+    referenced_by:
+      - docs/architecture/adr-0001-kernel-tick-driver-and-frame-order.md
+      - docs/architecture/adr-0009-presentation-subscriber-contract.md
+    added: 2026-10-28
+    revised: "2026-10-28 (ADR-0009 request, TD-04: state and load_seq)"
+```
+
+`referenced_by` additions (no other change) for the existing entries `presentation_submit_without_handle` (the boot check ties `SurfaceHandle` names to `INPUT_SURFACE` registrations; submit sites are ADR-0002's list), `cosmetic_phase_from_tick_counter` (`PresentFrame.present_time` is the only cosmetic clock), `kernel_autoload_or_global` (presentation receives `PresentationFacet` through `setup()`), `tick_alpha` (read once per frame into `PresentFrame.alpha`, only in `presentation_driver.gd`) and `owner_callable_contract` (subscriber handlers are kernel-invoked callables `(batch: ChangeBatch, ctx: NotifyContext) -> CompletionToken` ending in `return ctx.complete()`).
+
+## Review Log
+- **2026-10-28 godot-specialist (engine seat): verdict NOTES, findings E1 to E10, all applied or recorded.**
+  - E1 (RefCounted presenters registered as Callables are idiomatic; no clashes): applied as the optional guideline, descriptors stay `RefCounted` (§ 3, Implementation Guidelines).
+  - E2 (`sort_custom` is not stable; stage 0 has more than one registrant): applied. `freeze()` sorts packed `stage * 1024 + registration_index` integer keys with plain `Array.sort()`, intra-stage order is registration order with an `after` check, and `body.projector` is added to stage 0 (§ 3, Engine Compatibility item 1).
+  - E3 (`PHYSICS_INTERPOLATION_MODE_OFF`, lazy inheritance, `is_physics_interpolated()` ignores the global flag): applied. Code and prose use `Node.PHYSICS_INTERPOLATION_MODE_OFF`; the walk triggers after the first `process_frame` and asserts explicit `OFF` inheritance; the gdUnit4 test is kept (§ 5, item 2).
+  - E4 (`frame_pre_draw` "never fired" is headless-only; windowed editor order probed): applied. Verification item 4 and R1 record the windowed editor result; the release export, D3D12, Deck and `thread_model` 2 stay UNVERIFIED; ADR-0008 is asked to pin `thread_model` at 1 (TD-20).
+  - E5 (`speed_scale = 0` UNVERIFIED): applied. `AnimationPlayer` `PROCESS_MANUAL` with `advance(frame.present_delta)` is the primary pattern, `AnimatedSprite2D` frame from `present_time`, particles `restart()` on `RESTORE`, `speed_scale = 0` a fallback; `present_delta` added to `PresentFrame` (§ 5, item 6, R7).
+  - E6 (lint and sweep holes): applied. The lint covers setters, relative-move methods, `Sprite2D.offset` and animation or `Tween` property tracks (mechanics are ADR-0010's, TD-17); the sweep reads `global_position` within an epsilon of 0 and the centred-plus-offset case; the 2^24 limit is noted (§ 4, Validation).
+  - E7 (typed-return override risk for a future base class): applied as a Guideline (no typed non-void virtual for handlers; if ADR-0010 adds one, every override ends in `return ctx.complete()` and the lint checks the last statement).
+  - E8 (bare top-level `const` lines; untyped Callables): applied. The constants moved into `PresentationDiscontinuity`; `freeze()` checks `is_valid()`, `is_standard()` and `get_argument_count() == 1` for both Callables (§ 3).
+  - E9 (`render_delta` is time-scaled and unclamped): applied. The driver clamps `render_delta` to ADR-0008's `DT_MAX`, documents the `Engine.time_scale` scaling and leaves `present_time`'s stall behaviour to ADR-0008 (§ 3, R11).
+  - E10 (floori asymmetry by direction): recorded in Consequences (Negative); no change required.
+- **2026-10-28 technical-director (TD-ADR): verdict CONCERNS, findings T1 to T16.**
+  - T1 (blocking, handle check too broad): applied. The boot check is limited to `SurfaceHandle`s; `ControlHandle`s are outside it; an `INPUT_SURFACE` registration is the facet issue, so a subscription-free surface passes (§ 7, Validation).
+  - T2 (blocking, placement does not fit Controls; lint broader than the decision): applied. Added `Placement.put_control` and `Placement.floor_v`; the lint is scoped to layer 0 and layer 2 world-anchored plates and carries a named allow-list; layer 3 and 4 UI Controls are exempt (§ 4, Guidelines, Validation), together with TD-18.
+  - T3 (blocking, `PERCEPTION_OUT` rule contradicts ADR-0003 and is read-only): applied as modified by TD-07 and TD-08. `perception_access` is declared on the Filter's and DIAGNOSTIC facets; the subscribe-time refusal is ADR-0004 check 6 (closing its OQ-7) and the two-face view is ADR-0003 § 7, so this ADR files no separate amendment of its own; OQ-H keeps only the Filter's query-surface shape for ADR-0024 (§ 1).
+  - T4 (blocking, files have no legal location; `_process` rule disagrees with ADR-0010): applied as modified by TD-02. The shared files live in the existing `src/presentation/pipeline/`; there is no `PresentationHost` file; the exemption set is stated in § 3 and ADR-0010 PRES-01 is reworded to cite it.
+  - T5 (blocking, handlers cannot pass ADR-0010's import rule): applied as modified by TD-01. The "Facet-side types this ADR requires" list is in Key Interfaces; the lint names the forbidden tick-phase contexts instead of a `*Context` pattern (§ 1).
+  - T6 (blocking, `present_time` currency depends on tree order): applied as modified by TD-03. PipelineRoot is the single `PresentationHost`, ADR-0008 owns the edit; OQ-E, OQ-J and OQ-L are closed and the priority-0 tie is removed (§ 3).
+  - T7 (blocking, dependency tables asymmetric): applied as modified by TD-27. ADR-0004 and ADR-0010 added to Depends On; ADR-0008 stays under Enables and is asked to list ADR-0009 under Depends On; Related matches the table; ADR-0005 is a reference.
+  - T8 (`load_seq` and kernel-state requests): applied as modified by TD-04. One combined ADR-0001 amendment: `PresentationClock.state` and `load_seq` (+1 on every LOADING to RUNNING, backed by the TickDriver, never hashed or saved); the `_driver_load_seq` getter, the "and on every new game" clause and the OQ-K route are replaced; `restore_epoch` is explained as not an alternative; R9 reworded (§ 6).
+  - T9 (spike gating too broad): applied. Acceptance gates only on KRN-LAT-02's order result on a desktop release export; PRES-SPIKE-1 is re-scoped as story-level evidence (Ordering Note, Validation, Migration Plan).
+  - T10 (physics-interpolation pin contradicts itself): applied as modified by TD-21. "Written explicitly" is replaced by "absent or false, asserted by effective value (ADR-0008 § 5.1)", keeping the runtime boot walk (§ 5).
+  - T11 (OQ-F already answered): applied as modified by TD-29 and TD-28. OQ-F is closed with the `Ihash` sentence; the trail reads `Ihash` keyed by `world_seed` (§ 1).
+  - T12 (§ 7 widens ADR-0001's guideline): applied as modified by TD-06. The MVP rule is "only the Input Adapter submits"; the general rule is the condition attached to issuing a second `SurfaceHandle`; the submit-site list is ADR-0002's, cited not restated; "ADR-0001 guideline restated" is dropped (§ 7).
+  - T13 (`rebuild_signature` cost): applied. Required only for key-level incremental presenters and as a story definition-of-done item (§ 2, Validation).
+  - T14 (body projector missing from the class table): applied. `body.projector` is in the PROJECTOR row and stage 0; its scene shape is ADR-0034's (§ 1, § 3).
+  - T15 (incomplete retags): applied. The retag list is kept in the Migration Plan; retagged rows are stated as untraced, not covered, until ADR-0034 exists; ADR-0008 is asked to re-point its rows (TD-19); OQ-G routed to the Player Controller GDD owner as a blocking item for the cadence story.
+  - T16 (Review Log said both seats unavailable): applied. This log records both real verdicts; "engine re-read of the revised text before Acceptance" is kept as an explicit condition in the Ordering Note.
+- **Cross-ADR rulings applied in this revision:** TD-02 (shared files in `src/presentation/pipeline/`; ADR-0009 owns the `_process` exemption set), TD-18 (named allow-list; parallax uses `Placement.floor_v`), TD-29 (OQ-F closed with the `Ihash` waiver sentence), TD-01 (facet-side types and the explicit deny list), TD-03 (PipelineRoot is the host; solve in `CAMERA_SOLVE`; OQ-E, OQ-J, OQ-L closed), TD-04 (`PresentationClock.state` and `load_seq`; `HOST_SERVICE` in the frame order; no `PRESENTATION_LATE`), TD-06 (submit-site list is ADR-0002's; Adapter only at MVP), TD-07 (two-face `PresentationViews` is ADR-0003's), TD-08 (`PERCEPTION_OUT` subscribe refusal is ADR-0004 check 6; ADR-0009 only declares which facets carry `perception_access`), TD-16 (lexical `await` ban cited), TD-17 (lint rule set cited in § 4), TD-19 (placement only; Y-sort and z-bands are ADR-0034's), TD-20 (windowed probe wording; snap-flag wording; `thread_model` pin requested of ADR-0008), TD-21 (effective-value tier), TD-22 (stage order stands, OQ-A closed, `snap_baseline` is the only restore continuity), TD-27 (Depends On: ADR-0004 and ADR-0010 added; ADR-0008 stays under Enables), TD-28 (trail reads `Ihash` keyed by `world_seed`), TD-33 (this ADR's Registry Candidates section, corrected as the ruling specifies). TD-09 (Save/Load polls owner read views; ADR-0006's decision) and TD-31 (ADR-0004 frame-end union is closed with a native sort) were checked and need **no change** in this ADR.
+- **Condition carried forward:** the Status stays Proposed. Acceptance needs the neighbour amendments listed in the Ordering Note, a confirming engine re-read of this text, and KRN-LAT-02 on a desktop release export.

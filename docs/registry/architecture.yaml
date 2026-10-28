@@ -62,6 +62,8 @@ state_ownership:
     write_access: tick-driver-only
     referenced_by:
       - docs/architecture/adr-0001-kernel-tick-driver-and-frame-order.md
+      - docs/architecture/adr-0008-render-pipeline-wiring-and-integer-scaling.md
+      - docs/architecture/adr-0009-presentation-subscriber-contract.md
     added: 2026-10-28
     revised: ""
   - state: command_queue_and_stamped_fields
@@ -93,6 +95,8 @@ state_ownership:
     referenced_by:
       - docs/architecture/adr-0003-state-block-registry-and-owner-contract.md
       - docs/architecture/adr-0007-static-content-data-pipeline-and-stable-type-ids.md   # all content boot codes are domain 2
+      - docs/architecture/adr-0005-determinism-keyed-rng-canonical-encoding-and-hashing.md
+      - docs/architecture/adr-0006-save-container-generations-versioning-and-restore-epoch.md
     added: 2026-10-28
     revised: ""
   - state: static_content_catalogs
@@ -103,6 +107,7 @@ state_ownership:
     write_access: content-loader-only (written once in _freeze() before the kernel exists; immutable afterwards)
     referenced_by:
       - docs/architecture/adr-0007-static-content-data-pipeline-and-stable-type-ids.md
+      - docs/architecture/adr-0006-save-container-generations-versioning-and-restore-epoch.md
     added: 2026-10-28
     revised: ""
   - state: id_ledgers
@@ -113,6 +118,114 @@ state_ownership:
     write_access: append-only by content authors; SHIPPED transition one-way
     referenced_by:
       - docs/architecture/adr-0007-static-content-data-pipeline-and-stable-type-ids.md
+    added: 2026-10-28
+    revised: ""
+  - state: touch_serial
+    status: active           # ADR-0004 is Proposed
+    owner_system: command-simulation-layer (kernel registries group, H1 allow-list)
+    adr: docs/architecture/adr-0004-change-notification-and-dirty-keys.md
+    interface: "touch_serial[block] = scope serial, written only by a granted scope.open_for; read through Kernel.touch_serial(block_index) by ADR-0005's BlockHashCache for cache validity"
+    write_access: kernel-only (written only by a granted open_for; never by a mutator directly)
+    referenced_by:
+      - docs/architecture/adr-0004-change-notification-and-dirty-keys.md
+      - docs/architecture/adr-0005-determinism-keyed-rng-canonical-encoding-and-hashing.md
+    added: 2026-10-28
+    revised: ""
+  - state: notification_buffers
+    status: active           # ADR-0004 is Proposed
+    owner_system: command-simulation-layer (kernel)
+    adr: docs/architecture/adr-0004-change-notification-and-dirty-keys.md
+    interface: "per-block tick and frame KeyBufs, the global NotifyEvent pool with per-block PackedInt32Array index lists, and the subscription table with per-block subscriber index arrays are kernel-internal (H1 allow-list: registries and diagnostics); subscribers see only ChangeBatch facades valid for the duration of one handler call"
+    write_access: kernel-only (mutators reach the buffers only through scope.mark_dirty and scope.emit_event)
+    referenced_by:
+      - docs/architecture/adr-0004-change-notification-and-dirty-keys.md
+    added: 2026-10-28
+    revised: ""
+  - state: block_hash_cache
+    status: active           # ADR-0005 is Proposed
+    owner_system: command-simulation-layer (kernel)
+    adr: docs/architecture/adr-0005-determinism-keyed-rng-canonical-encoding-and-hashing.md
+    interface: "Per-block {hash, enc_len, serial} in three kernel-private PackedInt64Arrays in the kernel registries group, indexed by block_index (dense, assigned at the registry freeze in ascending block_id order, never persisted or hashed); valid iff serial == Kernel.touch_serial(block_index) (ADR-0004); read only through block_hash(id, uncached) and the diagnostics cadence; never persisted, never hashed; uncached reads never write it; entry_valid(block_index) is the hook for the deferred ADR-0006 rung 1"
+    write_access: kernel-only
+    referenced_by:
+      - docs/architecture/adr-0005-determinism-keyed-rng-canonical-encoding-and-hashing.md
+      - docs/architecture/adr-0004-change-notification-and-dirty-keys.md
+    added: 2026-10-28
+    revised: ""
+  - state: restore_epoch
+    status: active           # ADR-0006 is Proposed; entries become binding when it is Accepted
+    owner_system: save-load (SaveService)
+    adr: docs/architecture/adr-0006-save-container-generations-versioning-and-restore-epoch.md
+    interface: "u32 in the per-slot pair user://saves/<campaign_id>/slot_epoch_a.bin and slot_epoch_b.bin (12 bytes each: u32 LE epoch, u32 LE seq, u32 LE hand-rolled CRC32 poly 0xEDB88320 of the first 8 bytes); the reader takes the valid file with the higher seq, the writer overwrites the older file in place (no rename, no remove); durable (EPOCH_DURABLE re-read) before request_restore; reaches the sim only as the request_restore / request_new_game argument and the read-only non-persisted non-hashed kernel.clock view (T, world_seed, restore_epoch), read only inside RngFacet.draw_epoch; each WORLD generation header carries a read-only write-time recovery copy; advance = min(2^32-1, max(e_mem, e_slot)+1), carried (no advance) only for a Continue of the newest non-demoted QUIT generation; single registry entry, ADR-0005 references it"
+    write_access: save-load-only (written by the Save/Load worker)
+    referenced_by:
+      - docs/architecture/adr-0006-save-container-generations-versioning-and-restore-epoch.md
+      - docs/architecture/adr-0005-determinism-keyed-rng-canonical-encoding-and-hashing.md
+    added: 2026-10-28
+    revised: ""
+  - state: save_ring_and_campaign_directory
+    status: active           # ADR-0006 is Proposed
+    owner_system: save-load (SaveService)
+    adr: docs/architecture/adr-0006-save-container-generations-versioning-and-restore-epoch.md
+    interface: "user://saves/<campaign_id>/ holds campaign.json (rebuildable hint), gen_0..gen_2.sav (ring of AUTOSAVE_GENERATIONS 3, ordered by header generation only), gen_<write_epoch>_<k>.tmp, .bak, .demoted, slot_epoch_a.bin and slot_epoch_b.bin, campaign.lock (Windows best effort), quarantine/g<generation>_<REASON>_<k>.sav; profile.sav + permanent profile.bak reserved until the first PROFILE block; retired campaigns move to user://saves_retired/<campaign_id>/; Save/Load registers no state block and no hook"
+    write_access: save-load-worker-only (one Thread per WriteJob; main thread polls)
+    referenced_by:
+      - docs/architecture/adr-0006-save-container-generations-versioning-and-restore-epoch.md
+    added: 2026-10-28
+    revised: ""
+  - state: render_geometry_and_viewport_stack
+    status: active           # ADR-0008 is Proposed; entries become binding when it is Accepted
+    owner_system: pixel-perfect-render-pipeline (PipelineRoot, ViewportWiring, CameraHost)
+    adr: docs/architecture/adr-0008-render-pipeline-wiring-and-integer-scaling.md
+    interface: "RenderLayout (read-only RefCounted value: k_auto, k_base, k_z, h, field_px, picture_rect, world_rect, hud_rect, hud_canvas; no version field) via PipelineRoot.layout, with PipelineRoot.layout_version as the change counter; world SubViewport size and override, WorldContainer position and scale, every CanvasLayer scale and offset and HudRoot size are written only by PipelineRoot and ViewportWiring; the world canvas_transform and parallax offsets only by the CameraHost frame_pre_draw handler; presentation, the Filter, Lighting, HUD and Chart Table read the layout and call world_to_hud; never a state block, never saved, never hashed"
+    write_access: pipeline-root-only
+    referenced_by:
+      - docs/architecture/adr-0008-render-pipeline-wiring-and-integer-scaling.md
+    added: 2026-10-28
+    revised: ""
+  - state: present_time
+    status: active           # ADR-0008 is Proposed
+    owner_system: pixel-perfect-render-pipeline (PipelineRoot)
+    adr: docs/architecture/adr-0008-render-pipeline-wiring-and-integer-scaling.md
+    interface: "PipelineRoot.present_time (read-only float seconds): advanced in step 1 of PipelineRoot._process by the delta while PresentationClock.state is RUNNING, SAVING or LOADING-with-hold, frozen while PAUSED, never scaled by reduced motion; delivered to presenters as PresentFrame.present_time; the clock for all layer-0 cosmetic animation; presentation-only, never hashed or saved"
+    write_access: pipeline-root-only
+    referenced_by:
+      - docs/architecture/adr-0008-render-pipeline-wiring-and-integer-scaling.md
+      - docs/architecture/adr-0001-kernel-tick-driver-and-frame-order.md
+    added: 2026-10-28
+    revised: ""
+  - state: present_frame
+    status: active           # ADR-0009 is Proposed
+    owner_system: presentation-driver (PresentationDriver, hosted by PipelineRoot)
+    adr: docs/architecture/adr-0009-presentation-subscriber-contract.md
+    interface: "PresentFrame {alpha: float in [0, 1] read once per frame from PresentationClock, T: int, running: bool, present_time: float supplied by PipelineRoot (owner ADR-0008), present_delta: float, render_delta: float scaled by Engine.time_scale and clamped to DT_MAX}; one reused RefCounted; presentation-only, never a state block, never hashed or saved"
+    write_access: presentation-driver-only
+    referenced_by:
+      - docs/architecture/adr-0009-presentation-subscriber-contract.md
+    added: 2026-10-28
+    revised: ""
+  - state: load_seq
+    status: active           # ADR-0001 is Proposed
+    owner_system: command-simulation-layer (kernel)
+    adr: docs/architecture/adr-0001-kernel-tick-driver-and-frame-order.md
+    interface: "PresentationClock.load_seq (read-only int); presentation-only restore marker, never a state block, never hashed or saved, never read by the simulation; compared by the presentation driver with its last seen value to raise DISCONTINUITY_RESTORE"
+    write_access: kernel-only (incremented once per LOADING->RUNNING, immediately before deliver_all)
+    referenced_by:
+      - docs/architecture/adr-0001-kernel-tick-driver-and-frame-order.md
+      - docs/architecture/adr-0008-render-pipeline-wiring-and-integer-scaling.md
+      - docs/architecture/adr-0009-presentation-subscriber-contract.md
+    added: 2026-10-28
+    revised: ""
+  - state: kernel_clock
+    status: active           # ADR-0003 is Proposed
+    owner_system: command-simulation-layer (kernel)
+    adr: docs/architecture/adr-0003-state-block-registry-and-owner-contract.md
+    interface: "read-only ClockView (tick(), world_seed(), restore_epoch()); world_seed set before INIT; restore_epoch is a u32, non-persisted, non-hashed, set by request_restore and request_new_game before the first restore()/init_world, read only inside RngFacet.draw_epoch"
+    write_access: kernel-only
+    referenced_by:
+      - docs/architecture/adr-0003-state-block-registry-and-owner-contract.md
+      - docs/architecture/adr-0005-determinism-keyed-rng-canonical-encoding-and-hashing.md
+      - docs/architecture/adr-0006-save-container-generations-versioning-and-restore-epoch.md
     added: 2026-10-28
     revised: ""
 
@@ -175,23 +288,33 @@ interfaces:
     consumers:
       - command-simulation-layer
     adr: docs/architecture/adr-0002-authority-model-and-command-pipeline.md
-    signal_signature: "ControlHandle.request_pause / request_resume / request_snapshot / request_restore(payload, restore_epoch, expected_state_hash) / request_new_game(world_seed, restore_epoch) / request_shutdown / request_bind_seat(peer_id, player_id) / request_unbind_seat(peer_id); set_outcome_handler(Callable)"
+    # was: "ControlHandle.request_pause / request_resume / request_snapshot / request_restore(payload, restore_epoch, expected_state_hash) / request_new_game(world_seed, restore_epoch) / request_shutdown / request_bind_seat(peer_id, player_id) / request_unbind_seat(peer_id); set_outcome_handler(Callable)"
+    signal_signature: "ControlHandle.request_pause / request_resume / request_snapshot() -> void (outcome via handler) / request_restore(payload: Dictionary, restore_epoch: int, expected_state_hash: int = 0, has_expected_hash: bool = false) -> void / request_new_game(world_seed, restore_epoch) / request_shutdown / request_bind_seat(peer_id, player_id) / request_unbind_seat(peer_id); set_outcome_handler(Callable); snapshot ControlOutcome adds T, world_seed, state_hash, hash_algo, block_ids: Array[StringName], schema_versions: PackedInt64Array, block_state_hashes: PackedInt64Array, enc_lens: PackedInt64Array (all persist blocks, uncached in SAVING); restore verdict MATCH | MISMATCH | NONE (NONE when has_expected_hash is false)"
     referenced_by:
       - docs/architecture/adr-0002-authority-model-and-command-pipeline.md
+      - docs/architecture/adr-0005-determinism-keyed-rng-canonical-encoding-and-hashing.md
+      - docs/architecture/adr-0006-save-container-generations-versioning-and-restore-epoch.md
     added: 2026-10-28
-    revised: ""
+    revised: 2026-10-28
   - contract: presentation_clock
     status: active
     pattern: direct_call
-    producer: command-simulation-layer (TickDriver)
+    # was: command-simulation-layer (TickDriver)
+    producer: command-simulation-layer (TickDriver and kernel)
+    # was: - presentation-subscribers
     consumers:
       - presentation-subscribers
+      - presentation-host (PipelineRoot)
     adr: docs/architecture/adr-0001-kernel-tick-driver-and-frame-order.md
-    signal_signature: "PresentationClock.tick_alpha: float; PresentationClock.T: int; PresentationClock.running: bool (read-only)"
+    # was: "PresentationClock.tick_alpha: float; PresentationClock.T: int; PresentationClock.running: bool (read-only)"
+    signal_signature: "PresentationClock (read-only, RefCounted): tick_alpha: float (1.0 while not RUNNING); T: int; running: bool; state: int (kernel state enum; replaces any KernelStateView); load_seq: int (+1 on every LOADING->RUNNING, restore and new game, immediately before deliver_all; never on PAUSED/SAVING->RUNNING; ChangeBatch carries no load flag)"
     referenced_by:
       - docs/architecture/adr-0001-kernel-tick-driver-and-frame-order.md
+      - docs/architecture/adr-0004-change-notification-and-dirty-keys.md
+      - docs/architecture/adr-0008-render-pipeline-wiring-and-integer-scaling.md
+      - docs/architecture/adr-0009-presentation-subscriber-contract.md
     added: 2026-10-28
-    revised: ""
+    revised: 2026-10-28
   - contract: owner_callable_contract
     status: active
     pattern: direct_call
@@ -199,12 +322,16 @@ interfaces:
     consumers:
       - every-block-and-hook-owner
     adr: docs/architecture/adr-0003-state-block-registry-and-owner-contract.md
-    signal_signature: "Registered Callables -> CompletionToken with return ctx.complete() last; validate(cmd, views, ValidateContext), apply(cmd, scope, ApplyContext), hook(views, scope, HookContext), init_world(seed, scope, SnapshotContext), handlers(record, NotifyContext)"
+    # was: "Registered Callables -> CompletionToken with return ctx.complete() last; validate(cmd, views, ValidateContext), apply(cmd, scope, ApplyContext), hook(views, scope, HookContext), init_world(seed, scope, SnapshotContext), handlers(record, NotifyContext)"
+    signal_signature: "Registered Callables -> CompletionToken with return ctx.complete() last on every branch (including overrides); validate(cmd, views, ValidateContext), apply(cmd, scope, ApplyContext), hook(views, scope, HookContext), init_world(seed, scope, SnapshotContext), subscriber and result handlers (record_or_batch, NotifyContext) with NotifyContext in src/kernel/facets/; snapshot payload packed arrays are duplicates, never live references"
     referenced_by:
       - docs/architecture/adr-0003-state-block-registry-and-owner-contract.md
       - docs/architecture/adr-0002-authority-model-and-command-pipeline.md
+      - docs/architecture/adr-0004-change-notification-and-dirty-keys.md
+      - docs/architecture/adr-0009-presentation-subscriber-contract.md
+      - docs/architecture/adr-0006-save-container-generations-versioning-and-restore-epoch.md
     added: 2026-10-28
-    revised: ""
+    revised: 2026-10-28
   - contract: block_registration
     status: active
     pattern: direct_call
@@ -212,12 +339,15 @@ interfaces:
     consumers:
       - command-simulation-layer
     adr: docs/architecture/adr-0003-state-block-registry-and-owner-contract.md
-    signal_signature: "ModuleFacet.registrar (BOOTING only): register_block(BlockDescriptor), register_command(CommandTypeDescriptor), register_hook(HookDescriptor), register_fault_domain(domain_id, owner_name, names), register_diagnostics_channel(desc)"
+    # was: "ModuleFacet.registrar (BOOTING only): register_block(BlockDescriptor), register_command(CommandTypeDescriptor), register_hook(HookDescriptor), register_fault_domain(domain_id, owner_name, names), register_diagnostics_channel(desc)"
+    signal_signature: "ModuleFacet.registrar (BOOTING only): register_block(BlockDescriptor), register_command(CommandTypeDescriptor), register_hook(HookDescriptor), register_fault_domain(domain_id, owner_name, names), register_diagnostics_channel(desc), register_key_space(KeySpaceDescriptor); a host service that owns no block receives HostRegistrarFacet with register_fault_domain only"
     referenced_by:
       - docs/architecture/adr-0003-state-block-registry-and-owner-contract.md
       - docs/architecture/adr-0002-authority-model-and-command-pipeline.md
+      - docs/architecture/adr-0004-change-notification-and-dirty-keys.md
+      - docs/architecture/adr-0006-save-container-generations-versioning-and-restore-epoch.md
     added: 2026-10-28
-    revised: ""
+    revised: 2026-10-28
   - contract: mutator_status
     status: active
     pattern: direct_call
@@ -225,11 +355,14 @@ interfaces:
     consumers:
       - cross-block-apply-and-hook-callers
     adr: docs/architecture/adr-0003-state-block-registry-and-owner-contract.md
-    signal_signature: "Class A check_x(views, args) -> StringName and x(scope, args, out) -> int (OK 0, REFUSED 1, -fault_code); Class B x(scope, args) -> void; every mutator begins scope.open_for(block) and marks scope.mark_dirty"
+    # was: "Class A check_x(views, args) -> StringName and x(scope, args, out) -> int (OK 0, REFUSED 1, -fault_code); Class B x(scope, args) -> void; every mutator begins scope.open_for(block) and marks scope.mark_dirty"
+    signal_signature: "Class A check_x(views, args) -> StringName and x(scope, args, out) -> int (OK 0, REFUSED 1, -fault_code); Class B x(scope, args) -> void; every mutator begins scope.open_for(block) and marks scope.mark_dirty(block, key) (key layout ADR-0004 section 3) or scope.emit_event(block, kind, a0..a5); WriteScope.has_opened(block_index) -> bool is a pure read for the hash path"
     referenced_by:
       - docs/architecture/adr-0003-state-block-registry-and-owner-contract.md
+      - docs/architecture/adr-0004-change-notification-and-dirty-keys.md
+      - docs/architecture/adr-0005-determinism-keyed-rng-canonical-encoding-and-hashing.md
     added: 2026-10-28
-    revised: ""
+    revised: 2026-10-28
   - contract: content_loading
     status: active           # ADR-0007 is Proposed
     pattern: direct_call
@@ -240,6 +373,213 @@ interfaces:
     signal_signature: "ContentLoader.new(source: ContentSource, kernel_tick_rate: int).load_all() -> ContentLoadResult {content: ContentSet or null, errors: Array[BootError], stage_failed: int}; BootError {code: (2 << 16) | local, table, key, field, line, detail}; non-empty errors -> the root never starts the kernel"
     referenced_by:
       - docs/architecture/adr-0007-static-content-data-pipeline-and-stable-type-ids.md
+      - docs/architecture/adr-0006-save-container-generations-versioning-and-restore-epoch.md
+    added: 2026-10-28
+    revised: ""
+  - contract: change_notification
+    status: active           # ADR-0004 is Proposed
+    pattern: direct_call     # kernel-owned observer registry invoking method Callables; not engine signals
+    producer: command-simulation-layer (kernel P5 and frame-end delivery)
+    consumers:
+      - presentation-subscribers
+      - input-surface-subscribers
+      - projector-subscribers
+      - diagnostic-subscribers
+      - replication-subscriber (VS-B)
+    adr: docs/architecture/adr-0004-change-notification-and-dirty-keys.md
+    signal_signature: "NotifyFacet.subscribe(block_id: StringName, handler: Callable, name: StringName) -> SubscriptionHandle (subscriber class and perception_access fixed when the kernel issues the facet to the composition root via Kernel.issue_notify_facet(cls, perception_access); presentation holds only ADR-0009's class-bound PresentationFacet); handler(batch: ChangeBatch, ctx: NotifyContext) -> CompletionToken with return ctx.complete() last and no await; ChangeBatch {block_id, tick, first_tick, is_all, count, event_count, key(i), has(key), event(i)}, keys ascending and unique on every delivered batch; DirtyAccumulator.absorb(batch); types live in src/kernel/facets/; TickDriver.frame() = _frame_body() then unconditional Kernel.deliver_frame_end()"
+    referenced_by:
+      - docs/architecture/adr-0004-change-notification-and-dirty-keys.md
+    added: 2026-10-28
+    revised: ""
+  - contract: dirty_key_marking
+    status: active           # ADR-0004 is Proposed
+    pattern: direct_call
+    producer: block-owners (inside a mutator, after scope.open_for)
+    consumers:
+      - command-simulation-layer
+    adr: docs/architecture/adr-0004-change-notification-and-dirty-keys.md
+    signal_signature: "scope.mark_dirty(block_id: StringName, key: int) -> void; scope.emit_event(block_id: StringName, kind: int, a0..a5: int = 0) -> void; BlockRegistrar.register_key_space(desc: KeySpaceDescriptor) -> void (BOOTING only; kind_ids, kind_names, event_ids, event_names, quiet_writes_allowed); keys and events marked in INIT and RESTORE scopes are discarded"
+    referenced_by:
+      - docs/architecture/adr-0004-change-notification-and-dirty-keys.md
+      - docs/architecture/adr-0003-state-block-registry-and-owner-contract.md
+    added: 2026-10-28
+    revised: ""
+  - contract: canonical_encode_and_hash
+    status: active           # ADR-0005 is Proposed
+    pattern: direct_call
+    producer: "command-simulation-layer (kernel: StateHasher, BlockHashCache)"
+    consumers:
+      - save-load
+      - debug-overlay
+      - layout
+      - horror
+      - tests
+    adr: docs/architecture/adr-0005-determinism-keyed-rng-canonical-encoding-and-hashing.md
+    signal_signature: "block_hash(block_id: StringName, uncached: bool = true) -> BlockHashResult {ok, h64, reason: BLOCK_HASH_IN_WRITE | BLOCK_HASH_UNKNOWN | BLOCK_HASH_ENCODE_ERROR}; state_hash(scope: PERSIST | ALL_SIM, T: int, uncached: bool = true) -> int; canonical_encode(value: Variant) -> PackedByteArray; Hash64.of_value(value) -> int; Hex64.encode(x) -> String / Hex64.decode(s) -> Hex64Result {ok, value}; internal block_hash_any(block_index: int) -> int (SIM_WRITE_TRIPWIRE profiles; tripwire and ADR-0004 audit only); no H64 value is reserved as a sentinel (0 is legal); hash_algo 2 names the whole definition (TLV tags, key order, normalisation, fold framing, SHA-256 first 8 bytes LE)"
+    referenced_by:
+      - docs/architecture/adr-0005-determinism-keyed-rng-canonical-encoding-and-hashing.md
+    added: 2026-10-28
+    revised: ""
+  - contract: keyed_rng
+    status: active           # ADR-0005 is Proposed
+    pattern: direct_call     # RngFacet injected as ModuleFacet.rng (ADR-0003 field); null for modules that draw nothing
+    producer: "command-simulation-layer (kernel: RngRegistry, RngFacet)"
+    consumers:
+      - life-support-graph
+      - attention-system
+      - horror-entities
+      - sanity-and-hallucination-rules
+    adr: docs/architecture/adr-0005-determinism-keyed-rng-canonical-encoding-and-hashing.md
+    signal_signature: "RngFacet.register_stream(name: StringName, epoch_keyed: bool = false) -> RngStream (BOOTING only); dynamic_stream(name: String, epoch_keyed) -> RngStream (memoised, bounded); draw(stream, counter) -> int (plain streams); draw_epoch(stream, rng_counter) -> int (epoch-keyed streams: attention.tell, horror.tell); int_in(raw, lo, hi) -> int; pure statics DetRng.mix64/fnv64/stream_key/derive(world_seed, key, counter) and DetRngFloat.unit/int_in; Ihash.h(variation_seed, k1, k2, k3, salt) -> non-negative 63-bit int for presentation and non-RNG variation (the Trail's trail.vis included: Ihash keyed by world_seed and a fixed per-system seed)"
+    referenced_by:
+      - docs/architecture/adr-0005-determinism-keyed-rng-canonical-encoding-and-hashing.md
+    added: 2026-10-28
+    revised: ""
+  - contract: save_host_api
+    status: active           # ADR-0006 is Proposed
+    pattern: direct_call     # host-local reads and calls, never commands
+    producer: save-load
+    consumers:
+      - chart-table-menus
+      - hud-and-suit-layer
+      - debug-overlay
+    adr: docs/architecture/adr-0006-save-container-generations-versioning-and-restore-epoch.md
+    signal_signature: "SaveService (RefCounted, src/save/) new_game(world_seed: int) -> int; continue_campaign() -> int; save_and_quit() -> int (returns promptly); cancel_held_close() -> void; campaign_info() -> SaveInfo; list_saves() -> Array[SaveInfo]; retire_campaign(id) / delete_campaign(id) -> int; poll_frame() -> void and on_close_request() -> void called only by SaveHost (src/game/save_host.gd, thin Node, PROCESS_MODE_ALWAYS, ProcessPriority.HOST_SERVICE); reads save_status (IDLE, WRITING, WRITTEN, FAILED), fail_escalated, restore_reason, restore_epoch (diagnostic); no save_now and no load(generation) outside dev builds"
+    referenced_by:
+      - docs/architecture/adr-0006-save-container-generations-versioning-and-restore-epoch.md
+    added: 2026-10-28
+    revised: ""
+  - contract: save_container_file
+    status: active           # ADR-0006 is Proposed
+    pattern: shared_resource # on-disk file shared by writer, loader, tools and tests
+    producer: save-load
+    consumers:
+      - save-load-loader
+      - dump-save-dev-tool
+      - golden-fixture-tests
+    adr: docs/architecture/adr-0006-save-container-generations-versioning-and-restore-epoch.md
+    signal_signature: "7-byte magic 53 59 4E 53 45 41 1A + layout id byte; u32 LE header_len; UTF-8 JSON header (closed field list incl. seats, per-block block_state_hash and enc_len; 64-bit values as exact-width lowercase hex64 via ADR-0005 Hex64, campaign_id an opaque 32-char lowercase hex String; other numbers integral and < 2^53; created_unix display-only); block payloads = var_to_bytes(Dictionary) concatenated in block-table order; last 32 bytes = SHA-256 of all preceding bytes (format law)"
+    referenced_by:
+      - docs/architecture/adr-0006-save-container-generations-versioning-and-restore-epoch.md
+    added: 2026-10-28
+    revised: ""
+  - contract: block_persistence_payload
+    status: active           # ADR-0006 is Proposed
+    pattern: direct_call
+    producer: every-persisted-block-owner
+    consumers:
+      - save-load
+      - command-simulation-layer
+    adr: docs/architecture/adr-0006-save-container-generations-versioning-and-restore-epoch.md
+    signal_signature: "snapshot(ctx) -> ctx.put(Dictionary): deep copy (packed arrays duplicated, never live references), plain data (null, bool, int64, finite float, String, Array, Dictionary with String or int keys, PackedByteArray/Int32Array/Int64Array; never Object, StringName, Vector2i or other vectors); canonical bytes are the kernel's, never stored; restore(data: Dictionary, stored_version: int, ctx) validates into scratch then copies contents into the existing block object and reports failure only through ctx.fault(<OWNER>_RESTORE_*); a field that may exceed 2^53 is declared int64 in the owner schema"
+    referenced_by:
+      - docs/architecture/adr-0006-save-container-generations-versioning-and-restore-epoch.md
+      - docs/architecture/adr-0003-state-block-registry-and-owner-contract.md
+    added: 2026-10-28
+    revised: ""
+  - contract: save_observation_set
+    status: active           # ADR-0006 is Proposed
+    pattern: direct_call     # polled read views, no subscription
+    producer: owner-read-views
+    consumers:
+      - save-load
+    adr: docs/architecture/adr-0006-save-container-generations-versioning-and-restore-epoch.md
+    signal_signature: "Save/Load subscribes to nothing; SaveService.poll_frame() (called once per frame by SaveHost) polls kernel.clock, controller loco_state and carry_ref, suit vitals_state and carried_id, graph failures, attention.view, assembly ragged_breach_open() and last_shape_change_T(), interaction last_salvage_T(), and the conditional web.state monotonic counters pod_arrived_seq / berthed_seq (required of the Web Map ADR; absent means the trigger never fires); last-seen copies are host-local and re-read after a load"
+    referenced_by:
+      - docs/architecture/adr-0006-save-container-generations-versioning-and-restore-epoch.md
+    added: 2026-10-28
+    revised: ""
+  - contract: render_layout
+    status: active           # ADR-0008 is Proposed
+    pattern: direct_call
+    producer: pixel-perfect-render-pipeline (PipelineRoot)
+    consumers:
+      - hud-and-suit-layer
+      - in-world-instruments
+      - chart-table-and-menus
+      - input-adapter
+      - 2d-lighting-and-occlusion
+    adr: docs/architecture/adr-0008-render-pipeline-wiring-and-integer-scaling.md
+    signal_signature: "RenderLayout.derive(window_px: Vector2i, settings: DisplaySettings, zoom_k: int, tuning: RenderTuning, offered_h: Array[int]) -> RenderLayout (static, pure; offered_h duplicated on entry); world_to_hud(body_pos: Vector2i, pose_q: Vector2i) -> Vector2i (the only form); mouse_to_world_aim(cursor_px: Vector2i, f_q: Vector2i) -> Vector2 (open loop, D.14b); mouse_to_world_view(cursor_px: Vector2i, pose_q: Vector2i) -> Vector2 (never for beam aim); PipelineRoot.layout (read-only), PipelineRoot.layout_version (read-only)"
+    referenced_by:
+      - docs/architecture/adr-0008-render-pipeline-wiring-and-integer-scaling.md
+    added: 2026-10-28
+    revised: ""
+  - contract: filter_hook_slot
+    status: active           # ADR-0008 is Proposed
+    pattern: direct_call
+    producer: perception-filter
+    consumers:
+      - pixel-perfect-render-pipeline
+    adr: docs/architecture/adr-0008-render-pipeline-wiring-and-integer-scaling.md
+    signal_signature: "PipelineRoot.set_filter_material(material: ShaderMaterial) -> void (sole writer of SubViewportContainer.material; null at MVP because the world viewport is SDR; with the HDR contingency adopted the slot always holds the resolve material and the Filter shader includes the resolve); published filter_route: PER_ELEMENT | NOT_USED"
+    referenced_by:
+      - docs/architecture/adr-0008-render-pipeline-wiring-and-integer-scaling.md
+    added: 2026-10-28
+    revised: ""
+  - contract: zoom_request
+    status: active           # ADR-0008 is Proposed
+    pattern: direct_call     # host-local presentation call, not a command; never saved
+    producer: input-adapter
+    consumers:
+      - pixel-perfect-render-pipeline
+    adr: docs/architecture/adr-0008-render-pipeline-wiring-and-integer-scaling.md
+    signal_signature: "PipelineRoot.request_zoom_step(direction: int) -> void (+1 in, -1 out; edge-triggered; one accepted step per frame and >= 0.15 s apart on the _process delta divided by Engine.time_scale; surplus discarded); PipelineRoot.apply_display_settings(settings: DisplaySettings) -> void (marks dirty only; DisplaySettings is persisted host-locally by the Chart Table SettingsStore, CT-19, ADR-0030)"
+    referenced_by:
+      - docs/architecture/adr-0008-render-pipeline-wiring-and-integer-scaling.md
+    added: 2026-10-28
+    revised: ""
+  - contract: presentation_facet
+    status: active           # ADR-0009 is Proposed
+    pattern: direct_call
+    producer: composition-root
+    consumers:
+      - presentation-subscribers
+    adr: docs/architecture/adr-0009-presentation-subscriber-contract.md
+    signal_signature: "PresentationFacet {views: PresentationViews, clock: PresentationClock, key_capacity: int, perception_access: bool (read-only; true only on the Perception Filter's facet and DIAGNOSTIC facets), subscribe(block_id: StringName, handler: Callable, subscriber_name: StringName) -> SubscriptionHandle}; class-bound wrapper around NotifyFacet (bound by the composition root at issue), lives in src/kernel/facets/; subscription is per block (ADR-0004); handler is a 2-argument method Callable (batch: ChangeBatch, ctx: NotifyContext) -> CompletionToken ending in return ctx.complete(); a PERCEPTION_OUT subscription without perception_access is refused with SUBSCRIBE_REFUSED (ADR-0004 check 6)"
+    referenced_by:
+      - docs/architecture/adr-0009-presentation-subscriber-contract.md
+    added: 2026-10-28
+    revised: ""
+  - contract: presentation_stage_order
+    status: active           # ADR-0009 is Proposed
+    pattern: direct_call
+    producer: pipeline-root (PresentationDriver)
+    consumers:
+      - presenters
+    adr: docs/architecture/adr-0009-presentation-subscriber-contract.md
+    signal_signature: "PresentationStage PROJECT 0, CAMERA_SOLVE 1, AVATAR 2, FILTER 3, INSTRUMENTS 4, HUD 5, LIGHTING 6, TRAIL 7, AUDIO 8, DEBUG 9; PresentationDiscontinuity RESTORE 0, CAMERA_CUT 1; PresenterDescriptor {name, stage, reads: Array[int] (each strictly earlier), after: Array[StringName] (same-stage predecessors), present: Callable(frame: PresentFrame) -> void, on_discontinuity: Callable(kind: int) -> void; both standard method Callables of exactly one argument}; PresentationDriver.register / freeze (packed stage*1024+registration_index keys, Array.sort) / frame(host_delta, present_time) / notify_camera_cut; files in src/presentation/pipeline/"
+    referenced_by:
+      - docs/architecture/adr-0009-presentation-subscriber-contract.md
+    added: 2026-10-28
+    revised: ""
+  - contract: wall_clock
+    status: active           # ADR-0010 is Proposed
+    pattern: direct_call     # injected port (setup parameter)
+    producer: system-wall-clock   # src/game/system_wall_clock.gd
+    consumers:
+      - save-load-service        # SaveService.setup() only
+    adr: docs/architecture/adr-0010-source-layout-static-typing-and-lint-enforcement.md
+    signal_signature: "WallClock.now_unix() -> int"
+    referenced_by:
+      - docs/architecture/adr-0010-source-layout-static-typing-and-lint-enforcement.md
+    added: 2026-10-28
+    revised: ""
+  - contract: presentation_views_faces
+    status: active
+    pattern: direct_call
+    producer: command-simulation-layer (kernel; PresentationViews issued by the composition root)
+    consumers:
+      - presentation-layer
+      - perception-filter
+      - debug-overlay
+    adr: docs/architecture/adr-0003-state-block-registry-and-owner-contract.md
+    signal_signature: "PresentationViews.get(block_id) -> Object with perception_access: bool set once at issue; default face (false) returns empty_view for PERCEPTION_OUT and counts PERCEPTION_READ_BLOCKED; perception face (true) returns the real facade; subscribe-time PERCEPTION_OUT refusal (SUBSCRIBE_REFUSED) is ADR-0004 section 2 check 6; facet holders are fixed by ADR-0009 section 1"
+    referenced_by:
+      - docs/architecture/adr-0003-state-block-registry-and-owner-contract.md
+      - docs/architecture/adr-0004-change-notification-and-dirty-keys.md
+      - docs/architecture/adr-0009-presentation-subscriber-contract.md
     added: 2026-10-28
     revised: ""
 
@@ -280,6 +620,63 @@ performance_budgets:
       - docs/architecture/adr-0003-state-block-registry-and-owner-contract.md
     added: 2026-10-28
     revised: ""
+  - system: kernel_p5_notify
+    status: active           # ADR-0004 is Proposed
+    budget_ms: 0.25
+    adr: docs/architecture/adr-0004-change-notification-and-dirty-keys.md
+    notes: "PROPOSAL pending KRN-LAT-02, not a GDD number: P5 plus frame-end delivery P99 on a release export on RM-DESKTOP and RM-DECK for 12 dirty blocks, 40 subscriptions, a 38-key Graph cascade and 4 events; inside the 4.0 ms one-tick frame simulation budget; the full-capacity sort and has() scan per dirty block is a recorded measurement target"
+    referenced_by:
+      - docs/architecture/adr-0004-change-notification-and-dirty-keys.md
+    added: 2026-10-28
+    revised: ""
+  - system: block_hash_sha256_150kb
+    status: active           # ADR-0005 is Proposed; probed 0.33 ms on the dev machine editor binary, release-export RM-DECK measurement pending (S0-d)
+    budget_ms: 1.0
+    adr: docs/architecture/adr-0005-determinism-keyed-rng-canonical-encoding-and-hashing.md
+    notes: "HashingContext SHA-256 over about 150 KB of canonical bytes (TR-lsg-037); a quiet tick performs 0 canonical encodes; a cached read after a tick that touched k blocks performs k encodes; the encoder cost for Dictionary-heavy blocks is unmeasured (S0-e)"
+    referenced_by:
+      - docs/architecture/adr-0005-determinism-keyed-rng-canonical-encoding-and-hashing.md
+    added: 2026-10-28
+    revised: ""
+  - system: save_main_thread_encode_and_handoff
+    status: active           # ADR-0006 is Proposed
+    budget_ms: 4.0
+    adr: docs/architecture/adr-0006-save-container-generations-versioning-and-restore-epoch.md
+    notes: "SAVE_ENCODE_BUDGET_MS 4 ms log-only threshold on var_to_bytes plus hand-off, additive to the kernel capture (SNAPSHOT_BUDGET_MS 16.7 ceiling); one frame per autosave above the 14.9 ms desktop target accepted pending SAVE-WRK-1-ACCEPT f (synthetic) and SAVE-WRK-1-SLICE (real blocks); probed 2026-10-28 synthetic only"
+    referenced_by:
+      - docs/architecture/adr-0006-save-container-generations-versioning-and-restore-epoch.md
+    added: 2026-10-28
+    revised: ""
+  - system: save_load_type_walk
+    status: active           # ADR-0006 is Proposed
+    budget_ms: 4.0
+    adr: docs/architecture/adr-0006-save-container-generations-versioning-and-restore-epoch.md
+    notes: "target at most 4 ms at 30 000 nodes on the load-side bounded type walk (hot-copy worker when possible); MAX_DECODE_NODES provisional 100 000 until SAVE-WRK-1 f measures it; UNVERIFIED"
+    referenced_by:
+      - docs/architecture/adr-0006-save-container-generations-versioning-and-restore-epoch.md
+    added: 2026-10-28
+    revised: ""
+  - target_fps: 60
+    total_frame_budget_ms: 14.9   # 90 % of the 16.6 ms ceiling (ruling R12); P99 CPU frame time, release export, warm-up discarded
+    platform: PC                  # RM-DESKTOP
+    adr: docs/architecture/adr-0008-render-pipeline-wiring-and-integer-scaling.md   # ADR-0008 is Proposed; figure pending spike
+    added: 2026-10-28
+    revised: ""
+  - target_fps: 30
+    total_frame_budget_ms: 30.0   # 90 % of the 33.3 ms ceiling (ruling R12); RM-DECK handheld, 30 fps target
+    platform: Console             # nearest registry platform value; this is the Steam Deck
+    adr: docs/architecture/adr-0008-render-pipeline-wiring-and-integer-scaling.md   # ADR-0008 is Proposed; figure pending spike
+    added: 2026-10-28
+    revised: ""
+  - system: render_pipeline_root
+    status: active           # ADR-0008 is Proposed; all figures pending release-export spike on RM-DESKTOP and RM-DECK; figures owned by the Pipeline GDD D.16, mirrored in ADR-0008 s7
+    budget_ms: 0.5
+    adr: docs/architecture/adr-0008-render-pipeline-wiring-and-integer-scaling.md
+    notes: "PipelineRoot._process P99 <= 0.5 ms including world_to_hud for 32 prompts and driver.frame dispatch (CameraSolver.solve <= 0.05 ms in the CAMERA_SOLVE stage; the frame_pre_draw handler is two assignments); RESCALING re-derivation <= 4 ms in one frame; container composite GPU <= 0.3 ms at 1080p, <= 1.0 ms at 2160p. DRAW-CALL TABLE (unit is draw calls, not ms; read per viewport with Viewport.get_render_info, which lags one frame in _process): D_world <= 350 (floor 4 + marks 20 + ysort 300 + caps 4 + fx 22; Failure and Trail D_FT_MAX 38 nested inside), D_root <= 63 chart closed (HUD 60 + hold 1 + filter 1 + container composite 1; probed: the composite is counted on the root; 62 expected with a null slot at MVP), <= 93 chart open (holds only because the HUD is hidden under a full-bleed plate; Chart Table D_L3 <= 40), D_world + D_root <= 1000; zoom-out steps: sum <= 1000 only plus the P99 frame ceilings, failing steps withheld via ZOOM_MIN_K. Render targets <= 3 MB (A) / 22 MB (B) at 1080p."
+    referenced_by:
+      - docs/architecture/adr-0008-render-pipeline-wiring-and-integer-scaling.md
+    added: 2026-10-28
+    revised: ""
 
 # Example:
 #
@@ -313,24 +710,36 @@ performance_budgets:
 api_decisions:
   - purpose: simulation_clock
     status: active
-    api: "KernelHost._process(delta) -> TickDriver.frame(delta_us), delta_us = maxi(0, roundi(delta * 1_000_000.0))"
-    not: "_physics_process or physics_jitter_fix / max_physics_steps_per_frame coupling; a Time.get_ticks_usec accumulator (kept only as the spike fallback)"
+    # was: "KernelHost._process(delta) -> TickDriver.frame(delta_us), delta_us = maxi(0, roundi(delta * 1_000_000.0))"
+    api: "KernelHost (src/game/kernel_host.gd)._process(delta) -> TickDriver.frame(delta_us), delta_us = maxi(0, roundi(delta * 1_000_000.0)); TickDriver.frame is two statements: _frame_body(delta_us) then Kernel.deliver_frame_end() (unconditional, KRN-FRAME-END)"
+    # was: "_physics_process or physics_jitter_fix / max_physics_steps_per_frame coupling; a Time.get_ticks_usec accumulator (kept only as the spike fallback)"
+    not: "_physics_process or physics_jitter_fix / max_physics_steps_per_frame coupling; a Time.get_ticks_usec accumulator (kept only as the spike fallback); a return or statement in frame() after the body"
     adr: docs/architecture/adr-0001-kernel-tick-driver-and-frame-order.md
-    reason: "One accumulator, one wall-clock read that reaches the simulation, regular input latency; the kernel GDD (owner) rejected the physics callback in CR-1a"
+    # was: "One accumulator, one wall-clock read that reaches the simulation, regular input latency; the kernel GDD (owner) rejected the physics callback in CR-1a"
+    reason: "One accumulator, one wall-clock read that reaches the simulation, regular input latency, frame-end delivery on every exit path; the kernel GDD (owner) rejected the physics callback in CR-1a; the clock-API allow-list is owned by ADR-0010 SIM-02"
     referenced_by:
       - docs/architecture/adr-0001-kernel-tick-driver-and-frame-order.md
+      - docs/architecture/adr-0004-change-notification-and-dirty-keys.md
+      - docs/architecture/adr-0010-source-layout-static-typing-and-lint-enforcement.md
     added: 2026-10-28
-    revised: ""
+    revised: 2026-10-28
   - purpose: frame_order
     status: active
-    api: "ProcessPriority constants INPUT_ADAPTER -100, TICK_DRIVER -50, PRESENTATION 0 (engine default), set from code, never in .tscn"
-    not: "tree order, literal process_priority values, process_thread_group other than the default on kernel-path nodes"
+    # was: "ProcessPriority constants INPUT_ADAPTER -100, TICK_DRIVER -50, PRESENTATION 0 (engine default), set from code, never in .tscn"
+    api: "ProcessPriority constants INPUT_ADAPTER -100, TICK_DRIVER -50, HOST_SERVICE -40 (SaveHost only), PRESENTATION 0 (engine default; the single PresentationHost, PipelineRoot), set from code, never in .tscn; order: input adapter, tick driver, host service, presentation; the KRN-05 boot walk accepts only registered INPUT_SURFACE objects, KernelHost and SaveHost below PRESENTATION"
+    # was: "tree order, literal process_priority values, process_thread_group other than the default on kernel-path nodes"
+    not: "tree order, literal process_priority values, process_thread_group other than the default on kernel-path nodes, a PRESENTATION_LATE constant, per-presenter _process"
     adr: docs/architecture/adr-0001-kernel-tick-driver-and-frame-order.md
-    reason: "Fixes adapter, then driver, then presentation; an unset presentation priority still runs after the driver; verified by spike KRN-LAT-02"
+    # was: "Fixes adapter, then driver, then presentation; an unset presentation priority still runs after the driver; verified by spike KRN-LAT-02"
+    reason: "Fixes adapter, then driver, then SaveHost poll, then presentation; an unset presentation priority still runs after the driver; HOST_SERVICE is named and valued once; verified by spike KRN-LAT-02"
     referenced_by:
       - docs/architecture/adr-0001-kernel-tick-driver-and-frame-order.md
+      - docs/architecture/adr-0006-save-container-generations-versioning-and-restore-epoch.md
+      - docs/architecture/adr-0008-render-pipeline-wiring-and-integer-scaling.md
+      - docs/architecture/adr-0009-presentation-subscriber-contract.md
+      - docs/architecture/adr-0010-source-layout-static-typing-and-lint-enforcement.md
     added: 2026-10-28
-    revised: ""
+    revised: 2026-10-28
   - purpose: payload_size_check
     status: active
     api: "whitelist walk (type, depth 8, finite floats, running byte estimate) then var_to_bytes(payload, false).size() <= MAX_PAYLOAD, then compiled payload_schema"
@@ -339,6 +748,7 @@ api_decisions:
     reason: "A cyclic or very wide container must be rejected before serialisation; payload keys are StringName so schema lookup is exact"
     referenced_by:
       - docs/architecture/adr-0002-authority-model-and-command-pipeline.md
+      - docs/architecture/adr-0005-determinism-keyed-rng-canonical-encoding-and-hashing.md
     added: 2026-10-28
     revised: ""
   - purpose: content_file_read
@@ -349,6 +759,7 @@ api_decisions:
     reason: "Explicit null and parse-error channels with a line number; JSON numbers arrive as float; manifests fix load order identically in editor and export"
     referenced_by:
       - docs/architecture/adr-0007-static-content-data-pipeline-and-stable-type-ids.md
+      - docs/architecture/adr-0010-source-layout-static-typing-and-lint-enforcement.md
     added: 2026-10-28
     revised: ""
   - purpose: content_export
@@ -359,6 +770,327 @@ api_decisions:
     reason: "Non-resource files are dropped from an export unless filtered in; the same boot assertions must pass in editor and export (TR-sanity-026)"
     referenced_by:
       - docs/architecture/adr-0007-static-content-data-pipeline-and-stable-type-ids.md
+      - docs/architecture/adr-0010-source-layout-static-typing-and-lint-enforcement.md
+    added: 2026-10-28
+    revised: ""
+  - purpose: notification_transport
+    status: active           # ADR-0004 is Proposed; KRN-LAT-02 notify cost gates acceptance
+    api: "kernel-owned subscription registry; per-block subscriptions; Callable.call(batch, ctx) on method Callables guarded by is_valid(); subscribe and unsubscribe applied at the next delivery boundary into preallocated arrays; subscriber class bound when the facet is issued"
+    not: "engine signal or Signal.emit for kernel to subscriber notification; connect() on a kernel object; lambda or .bind() handlers; await in a handler; a per-tick copy of the subscriber list; a subscriber choosing its own class"
+    adr: docs/architecture/adr-0004-change-notification-and-dirty-keys.md
+    reason: "The handler must return the completion token (INCOMPLETE per subscriber), delivery has two cadences by class, DEAD_SUBSCRIBER must be counted, and per-block filtering keeps a quiet tick at zero calls; cost does not separate the options (probed 2026-10-28, 155 vs 157 ns per call)"
+    referenced_by:
+      - docs/architecture/adr-0004-change-notification-and-dirty-keys.md
+    added: 2026-10-28
+    revised: ""
+  - purpose: dirty_key_encoding
+    status: active           # ADR-0004 is Proposed
+    api: "int key = (KIND << 32) | id, KIND 1..0x7FFF declared per block (bits 32..46 used, 47..62 reserved), id 0..0xFFFFFFFF; PackedInt64Array buffers filled with NO_KEY = 0x7FFFFFFFFFFFFFFF; ALL is the batch flag is_all, never a key value; buffers allocated at the MAX_DIRTY_KEYS value of the registry freeze, the active collapse cap (KeyBuf.cap) latched at P0 and lowered only; ChangeBatch.has = bsearch bounded by count"
+    not: "String, StringName, float or Variant keys; PackedInt32Array key buffers; a Dictionary used as the dirty set; ALL as a reserved key value; raising MAX_DIRTY_KEYS above the sized capacity at run time; testing count against buf.size() instead of cap"
+    adr: docs/architecture/adr-0004-change-notification-and-dirty-keys.md
+    reason: "Every owner GDD already writes (KIND << 32) | id; 47 bits need 64-bit storage; a native has() scan on a preallocated array dedupes without allocating (probed 2026-10-28: 160-230 ns per mark, 52 us for 256 distinct keys, OBJECT_COUNT flat)"
+    referenced_by:
+      - docs/architecture/adr-0004-change-notification-and-dirty-keys.md
+    added: 2026-10-28
+    revised: ""
+  - purpose: state_hash_function
+    status: active           # ADR-0005 is Proposed; S0-d confirms release-export cost
+    api: "H64 = digest.decode_s64(0) of SHA-256 computed by one reusable HashingContext (allowed only in src/shared/det/hash64.gd and src/kernel/state_hasher.gd for state hashing) over canonical_encode bytes; state_hash folds s64(T) || s64(world_seed) || records(u64 len(id), id, u64 schema_version, u64 len(bytes), s64 block_hash) sorted by block_id; hash_algo 2; no H64 value is reserved (0 is a legal hash); 'no verdict' is a separate bool"
+    not: "var_to_bytes bytes as hash input; a scripted per-byte 64-bit hash (xxHash, FNV); the built-in hash(); an owner-written byte layout; a hash value used as a sentinel"
+    adr: docs/architecture/adr-0005-determinism-keyed-rng-canonical-encoding-and-hashing.md
+    reason: "Native SHA-256 is 0.33 ms for 150 KB (probed 2026-10-28, editor binary); the encoder is injective after normalisation, var_to_bytes is not a documented byte contract, hash() is not stable across versions"
+    referenced_by:
+      - docs/architecture/adr-0005-determinism-keyed-rng-canonical-encoding-and-hashing.md
+    added: 2026-10-28
+    revised: ""
+  - purpose: canonical_encoding
+    status: active           # ADR-0005 is Proposed
+    api: "CanonicalEncoder TLV (src/shared/det/canonical_encoder.gd, the float- and Variant-allow-listed file): one tag byte (NIL 0, BOOL 1, INT 2, FLOAT 3, STRING 4, VECTOR2 5, VECTOR2I 6, ARRAY 7, DICT 8, PACKED 9) then a self-delimiting body, u64 LE counts, DICT keys sorted by value (ints signed ascending, String(key) by code point), StringName encoded as STRING, floats normalised (NaN to 0x7FF8000000000000, -0.0 to +0.0), packed arrays as raw LE bytes; Variants unpacked by typeof plus typed assignment, never 'as'; encode returns a fresh exactly-sized array and never exposes its scratch buffer"
+    not: "dictionary key order by encoded key bytes; sorting StringName directly; owner-side canonical_bytes writers; Object/Callable/RID/Color in a payload; 'as' cast on a Variant"
+    adr: docs/architecture/adr-0005-determinism-keyed-rng-canonical-encoding-and-hashing.md
+    reason: "Equal states must give equal bytes and unequal states unequal bytes; value order is cheap in GDScript and readable in the G4 diff; StringName.sort() is not lexical and not a function of text (probed); a Dictionary merges String and StringName keys of equal text"
+    referenced_by:
+      - docs/architecture/adr-0005-determinism-keyed-rng-canonical-encoding-and-hashing.md
+    added: 2026-10-28
+    revised: ""
+  - purpose: integer_division_convention
+    status: active           # ADR-0005 is Proposed; ADR-0010 owns the lint rules and the single annotated division
+    api: "IntMath (this ADR owns the function list): trunc_div = a / b (the one annotated site), floor_div = trunc_div(a - posmod(a, b), b), ceil_div = floor_div(a + b - 1, b), posmod_i = the posmod builtin, lsr(x, n) for shifts of possibly negative values (1 <= n <= 63), low32; b <= 0 returns 0 with a debug assert; floor family for every quotient meant as a floor, trunc_div only where truncation toward zero is meant"
+    not: "bare / or % or /= or %= on ints outside IntMath; arithmetic >> on a possibly negative value; hexadecimal literals above 0x7FFFFFFFFFFFFFFF; decimal literals above 9223372036854775807 (INT64_MIN is -9223372036854775807 - 1 or 1 << 63); shifting a negative literal; shift counts outside 1..63; reliance on integer wrap outside mix64/fnv64/Ihash/the fold"
+    adr: docs/architecture/adr-0005-determinism-keyed-rng-canonical-encoding-and-hashing.md
+    reason: "GDScript / and % truncate toward zero (probed -7/2 = -3); >> is arithmetic; the integer_division warning covers the binary / only (c /= b loads, probed) and no warning covers % or %=; a hex literal above int64 logs an error and saturates while the script still loads; a decimal literal just above int64 wraps silently; int wraps silently"
+    referenced_by:
+      - docs/architecture/adr-0005-determinism-keyed-rng-canonical-encoding-and-hashing.md
+    added: 2026-10-28
+    revised: ""
+  - purpose: keyed_rng_derivation
+    status: active           # ADR-0005 is Proposed; D.10 set-once (R-17)
+    api: "rng_derive(world_seed, stream, counter) = mix64(world_seed ^ mix64(fnv64(name)) ^ (counter * GOLDEN)) with signed decimal constants; stream key computed once at registration; rng_derive_epoch adds RESTORE_KEY_STRIDE (2^20) * restore_epoch inside RngFacet.draw_epoch only; Ihash.h(variation_seed, k1, k2, k3, salt) for non-RNG variation and for truth-channel visuals that must be reproducible (Trail: world_seed as k3, fixed per-system seed)"
+    not: "randi/randf/RandomNumberGenerator/shuffle/pick_random/hash() in sim; a sequential counter shared across unrelated subjects; owner code computing counter_eff; presentation calling rng_derive or DetRng.derive"
+    adr: docs/architecture/adr-0005-determinism-keyed-rng-canonical-encoding-and-hashing.md
+    reason: "Pure keyed draws replay from (seed, name, counter) with no hidden state; the D.10 goldens reproduce on 4.7.2 and in an independent Python reference; the sim never draws the trail.vis stream, so a world_seed-keyed Ihash reproduces it without opening the sim RNG API to presentation"
+    referenced_by:
+      - docs/architecture/adr-0005-determinism-keyed-rng-canonical-encoding-and-hashing.md
+    added: 2026-10-28
+    revised: ""
+  - purpose: save_payload_encoding
+    status: active           # ADR-0006 is Proposed; SAVE-WRK-1 confirms on a release export
+    api: "var_to_bytes(dictionary) per block, decoded with bytes_to_var only after trailer, block table and payload_sha256 pass, then a bounded type walk (MAX_DECODE_DEPTH 16, MAX_DECODE_NODES provisional 100000) that rejects TYPE_OBJECT, StringName, vectors and non-finite floats; the worker re-decodes and walks what it wrote in VERIFYING"
+    not: "var_to_bytes_with_objects / bytes_to_var_with_objects; Resource, .tres, .res, ResourceLoader or load() for a save; JSON or base64 payloads; trusting the encoder to refuse objects (it encodes an Object as EncodedObjectAsID, probed 2026-10-28); storing canonical bytes"
+    adr: docs/architecture/adr-0006-save-container-generations-versioning-and-restore-epoch.md
+    reason: "Native, exact int64 (probed 2^53+1), one decode path and one fuzz target; stored bytes are not canonical, so state equality is state_hash and hash input is ADR-0005's canonical encoding"
+    referenced_by:
+      - docs/architecture/adr-0006-save-container-generations-versioning-and-restore-epoch.md
+    added: 2026-10-28
+    revised: ""
+  - purpose: hex64_header_decode
+    status: active           # ADR-0006 is Proposed
+    api: "ADR-0005 Hex64.encode / Hex64.decode (src/shared/det/): exactly 16 lowercase [0-9a-f] validated by a loop, then hex_decode + decode_s64; resize(8) before encode_s64; campaign_id is an opaque 32-char lowercase hex String validated by a loop and never converted to an int; header integers must be integral and strictly < 2^53"
+    not: "String.hex_to_int (saturates to INT64_MAX with an engine error, probed 2026-10-28); to_int(); hex_decode on unvalidated text (accepts uppercase, logs on bad input); any 64-bit or hashed value as a JSON number; a second 64-bit codec in src/save/"
+    adr: docs/architecture/adr-0006-save-container-generations-versioning-and-restore-epoch.md
+    reason: "JSON.parse returns float for every number (2^53+1 parses to 2^53, probed); top-bit-set values read as negative GDScript ints by design"
+    referenced_by:
+      - docs/architecture/adr-0006-save-container-generations-versioning-and-restore-epoch.md
+    added: 2026-10-28
+    revised: ""
+  - purpose: save_worker_thread
+    status: active           # ADR-0006 is Proposed; SAVE-WRK-1 confirms
+    api: "one Thread per WriteJob (RefCounted holding the Thread and a Mutex-guarded status record), started with thread.start(WriteWorker.run.bind(...)) whose Error is checked; ownership transfer of handed-over objects (no retained alias, or .duplicate() / .duplicate(true); the worker never mutates, appends to or resizes an argument); only pre-globalised absolute paths; jobs kept in SaveService.jobs until reaped; main thread polls is_alive() and calls wait_to_finish() only on a dead thread; Save & Quit polls under SAVE_QUIT_TIMEOUT_MS on the injected Clock then request_shutdown; abandoned jobs are never killed"
+    not: "WorkerThreadPool; joining a live thread; call_deferred / set_deferred / call_thread_safe; Callable(WriteWorker, \"run\"); passing the worker a Node, block, read view or live-state container; dropping a live job"
+    adr: docs/architecture/adr-0006-save-container-generations-versioning-and-restore-epoch.md
+    reason: "Packed arrays, Arrays and Dictionaries are reference-shared in GDScript (probed 2026-10-28), so immutability is by ownership transfer; Thread.wait_to_finish takes no timeout; a stuck disk must cost a stale file, not a stuck frame; a live sleeping thread did not delay exit past 0.68 s"
+    referenced_by:
+      - docs/architecture/adr-0006-save-container-generations-versioning-and-restore-epoch.md
+    added: 2026-10-28
+    revised: ""
+  - purpose: save_file_swap
+    status: active           # ADR-0006 is Proposed
+    api: "generation swap: write gen_<write_epoch>_<k>.tmp, flush, close, re-open, re-hash, decode + walk; rename the position's old file to .bak; rename .tmp to the now-absent gen_k.sav; re-hash; delete .bak; every store_* and rename result checked; campaign.json uses temp + rename-over as an accepted non-atomic exposure; slot_epoch uses two alternating files overwritten in place (no rename, no remove)"
+    not: "rename-over-existing for generations or the epoch (probably remove-then-rename on Windows, so not atomic, UNVERIFIED); describing rename-over as atomic or 'old file intact' across a crash; overwriting a generation in place; deleting a generation before its successor verified"
+    adr: docs/architecture/adr-0006-save-container-generations-versioning-and-restore-epoch.md
+    reason: "Every partial state is recoverable by T-6; sharing violations leave the target intact; a valid epoch file always exists"
+    referenced_by:
+      - docs/architecture/adr-0006-save-container-generations-versioning-and-restore-epoch.md
+    added: 2026-10-28
+    revised: ""
+  - purpose: campaign_lock
+    status: active           # ADR-0006 is Proposed; Linux/Deck behaviour UNVERIFIED (SAVE-WRK-1 g)
+    api: "hold a FileAccess handle on campaign.lock as a SaveService member for the campaign lifetime (never a local, never reassigned; is_open() asserted per frame poll); a second process renames the file to campaign.lock.probe and back (only when the file exists; missing means not held); failure means held, so open READ_ONLY; Windows-only best effort, deferrable to Alpha"
+    not: "an exclusive FileAccess.open (WRITE-open is not exclusive, probed 2026-10-28); OS.is_process_running liveness checks on a foreign pid"
+    adr: docs/architecture/adr-0006-save-container-generations-versioning-and-restore-epoch.md
+    reason: "Held files cannot be renamed or removed on Windows (probed); the handle dies with the process so no stale lock exists; the probe/startup race is an accepted exposure"
+    referenced_by:
+      - docs/architecture/adr-0006-save-container-generations-versioning-and-restore-epoch.md
+    added: 2026-10-28
+    revised: ""
+  - purpose: save_close_request
+    status: active           # ADR-0006 is Proposed; SAVE-WRK-1 e confirms
+    api: "SaveHost sets get_tree().auto_accept_quit = false and forwards NOTIFICATION_WM_CLOSE_REQUEST / NOTIFICATION_WM_GO_BACK_REQUEST to SaveService.on_close_request(), routed by kernel state (TR-saveload-039), polled under SAVE_QUIT_TIMEOUT_MS, never blocking; request_shutdown is the only place get_tree().quit() is reached"
+    not: "the default auto-accepted quit; get_tree().quit() from Save/Load or the host; a blocking wait for the writer"
+    adr: docs/architecture/adr-0006-save-container-generations-versioning-and-restore-epoch.md
+    reason: "The window X, Alt+F4 and OS shutdown otherwise exit at once and cut a write in flight (probed exit 0.68 s)"
+    referenced_by:
+      - docs/architecture/adr-0006-save-container-generations-versioning-and-restore-epoch.md
+    added: 2026-10-28
+    revised: ""
+  - purpose: renderer_and_windows_driver
+    status: active           # ADR-0008 is Proposed; PROVISIONAL until lighting spike steps 1, 2, 9 and pipeline spike steps 11, 12
+    api: "rendering/renderer/rendering_method = forward_plus; rendering/rendering_device/driver.windows = vulkan and driver.linuxbsd = vulkan, asserted by effective ProjectSettings value in CI and by the live driver name at boot; required keys fallback_to_opengl3 = false and fallback_to_d3d12 = false (fallback_to_vulkan = false if the D3D12 reversal is taken); rendering/driver/threads/thread_model held at default 1 and asserted; a release build treats a method or driver mismatch as a fatal unsupported-GPU screen"
+    not: "Compatibility or Mobile renderer; Direct3D 12 on Windows unless the spike tie-break fires (Vulkan fails a correctness check D3D12 passes, or D3D12 beats Vulkan P99 CPU frame time by >= 10 % on RM-DESKTOP); relying on the engine default driver; silent driver fallback; thread_model 2; a release build that logs a wrong method and continues"
+    adr: docs/architecture/adr-0008-render-pipeline-wiring-and-integer-scaling.md
+    reason: "Forward+ for Light2D and glow parity and the gated HDR contingency (Compatibility ignores use_hdr_2d, probed); RM-DESKTOP and RM-DECK are specified in Vulkan terms; a key-absent project reports vulkan on 4.7.2 (windowed probe) while the reference says D3D12 since 4.6, so only an effective-value assertion is safe; the fallback keys default true and would silently ship a Compatibility look"
+    referenced_by:
+      - docs/architecture/adr-0008-render-pipeline-wiring-and-integer-scaling.md
+    added: 2026-10-28
+    revised: ""
+  - purpose: world_viewport_wiring
+    status: active           # ADR-0008 is Proposed
+    api: "Root Window content_scale_mode DISABLED; world SubViewport (size field_px under pass A, field_px * k_z with size_2d_override = field_px and size_2d_override_stretch = true under pass B; use_hdr_2d = false at MVP; UPDATE_ONCE mandatory on any resize while UPDATE_DISABLED, desired mode tracked in ViewportWiring) inside a SubViewportContainer (stretch false, scale (k_z, k_z) under A, texture_filter NEAREST, material null at MVP); CanvasLayers hold 1, HUD 2 (scale (H, H)), MenuPixel 3, MenuReading 4, Debug 5, distinct indices; ViewportWiring.Mode {A, B} is a constructor argument, pass A built at MVP; all written only by PipelineRoot / ViewportWiring"
+    not: "root canvas_items / integer stretch to obtain k, H or k_z; SubViewportContainer.stretch_shrink as the primary (floors, 3840/7 gives 548); a pass-B viewport sized to the window (an override that does not divide the size gives a non-integer scale); a Control under the world viewport; two CanvasLayers sharing an index; reading render_target_update_mode back as state; Mode as a const read inside the class"
+    adr: docs/architecture/adr-0008-render-pipeline-wiring-and-integer-scaling.md
+    reason: "Probed: root integer stretch is exact only at H = k and the default zoom; CanvasLayer.scale and a stretch=false container scale give exact independent integers; an override that does not divide the size gives 2.0029 not 2; a resize of a disabled viewport blanks it; same-index layers rely on a sibling-order tie-break"
+    referenced_by:
+      - docs/architecture/adr-0008-render-pipeline-wiring-and-integer-scaling.md
+    added: 2026-10-28
+    revised: ""
+  - purpose: world_viewport_sdr_at_mvp
+    status: active           # ADR-0008 is Proposed; HDR decided by lighting spike steps 7 and 8
+    api: "World SubViewport use_hdr_2d = false and root rendering/viewport/hdr_2d = false at MVP, so palette fills read back exact; the HDR path (use_hdr_2d = true) is adopted only by amending ADR-0008 together with a mandatory PipelineRoot-owned resolve material in the container slot (exact linear-to-sRGB plus a clamp or tonemap policy, included by the Filter shader, gated on the effective rendering method, absent under Compatibility); windowed palette read-back test per renderer"
+    not: "use_hdr_2d = true on a viewport drawn through a SubViewportContainer without a resolve (outputs unconverted linear colour: (128,64,200) reads (55,13,147)); a resolve under Compatibility (double-converts to (188,137,229)); use_debanding unless flat fills read back bit-exact with it on"
+    adr: docs/architecture/adr-0008-render-pipeline-wiring-and-integer-scaling.md
+    reason: "Windowed probe 4.7.2 Forward+: an HDR viewport on the SDR root is not sRGB-converted; Compatibility silently ignores use_hdr_2d, so the fix is renderer-specific"
+    referenced_by:
+      - docs/architecture/adr-0008-render-pipeline-wiring-and-integer-scaling.md
+    added: 2026-10-28
+    revised: ""
+  - purpose: zoom_via_logical_size
+    status: active           # ADR-0008 is Proposed
+    api: "Zoom step k_z in [ZOOM_MIN_K, k_base + 2] changes the world viewport logical size and the container scale in one RESCALING frame (a camera cut); ZOOM_MIN_K is a typed row table (k_base, target class, min_k) in RenderTuning loaded by ADR-0007's pipeline"
+    not: "Camera2D.zoom, any tweened or non-integer scale, a runtime-measured ladder, queued zoom presses"
+    adr: docs/architecture/adr-0008-render-pipeline-wiring-and-integer-scaling.md
+    reason: "Camera2D.zoom has no pixel-snap member; Lighting lengths stay in base px independent of k_z (LO-16); a mid-session ladder change would be a player-visible surprise"
+    referenced_by:
+      - docs/architecture/adr-0008-render-pipeline-wiring-and-integer-scaling.md
+    added: 2026-10-28
+    revised: ""
+  - purpose: camera_canvas_transform_write
+    status: active           # ADR-0008 is Proposed; ordering probed on a 4.7.2 dev build, release export UNVERIFIED (spike step 12)
+    api: "CameraSolver.solve runs in the CAMERA_SOLVE stage (ADR-0009 stage 1) of PipelineRoot._process and publishes pose_q, f_q, jolt, parallax offsets and the world_to_hud inputs; the CameraHost RenderingServer.frame_pre_draw handler only writes the world SubViewport canvas_transform and the parallax offsets from the solved values (idempotent, branch-free, safe if skipped); primary variant has no Camera2D in the world tree; fallback if step 12 rejects the hook: the write moves to the last statement of PipelineRoot._process after driver.frame (no new ProcessPriority constant)"
+    not: "solving inside the frame_pre_draw handler (HUD, Avatar presenter and mouse_to_world_aim would read the previous frame's pose); a Camera2D scroll on its own clock; Camera2D.limit_*; a camera parented to a body; any writer other than the pipeline root, ViewportWiring or the camera host; subscribers drawing from their own _process; ProcessPriority.PRESENTATION_LATE"
+    adr: docs/architecture/adr-0008-render-pipeline-wiring-and-integer-scaling.md
+    reason: "Probed: frame_pre_draw fires after every _process and before the draw, so a solve in it is invisible to the HUD stage; a write in the handler or in _process is drawn the same frame"
+    referenced_by:
+      - docs/architecture/adr-0008-render-pipeline-wiring-and-integer-scaling.md
+    added: 2026-10-28
+    revised: ""
+  - purpose: nearest_filter_three_places
+    status: active           # ADR-0008 is Proposed
+    api: "NEAREST set in three places: project default_texture_filter = 0, world SubViewport.canvas_item_default_texture_filter = Viewport.DEFAULT_CANVAS_ITEM_TEXTURE_FILTER_NEAREST (0), SubViewportContainer.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST (1); mipmaps off on drawn sheets; SubViewport.size and TileSet.tile_size (48x48) set explicitly; snap_2d members set on the world viewport in code (they snap in base-pixel space in both passes; nothing relies on them)"
+    not: "inheriting the container filter (probed default 0 = PARENT_NODE), relying on project settings reaching the SubViewport, the 512x512 SubViewport default, a 16x16 tile_size"
+    adr: docs/architecture/adr-0008-render-pipeline-wiring-and-integer-scaling.md
+    reason: "Probed: project default filter is linear (1), SubViewport members default false / 1 independently, two differently numbered enums; any miss blurs the pass-A upscale"
+    referenced_by:
+      - docs/architecture/adr-0008-render-pipeline-wiring-and-integer-scaling.md
+    added: 2026-10-28
+    revised: ""
+  - purpose: canvas_coordinate_exactness
+    status: active           # ADR-0008 is Proposed
+    api: "Presentation coordinates are integer-valued float32, exact for |v| <= 2^24 base px; Vector2i is converted to Vector2 only at Placement.put and at the canvas_transform write; pose_q is Vector2i quantised from the solver's float64 scalars before that conversion; world and body-frame extents stay below 2^24 base px (ADR-0015 owns the bound if body-frame extents could exceed it; the rebase mechanism keeps coordinates inside it); unit test at 2^24 - 1, 2^24 and 2^24 + 1"
+    not: "a non-integer-valued presentation coordinate; silent float32 rounding of a canvas origin"
+    adr: docs/architecture/adr-0008-render-pipeline-wiring-and-integer-scaling.md
+    reason: "Transform2D, Node2D.position and Control.position are float32 in the standard build; closes the float32 canvas exactness reference of ADR-0005 TR-shipbody-038 and ADR-0010"
+    referenced_by:
+      - docs/architecture/adr-0008-render-pipeline-wiring-and-integer-scaling.md
+    added: 2026-10-28
+    revised: ""
+  - purpose: sim_motion_interpolation
+    status: active           # ADR-0009 is Proposed
+    api: "Placement.at(prev: Vector2i, curr: Vector2i, alpha: float) = per-axis floori(prev + (curr - prev) * alpha), written only through Placement.put (Node2D) or Placement.put_control (Control), with Placement.floor_v for derived integer offsets (parallax); alpha from PresentFrame; physics/common/physics_interpolation absent or false (asserted by effective value), SceneTree.physics_interpolation false, presentation roots Node.PHYSICS_INTERPOLATION_MODE_OFF, snap_2d_* flags as a safety net"
+    not: "int(), round, roundi or truncation on a placement path; engine 2D physics interpolation; Tween or AnimationPlayer position/offset/transform tracks on sim-owned nodes; presenter-side previous/current caches; writing position, global_position, offset or transform by assignment, setter or relative-move method outside placement.gd and the named allow-list (viewport_wiring.gd, the camera host's frame_pre_draw handler)"
+    adr: docs/architecture/adr-0009-presentation-subscriber-contract.md
+    reason: "One interpolator on one clock; Node2D has no get_global_transform_interpolated (probed 4.7.2) so an engine-interpolated pose is unreadable; floori is correct for negative coordinates; the kernel's prev/curr pair with snap_baseline survives restore and body transfer"
+    referenced_by:
+      - docs/architecture/adr-0009-presentation-subscriber-contract.md
+    added: 2026-10-28
+    revised: ""
+  - purpose: presentation_render_callback
+    status: active           # ADR-0009 is Proposed; KRN-LAT-02 confirms the host order on a release export
+    api: "PipelineRoot is the single PresentationHost: its one _process at ProcessPriority.PRESENTATION advances present_time, the zoom cooldown and the RESCALING re-derive, then calls PresentationDriver.frame(); presenters register Callables and define no _process; CameraSolver.solve runs in stage CAMERA_SOLVE; RenderingServer.frame_pre_draw only writes canvas_transform and the parallax offsets from the solved pose"
+    not: "per-presenter _process nodes ordered by priority offsets or tree order; a second node doing presentation work at PRESENTATION; PRESENTATION_LATE; reading views or drawing inside a notification handler; presenters or the camera solve running in a frame_pre_draw handler"
+    adr: docs/architecture/adr-0009-presentation-subscriber-contract.md
+    reason: "Order is a contract (HUD AC-HS-89, PF-35) and must be testable headless; the windowed 4.7.2 editor probe shows frame_pre_draw after every node _process, so a solve inside it would lag the HUD by a frame; one host node removes the priority-0 tie; release export, D3D12 and Deck remain UNVERIFIED (ADR-0008 spike steps 11 and 12)"
+    referenced_by:
+      - docs/architecture/adr-0009-presentation-subscriber-contract.md
+    added: 2026-10-28
+    revised: ""
+  - purpose: source_layout
+    status: active           # ADR-0010 is Proposed
+    api: "Layer-first tree: src/shared (L0, imports nothing; scene-tree-free, I/O-free, no global state; IntMath and src/shared/det), src/kernel and src/data and src/save (L1; save is RefCounted only), src/sim/<system> for graph, layout, body, emitter, controller, interaction, suit, assembly, web, attention, horror, sanity (L2), src/presentation/<system> for pipeline, perception, lighting, trail, hud, instruments, chart, audio, controller, projector (L3; shared presentation files in pipeline/), src/game (composition root, KernelHost src/game/kernel_host.gd, SaveHost src/game/save_host.gd, MonotonicClock, SystemWallClock), src/debug and src/observer (dev only, guarded load); published surfaces are kernel/facets (the presentation-visible kernel API list), kernel/ports, sim/<x>/views, sim/<x>/ports; test seams only in src/<module>/testing/"
+    not: "src/sanity/ or any module path outside src/sim/<system>/; PROJECTOR scripts under src/sim/; a scene or Node-derived script in shared, kernel, data, save or sim (SaveHost and KernelHost are Nodes and live in src/game); any script under src/ outside the listed directories; presentation naming a kernel class outside kernel/facets"
+    adr: docs/architecture/adr-0010-source-layout-static-typing-and-lint-enforcement.md
+    reason: "Makes simulation-never-reads-presentation, tree-freedom and warning scope directory tests, and resolves IC-10"
+    referenced_by:
+      - docs/architecture/adr-0010-source-layout-static-typing-and-lint-enforcement.md
+    added: 2026-10-28
+    revised: ""
+  - purpose: presentation_visible_kernel_api
+    status: active           # ADR-0010 is Proposed
+    api: "Presentation, debug and observer code may name only these kernel classes, all under src/kernel/facets/: PresentationClock, SurfaceHandle, ControlHandle, ModuleFacet, BlockRegistrar, ChangeBatch, NotifyContext, CompletionToken, NotifyEvent, DirtyAccumulator, KeyBuf, NotifyFacet, SubscriptionHandle, SubscriberClass, DirtyKey, PresentationFacet, PresentationViews; NotifyFacet is named only by src/game and PresentationFacet; ARCH-08 denies Kernel, KernelHost, TickDriver, SimViews, WriteScope, Command, BlockDescriptor, CallContext, ValidateContext, ApplyContext, HookContext, SnapshotContext; the list is data in tools/lint/config/edges.json"
+    not: "a *Context glob ban (NotifyContext is a legal facets type); KernelStateView (state is PresentationClock.state, the restore marker PresentationClock.load_seq); presentation holding NotifyFacet"
+    adr: docs/architecture/adr-0010-source-layout-static-typing-and-lint-enforcement.md
+    reason: "Presenter handlers must name NotifyContext and CompletionToken (ADR-0003, ADR-0004, ADR-0009); the deny list names only tick-phase types"
+    referenced_by:
+      - docs/architecture/adr-0010-source-layout-static-typing-and-lint-enforcement.md
+    added: 2026-10-28
+    revised: ""
+  - purpose: interface_mechanism
+    status: active           # ADR-0010 is Proposed; LINT-SPIKE-1(a) confirms @abstract survives a release export
+    api: "@abstract base class (port) in the ports/ directory of the lowest layer every consumer may import (single-consumer ports listed as port_files); implementations and hand-written test doubles extend it and restate the full signature including the return type; consumers type setup() parameters as the port; REFLECT-SIG compares each argument's type, class_name and hint_string and the return type, class_name and hint_string"
+    not: "an abstract BlockOwner for owner callables (ADR-0003 section 1 keeps registered Callables); IFoo names; duck-typed objects checked only by has_method; reflective GDScript.new() on a port; gdUnit4 mock() of a port unless LINT-SPIKE-1 proves it works; a plain push_error base class except as the documented fallback"
+    adr: docs/architecture/adr-0010-source-layout-static-typing-and-lint-enforcement.md
+    reason: "Probed 2026-10-28 on 4.7.2: a subclass missing an abstract method and a direct PortBase.new() are parse errors"
+    referenced_by:
+      - docs/architecture/adr-0010-source-layout-static-typing-and-lint-enforcement.md
+    added: 2026-10-28
+    revised: ""
+  - purpose: gdscript_warning_policy
+    status: active           # ADR-0010 is Proposed
+    api: "project.godot [debug] gdscript/warnings/*: every severity 2 except RETURN_VALUE_DISCARDED 0, none at 1; directory_rules {res://: 0, res://addons: 0, res://tests: 0, res://src: 1, res://tools: 1}; CI gate tools/ci/load_all.gd loads every src and tools script and fails on null, can_instantiate() false or a SCRIPT ERROR log line; every @warning_ignore, _start and _restore form in src and tools must be an entry of tools/lint/config/allowlists/warning_ignore.json (PRJ-04), whose only initial entry is integer_division in IntMath.trunc_div; promotion is verified on the editor binary, not on a release export"
+    not: "warnings left at level 1 (invisible in a headless run); a second strictness tier for presentation; directory_rules decision values other than 0 and 1 (engine error); an @warning_ignore of any warning that is not on the allow-list; := in src or tools"
+    adr: docs/architecture/adr-0010-source-layout-static-typing-and-lint-enforcement.md
+    reason: "Probed 2026-10-28: severity is global per warning, directory_rules is include/exclude only, level-1 warnings print nothing headless"
+    referenced_by:
+      - docs/architecture/adr-0010-source-layout-static-typing-and-lint-enforcement.md
+    added: 2026-10-28
+    revised: ""
+  - purpose: integer_division_site
+    status: active           # ADR-0010 is Proposed
+    api: "IntMath in src/shared/int_math.gd (function list and divisor guard owned by ADR-0005); the single @warning_ignore(\"integer_division\") in src/ sits on the return statement of IntMath.trunc_div; the operator tokens /, %, /= and %= are banned outright in shared, kernel and sim outside IntMath (SIM-04); over-range decimal literals are banned (SIM-15)"
+    not: "a bare integer or vector / or % in shared, kernel or sim; min, max, clamp, abs, sign, floor, ceil, round, int(), float() or trig functions in those directories; a second integer_division ignore or a '# nn:' marker site"
+    adr: docs/architecture/adr-0010-source-layout-static-typing-and-lint-enforcement.md
+    reason: "Truncation toward zero and signed % probed on 4.7.2; INTEGER_DIVISION fires only for int / int, so Vector2i division, /= and % need the lexical rule; ADR-0005 section 1.4 and 1.7 adopt the same single site (OQ-L closed)"
+    referenced_by:
+      - docs/architecture/adr-0010-source-layout-static-typing-and-lint-enforcement.md
+    added: 2026-10-28
+    revised: ""
+  - purpose: lint_forbidden_token_list
+    status: active           # ADR-0010 is Proposed
+    api: "One forbidden-token list for time and randomness, owned by ADR-0010 SIM-02: any Time. member; OS.get_ticks_*, OS.get_unix_time*, OS.delay_*; Engine.get_frames_*, get_physics_frames, get_process_frames; get_process_delta_time, get_physics_process_delta_time; randi, randf, randi_range, randf_range, randfn, randomize, seed(, rand_from_seed, RandomNumberGenerator, Crypto, pick_random, shuffle; allow-list exactly kernel_host.gd, the diagnostics timer, monotonic_clock.gd, system_wall_clock.gd; ADR-0001 and ADR-0005 point at it"
+    not: "a second token list in another ADR; render-time timers using Time.* (they use delta, present_time or the injected Clock); wall time entering a block, a hash or an ordering decision"
+    adr: docs/architecture/adr-0010-source-layout-static-typing-and-lint-enforcement.md
+    reason: "Unions ADR-0005 section 1.7 and ADR-0001 entries so the lint has one owner"
+    referenced_by:
+      - docs/architecture/adr-0010-source-layout-static-typing-and-lint-enforcement.md
+    added: 2026-10-28
+    revised: ""
+  - purpose: lint_tool_and_tiers
+    status: active           # ADR-0010 is Proposed
+    api: "tools/lint/lint_main.gd (headless GDScript, extends SceneTree, OS.get_cmdline_user_args(), quit(0|1|2)) with core/ library and tools/lint/<pack>_lint.gd packs; one finding format LINT-<PACK>-<NN> <error|warn> <path>:<line>: <rule>: <message>; exit 0 clean, 1 findings, 2 tool failure (including a stale class map); tiers E1 engine parser, E2 lexical scan, E3 reflection, E4 runtime counters and boot walks; every rule has bad and good fixtures under tests/fixtures/lint/<rule>/ and a '# lint-allow: RULE reason' waiver unless marked no-waiver; run by CLI before gdUnit4 and by per-system wrappers tests/unit/<system>/lint/; MVP minimum rule set required at KRN-LAT-02"
+    not: "gdtoolkit or any Python parser as a blocking gate; a rule stated as 'lint-enforced' without a rule id and tier; a lint that claims to see types, data flow or WriteScope membership; treating lint exit codes as kernel fault domains"
+    adr: docs/architecture/adr-0010-source-layout-static-typing-and-lint-enforcement.md
+    reason: "GDScript has no public AST; reflection and the class map exist only in-engine; ADR-0007 already makes GDScript the CI tool language"
+    referenced_by:
+      - docs/architecture/adr-0010-source-layout-static-typing-and-lint-enforcement.md
+    added: 2026-10-28
+    revised: ""
+  - purpose: allocation_verification
+    status: active           # ADR-0010 is Proposed
+    api: "zero-allocation acceptance wording = HOT-01 token scan of '## @hot' functions (transient allocation) + OBJECT_COUNT unchanged over 600 ticks + MEMORY_STATIC within tolerance over 600 ticks on the debug binary (retained growth) + is_same and is_read_only() on every array accessor + injected WorkCounter counts for algorithmic budgets; accessors return Array[T] or Dictionary[K, V] marked read-only, never a Packed*Array; Kernel.dispose() leaves no reference cycle (weakref back-references, no stored capturing lambdas)"
+    not: "claiming 'zero heap allocations' from OBJECT_COUNT alone (arrays, dictionaries, strings and lambdas add 0); using == for identity; conditional compilation flags for counters; MEMORY_STATIC or MEMORY_STATIC_MAX as a per-window or release-build gate; exposing a Packed*Array from an accessor"
+    adr: docs/architecture/adr-0010-source-layout-static-typing-and-lint-enforcement.md
+    reason: "Probed 2026-10-28: OBJECT_COUNT blind to arrays; MEMORY_STATIC sees retained (1.7 MB) but not transient (208 B for 100k) allocation; packed arrays have no read-only marker"
+    referenced_by:
+      - docs/architecture/adr-0010-source-layout-static-typing-and-lint-enforcement.md
+    added: 2026-10-28
+    revised: ""
+  - purpose: test_framework_pin
+    status: active           # ADR-0010 is Proposed; LINT-SPIKE-1(g) re-observes it
+    api: "gdUnit4 6.2.2 committed under addons/gdUnit4 against Godot 4.7.2; lane H headless runs exactly the project.yaml commands.test string (tests/unit, tests/integration), lane W windowed (tests/render only), lane P nightly release-export benchmark; exit 101 (leaked nodes) counts as failure; render suites never run in lane H and are listed SKIPPED; unlisted engine ERROR or WARNING log lines fail lane H; --import retried up to three times or .godot cached; port doubles are hand-written, not mock()"
+    not: "changing the gdUnit4 version without repeating the spike; a render-tagged check that can pass headless or with a zero draw count; treating 'No test cases found' as a pass"
+    adr: docs/architecture/adr-0010-source-layout-static-typing-and-lint-enforcement.md
+    reason: "6.2.2 observed running on 4.7.2 (current-best-practices.md, 2026-10-17); the gdUnit4 README lists 4.7.1 at most"
+    referenced_by:
+      - docs/architecture/adr-0010-source-layout-static-typing-and-lint-enforcement.md
+    added: 2026-10-28
+    revised: ""
+  - purpose: native_code_policy
+    status: active           # ADR-0010 is Proposed
+    api: "GDScript only through MVP; ladder rung 0 as written, rung 1 tuning, rung 2 call-overhead removal, rung 3 GDExtension only for the Graph propagate phases after Spike S1 / SP-ENG-1 evidence on RM-DECK and an accepted ADR amendment; the port stays a GDScript @abstract class, the extension registers a plain RefCounted-derived native class and a GDScript adapter extends the port and forwards calls; the GDScript implementation stays as golden reference, both run the full suite and replay state_hash in CI; integer-only API, no Node, no threads, built with -fwrapv, Windows and Linux x86_64"
+    not: "C# (the mono editor is not the shipping runtime); GDExtension for presentation or Node-bound code; a native class that is expected to satisfy `is Port`; native code before S1 evidence; selecting the implementation by a global flag read inside the simulation"
+    adr: docs/architecture/adr-0010-source-layout-static-typing-and-lint-enforcement.md
+    reason: "A GDExtension class can extend only a native class, so the adapter is the only way to keep one seam and unchanged call sites"
+    referenced_by:
+      - docs/architecture/adr-0010-source-layout-static-typing-and-lint-enforcement.md
+    added: 2026-10-28
+    revised: ""
+  - purpose: wall_clock_port
+    status: active           # ADR-0010 is Proposed
+    api: "WallClock (@abstract, src/save/wall_clock.gd, now_unix() -> int) is the only wall-time source; implemented by src/game/system_wall_clock.gd (the fourth SIM-02 allow-list entry); injected only into SaveService.setup(); created_unix and SaveInfo time are display metadata and never an ordering, gate or hash input"
+    not: "a Time.* token outside the SIM-02 allow-list; a wall-clock value in a block, hash or ordering decision; the port living in src/kernel; a render-timer exemption"
+    adr: docs/architecture/adr-0010-source-layout-static-typing-and-lint-enforcement.md
+    reason: "ADR-0006 needs a header timestamp; the monotonic Clock port cannot supply it (TD-11)"
+    referenced_by:
+      - docs/architecture/adr-0010-source-layout-static-typing-and-lint-enforcement.md
     added: 2026-10-28
     revised: ""
 
@@ -392,36 +1124,52 @@ forbidden_patterns:
     description: "No autoload, static variable or group lookup exposes the kernel, a block or a read view. The composition root injects the narrowest facet each module needs through setup()."
     why: "Hidden dependencies, shared state between headless tests, and no second kernel for MIRROR or replay comparison."
     adr: docs/architecture/adr-0001-kernel-tick-driver-and-frame-order.md
+    referenced_by:
+      - docs/architecture/adr-0006-save-container-generations-versioning-and-restore-epoch.md
+      - docs/architecture/adr-0009-presentation-subscriber-contract.md
+      - docs/architecture/adr-0010-source-layout-static-typing-and-lint-enforcement.md
     added: 2026-10-28
   - pattern: physics_callback_tick_source
     status: active
     description: "No kernel, simulation or presentation script defines _physics_process or _integrate_forces, and nothing is coupled to physics_jitter_fix or max_physics_steps_per_frame."
     why: "Two accumulators drift; the simulation has no physics body; the kernel GDD rejected it."
     adr: docs/architecture/adr-0001-kernel-tick-driver-and-frame-order.md
+    referenced_by:
+      - docs/architecture/adr-0010-source-layout-static-typing-and-lint-enforcement.md
     added: 2026-10-28
   - pattern: cosmetic_phase_from_tick_counter
     status: active
     description: "Cosmetic animation phase uses present_time, never the tick counter; simulation-computed values use the committed tick."
     why: "Keeps pause, reduced motion and render rate from changing simulation-visible values."
     adr: docs/architecture/adr-0001-kernel-tick-driver-and-frame-order.md
+    referenced_by:
+      - docs/architecture/adr-0009-presentation-subscriber-contract.md
     added: 2026-10-28
   - pattern: await_process_frame_in_sim_or_presentation
     status: active
     description: "src/sim and src/presentation code does not await get_tree().process_frame; waiting is expressed in ticks or present_time."
     why: "That signal fires outside the per-node process_priority ordering (UNVERIFIED), outside the adapter-driver-presentation order."
     adr: docs/architecture/adr-0001-kernel-tick-driver-and-frame-order.md
+    referenced_by:
+      - docs/architecture/adr-0010-source-layout-static-typing-and-lint-enforcement.md
     added: 2026-10-28
   - pattern: command_constructed_outside_kernel
     status: active
     description: "Command.new() is called only inside src/kernel/ (_admit); issuer_peer, origin, seq and submission_id are never read from or written to payload data."
     why: "The stamped fields are the authority boundary; GDScript has no private constructors, so a run-time seal and a CI check enforce it."
     adr: docs/architecture/adr-0002-authority-model-and-command-pipeline.md
+    referenced_by:
+      - docs/architecture/adr-0010-source-layout-static-typing-and-lint-enforcement.md
     added: 2026-10-28
   - pattern: presentation_submit_without_handle
     status: active
     description: "Only the objects named at handle issue hold a SurfaceHandle or ControlHandle; subscribing as INPUT_SURFACE does not confer submit rights; SYSTEM commands are submitted only through ctx.submit_system inside a tick phase."
     why: "Presentation never writes the simulation (kernel H4); co-op must add ingress without changing owners."
     adr: docs/architecture/adr-0002-authority-model-and-command-pipeline.md
+    referenced_by:
+      - docs/architecture/adr-0004-change-notification-and-dirty-keys.md
+      - docs/architecture/adr-0009-presentation-subscriber-contract.md
+      - docs/architecture/adr-0010-source-layout-static-typing-and-lint-enforcement.md
     added: 2026-10-28
   - pattern: peer_id_keyed_persistent_state
     status: active
@@ -434,30 +1182,43 @@ forbidden_patterns:
     description: "No block is written outside a kernel WriteScope (APPLY, PAUSED_APPLY, HOOK, INIT, RESTORE); every mutator begins with scope.open_for; dirty keys are marked only through scope.mark_dirty, never from a property setter."
     why: "Kernel CR-9 write discipline; 4.7 packed-array element writes no longer call setters, so setter-based dirty tracking silently misses changes."
     adr: docs/architecture/adr-0003-state-block-registry-and-owner-contract.md
+    referenced_by:
+      - docs/architecture/adr-0004-change-notification-and-dirty-keys.md
+      - docs/architecture/adr-0005-determinism-keyed-rng-canonical-encoding-and-hashing.md
+      - docs/architecture/adr-0010-source-layout-static-typing-and-lint-enforcement.md
     added: 2026-10-28
   - pattern: void_or_value_returning_owner_callable
     status: active
     description: "No kernel-invoked owner callable is declared -> void or returns a domain value; each is -> CompletionToken with return ctx.complete() as its last statement; outcomes go through ctx."
     why: "An aborted GDScript function returns a default the caller cannot tell from a result; the completion sentinel is the only release-build abort guard."
     adr: docs/architecture/adr-0003-state-block-registry-and-owner-contract.md
+    referenced_by:
+      - docs/architecture/adr-0010-source-layout-static-typing-and-lint-enforcement.md
     added: 2026-10-28
   - pattern: block_as_resource_or_node
     status: active
     description: "State blocks are RefCounted plain data held by their owner, never a Resource or Node; restore copies into the existing block object."
     why: "Save-file trust (a .tres can embed scripts), canonical serialisation, scene-tree independence (H10), and long-lived read-view facades."
     adr: docs/architecture/adr-0003-state-block-registry-and-owner-contract.md
+    referenced_by:
+      - docs/architecture/adr-0006-save-container-generations-versioning-and-restore-epoch.md
+      - docs/architecture/adr-0010-source-layout-static-typing-and-lint-enforcement.md
     added: 2026-10-28
   - pattern: content_directory_scan
     status: active
     description: "Game code never enumerates res://assets/data with DirAccess; every data file is read by an explicit path from a committed, sorted manifest whose case matches the file on disk."
     why: "Listing order and names differ between editor and export; a stray file would load silently; Windows is case-insensitive, the package and the Deck are not."
     adr: docs/architecture/adr-0007-static-content-data-pipeline-and-stable-type-ids.md
+    referenced_by:
+      - docs/architecture/adr-0010-source-layout-static-typing-and-lint-enforcement.md
     added: 2026-10-28
   - pattern: mutable_or_resource_catalog
     status: active
     description: "No content catalog is a Resource, Node, autoload or static singleton, and none hands out a mutable container: arrays are read-only typed Array[T] stored once; packed arrays and per-call duplicate() are never returned."
     why: "Catalogs are shared by validate, P3 and presentation; packed arrays pass by reference and cannot be made read-only; duplicate() allocates (AC-69); many catalogs must coexist for tests and MIRROR."
     adr: docs/architecture/adr-0007-static-content-data-pipeline-and-stable-type-ids.md
+    referenced_by:
+      - docs/architecture/adr-0010-source-layout-static-typing-and-lint-enforcement.md
     added: 2026-10-28
   - pattern: position_derived_persisted_id
     status: active
@@ -470,6 +1231,260 @@ forbidden_patterns:
     description: "Content loaders return Array[BootError] with domain-2 codes from ContentFaults; they never call assert, push_error or quit, and never raise a content boot error from an owner system's own *_faults.gd."
     why: "assert is stripped in release, push_error trips gdUnit4, quit is untestable; one domain keeps src/data free of imports from Core and Feature fault files (ADR-0003 domain 2)."
     adr: docs/architecture/adr-0007-static-content-data-pipeline-and-stable-type-ids.md
+    referenced_by:
+      - docs/architecture/adr-0010-source-layout-static-typing-and-lint-enforcement.md
+    added: 2026-10-28
+  - pattern: kernel_signal_notification
+    status: active           # ADR-0004 is Proposed
+    description: "No engine signal carries kernel-to-subscriber change notification: src/kernel declares no signal for it, nothing connect()s to a kernel object, and subscribers register only through the class-bound NotifyFacet (presentation: PresentationFacet.subscribe). Engine signals remain legal inside presentation."
+    why: "A signal returns nothing (no completion token, no per-subscriber INCOMPLETE), has no class cadence or block filter, and hides dead subscribers; OQ-4 decided on semantics."
+    adr: docs/architecture/adr-0004-change-notification-and-dirty-keys.md
+    added: 2026-10-28
+  - pattern: lambda_or_retained_batch_subscriber
+    status: active           # ADR-0004 is Proposed
+    description: "A subscriber handler is a standard method Callable on a long-lived object with the signature (batch: ChangeBatch, ctx: NotifyContext) -> CompletionToken; never a lambda or .bind() result, and never retains a ChangeBatch, a kernel key buffer or an event object past the handler call (copy into a DirtyAccumulator)."
+    why: "Probed 2026-10-28: lambdas and bind results are custom Callables (a non-capturing lambda reports the script as get_object(), a self-capturing one the creator, and it keeps self alive); the batch is a reused facade re-armed every delivery."
+    adr: docs/architecture/adr-0004-change-notification-and-dirty-keys.md
+    added: 2026-10-28
+  - pattern: await_in_subscriber_handler
+    status: active           # ADR-0004 is Proposed; lint is ADR-0010's PRES rule
+    description: "A subscriber handler, and anything it calls, never awaits; it returns the armed CompletionToken synchronously."
+    why: "A handler containing await returns a coroutine state object, not the token (recorded INCOMPLETE); the continuation resumes after P5 holding a poisoned ChangeBatch and a re-armed NotifyContext."
+    adr: docs/architecture/adr-0004-change-notification-and-dirty-keys.md
+    added: 2026-10-28
+  - pattern: non_integer_or_undeclared_dirty_key
+    status: active           # ADR-0004 is Proposed
+    description: "A dirty key is an int (KIND << 32) | id built from integers, KIND declared in the block's KeySpaceDescriptor; never a String, StringName, float or Variant, never an id above 32 bits, never key 0 or NO_KEY; events carry only ints and never state."
+    why: "No String is built per key per run (Graph LS-20, ADR-LSG-06); NO_KEY is the buffer sentinel; notifications carry no state (CR-10)."
+    adr: docs/architecture/adr-0004-change-notification-and-dirty-keys.md
+    added: 2026-10-28
+  - pattern: perception_out_subscribe_without_access
+    status: active           # ADR-0004 is Proposed
+    description: "A subscription to a block whose read class is PERCEPTION_OUT is refused (SUBSCRIBE_REFUSED) unless the issuing facet carries perception_access = true (only the Perception Filter's PresentationFacet and DIAGNOSTIC facets)."
+    why: "Dirty-key ids leak the timing and identity of perception changes even when the read is blocked."
+    adr: docs/architecture/adr-0004-change-notification-and-dirty-keys.md
+    added: 2026-10-28
+  - pattern: owner_canonical_byte_writer
+    status: active           # ADR-0005 is Proposed
+    description: "Canonical byte writers (encode_s64, encode_u32, encode_double, to_byte_array) and hashing of a var_to_bytes result are forbidden in src/kernel/, src/sim/ and block owners; owners deliver a plain Dictionary/Array/packed-array payload through snapshot(ctx) and the CanonicalEncoder encodes it. They are allowed in src/shared/det/ and tests; src/save/ may use them for container byte layout, slot_epoch.bin and integrity hashes (payload_sha256, trailer) whose output never feeds H64 or state_hash."
+    why: "One injectivity argument, one set of golden vectors, one diff tool; per-owner layouts diverge on float, string and tombstone handling. Container layout and integrity hashing are not state hashing."
+    adr: docs/architecture/adr-0005-determinism-keyed-rng-canonical-encoding-and-hashing.md
+    added: 2026-10-28
+  - pattern: stringname_sort_for_canonical_order
+    status: active           # ADR-0005 is Proposed
+    description: "StringName is never passed to Array.sort() or compared for order in simulation, kernel or hashing code; convert with String(k) first. sort_custom, and any sort over keys that can tie, is banned in sim: pack the key and a stable id into one int and sort the ints."
+    why: "StringName.sort() is not lexical and not a function of text (probed 2026-10-28: [&b,&a,&c,&aa,&B] sorted to [&c,&a,&b,&B,&aa]; intern-order based, may change between runs); the sort is not stable."
+    adr: docs/architecture/adr-0005-determinism-keyed-rng-canonical-encoding-and-hashing.md
+    added: 2026-10-28
+  - pattern: global_rng_or_engine_hash_in_sim
+    status: active           # ADR-0005 is Proposed; the token list itself is ADR-0010 SIM-02 and the DET rules
+    description: "No global RNG token (randi, randf, randf_range, randi_range, randomize, seed(, RandomNumberGenerator, shuffle, pick_random), hash(), get_instance_id() or ResourceUID in src/sim, src/kernel or any presentation file whose output a save or test can observe; randomness is RngFacet streams, variation is Ihash. Iterating a Dictionary without sorted keys is banned."
+    why: "Global generators and engine hashes are not a stable contract and depend on call order; unsorted iteration depends on insertion history."
+    adr: docs/architecture/adr-0005-determinism-keyed-rng-canonical-encoding-and-hashing.md
+    added: 2026-10-28
+  - pattern: restore_epoch_outside_draw_epoch
+    status: active           # ADR-0005 is Proposed
+    description: "restore_epoch (owned by Save/Load, ADR-0006; a read-only non-persisted non-hashed copy sits in kernel.clock) is read only inside RngFacet.draw_epoch; no block stores it, no canonical byte string or hash includes it, and no owner computes rng_counter + RESTORE_KEY_STRIDE * restore_epoch. The Graph's draws and every persisted counter use plain draw."
+    why: "Keeps G4 defined on (save bytes, restore_epoch), makes the threat re-keying impossible to misapply (OQ-6), and keeps quit and death from rerolling physical outcomes."
+    adr: docs/architecture/adr-0005-determinism-keyed-rng-canonical-encoding-and-hashing.md
+    added: 2026-10-28
+  - pattern: presentation_calls_det_rng_derive
+    status: active           # ADR-0005 is Proposed; amends ADR-0009 line 137 (TD-28)
+    description: "Presentation never calls DetRng.derive or any rng_derive form. A truth-channel visual that must be reproducible (the Failure & Trail trail.vis variant, phase and flip) uses Ihash keyed by world_seed and a fixed per-system seed; other presentation variation uses Ihash or Ihash.h32 with a fixed non-zero seed."
+    why: "The simulation never draws the trail.vis stream, so Ihash reproduces it exactly without opening the sim RNG API to presentation; a lint row allowing .vis names was rejected."
+    adr: docs/architecture/adr-0005-determinism-keyed-rng-canonical-encoding-and-hashing.md
+    added: 2026-10-28
+  - pattern: utility_function_names_and_variant_cast
+    status: active           # ADR-0005 is Proposed; enforced by engine SHADOWED_* and UNSAFE_CAST at error (ADR-0010 5.1)
+    description: "No member, parameter or local is named after a GlobalScope or GDScript utility function (seed, hash, min, max, floor, round, sign, range, len, str, type) or after a sibling member or function; no 'as' cast of a Variant (unpack with typeof plus a typed assignment, Array[T].assign(d.keys()), only in the allow-listed canonical_encoder.gd)."
+    why: "SHADOWED_VARIABLE, SHADOWED_VARIABLE_BASE_CLASS, SHADOWED_GLOBAL_IDENTIFIER and UNSAFE_CAST make these load errors under the project warning gate (probed 2026-10-28)."
+    adr: docs/architecture/adr-0005-determinism-keyed-rng-canonical-encoding-and-hashing.md
+    added: 2026-10-28
+  - pattern: object_or_resource_in_save_payload
+    status: active           # ADR-0006 is Proposed
+    description: "No save, snapshot, profile or staged payload contains an Object, Resource, StringName, Vector2i or other vector/rect, Callable, Signal, RID, NodePath or non-finite float; the type walk enforces it at write (VERIFYING) and at load; var_to_bytes_with_objects, bytes_to_var_with_objects and Resource-based saves are never used."
+    why: "var_to_bytes silently encodes an Object as EncodedObjectAsID (probed 2026-10-28), so the encoder is not a defence; a .tres can embed scripts."
+    adr: docs/architecture/adr-0006-save-container-generations-versioning-and-restore-epoch.md
+    added: 2026-10-28
+  - pattern: join_live_save_thread_or_workerthreadpool
+    status: active           # ADR-0006 is Proposed
+    description: "Nothing calls wait_to_finish on a Thread that is still alive, uses WorkerThreadPool for the save writer, drops a live WriteJob, or blocks the main thread on save I/O; Thread is legal only inside src/save/, one per WriteJob."
+    why: "The join takes no timeout; a hung write would hang the frame at DEAD or at quit (CR-1a, exactly one thread boundary); a freed live Thread orphans its worker."
+    adr: docs/architecture/adr-0006-save-container-generations-versioning-and-restore-epoch.md
+    added: 2026-10-28
+  - pattern: alias_after_save_handoff
+    status: active           # ADR-0006 is Proposed
+    description: "After a buffer is handed to the save worker the main thread keeps no alias to it, or hands over .duplicate() / .duplicate(true); neither side appends to, resizes or mutates a handed-over object."
+    why: "Packed arrays, Arrays and Dictionaries are reference-shared across threads in GDScript (probed 2026-10-28); there is no copy-on-write protection."
+    adr: docs/architecture/adr-0006-save-container-generations-versioning-and-restore-epoch.md
+    added: 2026-10-28
+  - pattern: hex_to_int_on_64bit_field
+    status: active           # ADR-0006 is Proposed
+    description: "No 64-bit header or hash field is parsed with String.hex_to_int, int() or to_int(), or read from a JSON number; decode with ADR-0005 Hex64.decode after its exact-width lowercase pre-check."
+    why: "hex_to_int saturates at INT64_MAX with an engine error, hex_decode accepts uppercase, and JSON numbers are floats that corrupt values from 2^53 up (probed 2026-10-28)."
+    adr: docs/architecture/adr-0006-save-container-generations-versioning-and-restore-epoch.md
+    added: 2026-10-28
+  - pattern: restore_epoch_in_hash_or_snapshot
+    status: active           # ADR-0006 is Proposed
+    description: "restore_epoch is never inside a block snapshot payload, a state_hash or block hash input, or a rewritten generation file; request_restore is called only after EPOCH_DURABLE (or the logged SL_EPOCH_NOT_DURABLE failure path); a step-back, demotion, quarantine or lost manifest never lowers it."
+    why: "Keeps every generation immutable after VERIFYING so REBASED baselines hold, and keeps quit and death from being a reroll oracle (R13/R14)."
+    adr: docs/architecture/adr-0006-save-container-generations-versioning-and-restore-epoch.md
+    added: 2026-10-28
+  - pattern: wall_clock_in_save_ordering
+    status: active           # ADR-0006 is Proposed
+    description: "created_unix and the SaveInfo time (WallClock port) are display metadata only; no ordering, gate, hash or sim input reads them; every millisecond timeout reads the injected Clock port."
+    why: "The generation number is the only order; wall time is banned in src/ outside the SIM-02 allow-list (ADR-0010, TD-11)."
+    adr: docs/architecture/adr-0006-save-container-generations-versioning-and-restore-epoch.md
+    added: 2026-10-28
+  - pattern: viewport_geometry_written_outside_pipeline_root
+    status: active           # ADR-0008 is Proposed
+    description: "Only PipelineRoot and ViewportWiring (src/presentation/pipeline/viewport_wiring.gd) write SubViewport.size and size_2d_override*, the world container's position, scale, stretch_shrink and material, any CanvasLayer scale, offset or transform, and HudRoot.size; only the CameraHost frame_pre_draw handler writes the world canvas_transform and the parallax offsets; no subscriber, the Filter, Lighting, HUD or Chart Table writes a viewport or camera property; no code but RenderLayout.derive computes k, H, world_to_hud or the cursor mapping."
+    why: "Two writers or a re-derived projection produce fractional transforms and disagreeing HUD anchors (TR-pxl-003, TR-pxl-019); the pixel-integrity promise needs one source."
+    adr: docs/architecture/adr-0008-render-pipeline-wiring-and-integer-scaling.md
+    added: 2026-10-28
+  - pattern: root_stretch_or_camera2d_zoom_for_scale
+    status: active           # ADR-0008 is Proposed
+    description: "No root canvas_items or integer stretch to obtain k, H or k_z; no Camera2D.zoom, no tweened or non-integer scale, no Control.scale on HUD nodes, no scale animation anywhere in the world or HUD."
+    why: "Root stretch is exact only when H equals k at the default zoom (probed), so it cannot host the Deck's world 2x and HUD 3x; non-integer scale is the failure the pipeline exists to prevent."
+    adr: docs/architecture/adr-0008-render-pipeline-wiring-and-integer-scaling.md
+    added: 2026-10-28
+  - pattern: control_or_reading_text_under_world_or_scaled_layer
+    status: active           # ADR-0008 is Proposed
+    description: "No Control and no node in group hud under the world SubViewport; no reading-face (vector) text under an integer-scaled CanvasLayer or the world container; reading-face text lives on a scale (1,1) layer (MenuReadingLayer, layer 4) with sizes in screen px; HUD text uses bitmap faces or configured oversampling."
+    why: "A Control under the world receives world light and the Filter (HR-1); text under an integer scale is bitmap-stretched and blurs."
+    adr: docs/architecture/adr-0008-render-pipeline-wiring-and-integer-scaling.md
+    added: 2026-10-28
+  - pattern: render_mode_branch_outside_viewport_wiring
+    status: active           # ADR-0008 is Proposed
+    description: "ViewportWiring.Mode (pass A or B) is a constructor argument read only inside ViewportWiring; no other class branches on it, and no rule, formula or dependent may assume which pass is live."
+    why: "A and B must be identical in coordinate space, sort contract, camera contract and HUD (PR-7); a leak of the mode makes the spike result a rewrite."
+    adr: docs/architecture/adr-0008-render-pipeline-wiring-and-integer-scaling.md
+    added: 2026-10-28
+  - pattern: camera_solve_inside_frame_pre_draw
+    status: active           # ADR-0008 is Proposed
+    description: "CameraSolver.solve is called only from the CAMERA_SOLVE stage inside PipelineRoot._process; the frame_pre_draw handler performs the two canvas writes from already-solved values and never solves; no presenter defines its own _process; PipelineRoot is the only PresentationHost."
+    why: "frame_pre_draw fires after every _process (probed), so a solve in it leaves world_to_hud, the beam pose and the aim mapping one frame behind the world (PR-6 C11, TR-pxl-019)."
+    adr: docs/architecture/adr-0008-render-pipeline-wiring-and-integer-scaling.md
+    added: 2026-10-28
+  - pattern: silent_renderer_or_driver_fallback
+    status: active           # ADR-0008 is Proposed
+    description: "project.godot must set rendering_device/fallback_to_opengl3 = false and fallback_to_d3d12 = false while Vulkan is the pin; a release build that finds a wrong effective rendering method or driver shows a fatal unsupported-GPU screen and never logs and continues."
+    why: "A silent degrade to Compatibility ships a different look (use_hdr_2d ignored, Light2D and glow differ, colour path changes) with only a diagnostics-header line."
+    adr: docs/architecture/adr-0008-render-pipeline-wiring-and-integer-scaling.md
+    added: 2026-10-28
+  - pattern: draw_or_read_in_notification_handler
+    status: active           # ADR-0009 is Proposed
+    description: "A subscriber, result or control-outcome handler only marks dirty (DirtyAccumulator.absorb), copies event scalars into a pre-sized ring and ends in return ctx.complete(); it never reads a view, touches a node, allocates, emits a signal, awaits (banned lexically in presenter and subscriber scripts) or submits."
+    why: "Handlers run inside P5 with writes disabled and their cost is added to every other subscriber; views read there may be replaced by a later tick in the same frame; interpolation needs draws on frames with no notification."
+    adr: docs/architecture/adr-0009-presentation-subscriber-contract.md
+    added: 2026-10-28
+  - pattern: presentation_write_outside_allow_list
+    status: active           # ADR-0009 is Proposed
+    description: "Presentation writes only CanvasItem, Material, Light2D, LightOccluder2D, CanvasModulate, particle and audio members; never a block, a command, a physics body, Camera2D, Viewport, SubViewport, SubViewportContainer or CanvasLayer members (Pipeline root and camera host excepted), SceneTree.paused, Engine.time_scale or synthetic input; simulation code never names a presentation or Node-derived class."
+    why: "Presentation never writes the simulation (kernel H4); a corruptible display must be a transform of presentation nodes only."
+    adr: docs/architecture/adr-0009-presentation-subscriber-contract.md
+    added: 2026-10-28
+  - pattern: engine_signal_in_kernel_or_sim
+    status: active           # ADR-0009 is Proposed; consistent with ADR-0004 section 1 (kernel-owned observer registry, no engine signals)
+    description: "No signal is declared or connected in src/kernel or src/sim; engine signals are used only between presentation objects for user-initiated events and never carry simulation values into a simulation module or replace a declared stage-read edge."
+    why: "The simulation is scene-tree free and testable headless; signals are hidden synchronous dependencies that bypass the stage-read check."
+    adr: docs/architecture/adr-0009-presentation-subscriber-contract.md
+    added: 2026-10-28
+  - pattern: unrounded_or_foreign_placement
+    status: active           # ADR-0009 is Proposed
+    description: "Position, global position, offset and transform of a Node2D or world-anchored Control (world layer 0, HUD layer 2) are written only in placement.gd (Placement.put / put_control) and the named allow-list (viewport_wiring.gd; the camera host's frame_pre_draw handler for canvas_transform and Placement.floor_v parallax offsets), by assignment, setter, relative-move method or animation property track; sim-owned positions are never rounded with int(), round or roundi and never animated by Tween or AnimationPlayer; presenters read alpha only from PresentFrame (tick_alpha is read only in presentation_driver.gd). Layer 3 and 4 UI Controls are outside the pattern."
+    why: "One floor function and one alpha per frame keep the camera, the beam chest point and the sprite on the same pixel at every render rate."
+    adr: docs/architecture/adr-0009-presentation-subscriber-contract.md
+    added: 2026-10-28
+  - pattern: presentation_state_fed_back_or_persisted
+    status: active           # ADR-0009 is Proposed
+    description: "A presentation-local scalar is never persisted, hashed, replicated or read by the simulation, never decides visibility of a truth-channel element, never changes what a value settles to, and is reset by on_discontinuity on restore, new game, camera cut and hard_start."
+    why: "Restore must need no special draw path and a truth channel must stay a pure reader of the simulation."
+    adr: docs/architecture/adr-0009-presentation-subscriber-contract.md
+    added: 2026-10-28
+  - pattern: preload_or_load_of_script_in_src
+    status: active           # ADR-0010 is Proposed
+    description: "No preload, load or ResourceLoader of a .gd path anywhere in src/ (reference other systems by class_name); non-script preload only in src/presentation and src/game; the one guarded load() of the dev roots in src/game is the sole exception. No waiver (ARCH-03)."
+    why: "Architecture dependency rule 2: a preload cycle fails to parse and hides coupling; the import-edge matrix is checked on class_name tokens."
+    adr: docs/architecture/adr-0010-source-layout-static-typing-and-lint-enforcement.md
+    added: 2026-10-28
+  - pattern: scene_tree_or_engine_server_in_sim_layers
+    status: active           # ADR-0010 is Proposed
+    description: "No Node-derived class, scene-tree token (Node, SceneTree, get_tree, get_node, $, @onready, @export, _process, _input), engine server (RenderingServer, PhysicsServer2D, AudioServer, DisplayServer) or Input singleton in src/shared, src/kernel, src/data, src/save or src/sim. KernelHost and SaveHost live in src/game. No waiver (SIM-01)."
+    why: "Kernel H10 and architecture Principle 1: the simulation runs headless; gdUnit4 runs inside a tree so tree-freedom is a lint, not an arrangement."
+    adr: docs/architecture/adr-0010-source-layout-static-typing-and-lint-enforcement.md
+    added: 2026-10-28
+  - pattern: float_or_wall_clock_in_sim
+    status: active           # ADR-0010 is Proposed
+    description: "No float declaration, float literal, float-producing member (.length, .normalized, .distance_to, ...), Vector2/Vector3/Transform2D, or any SIM-02 token (Time.*, Engine frame counters, get_process_delta_time, global RNG) in src/shared and src/sim; kernel and data confine floats and clock reads to the float allow-list (presentation_clock.gd, the diagnostics timer, *_read.gd) and the four-entry SIM-02 allow-list; the src/shared float allow-list is exactly det_rng_float.gd and canonical_encoder.gd."
+    why: "Kernel H9, determinism by construction; a float or a wall-clock read that reaches state breaks replay and the state hash."
+    adr: docs/architecture/adr-0010-source-layout-static-typing-and-lint-enforcement.md
+    added: 2026-10-28
+  - pattern: integer_division_outside_int_math
+    status: active           # ADR-0010 is Proposed
+    description: "The operator tokens /, %, /= and %= appear only inside IntMath in shared, kernel and sim; there is exactly one @warning_ignore(\"integer_division\") in src/, on IntMath.trunc_div; min, max, clamp, abs, sign, floor, ceil, round and trig functions are not used on simulation values (use mini, maxi, clampi, absi, signi)."
+    why: "Negative operands truncate toward zero and % keeps the sign (probed on 4.7.2); Vector2i division truncates silently and escapes INTEGER_DIVISION; one tested site removes the class of off-by-one bugs."
+    adr: docs/architecture/adr-0010-source-layout-static-typing-and-lint-enforcement.md
+    added: 2026-10-28
+  - pattern: unlisted_warning_ignore
+    status: active           # ADR-0010 is Proposed
+    description: "Every @warning_ignore, @warning_ignore_start and @warning_ignore_restore in src/ and tools/ is an entry of tools/lint/config/allowlists/warning_ignore.json (path, function, warning id, reason, owner); no waiver (PRJ-04)."
+    why: "The engine raises promoted warnings, so a lint-allow comment cannot cover them; an unlisted ignore reopens the typing hole warnings-as-errors closes."
+    adr: docs/architecture/adr-0010-source-layout-static-typing-and-lint-enforcement.md
+    added: 2026-10-28
+  - pattern: static_var_in_src
+    status: active           # ADR-0010 is Proposed
+    description: "No static var in src/ and no [autoload] section in project.godot. No waiver (ARCH-04)."
+    why: "The only way two kernels or catalogs in one process could silently share state; TR-cmd-052 and TR-itemdb-002 require independent instances."
+    adr: docs/architecture/adr-0010-source-layout-static-typing-and-lint-enforcement.md
+    added: 2026-10-28
+  - pattern: presentation_names_sim_internals_or_kernel_core
+    status: active           # ADR-0010 is Proposed
+    description: "src/presentation, src/debug and src/observer name only sim/<x>/views, sim/<x>/ports and the kernel/facets list; never Kernel, KernelHost, TickDriver, SimViews, WriteScope, Command, BlockDescriptor, CallContext, ValidateContext, ApplyContext, HookContext or SnapshotContext; NotifyFacet only in src/game and PresentationFacet. src/sim never names presentation, game, debug or observer; src/data names shared only. Checked on class_name tokens (ARCH-02, ARCH-08)."
+    why: "Simulation never reads presentation; a facet leak would give presentation write or submit rights (ADR-0003 risk)."
+    adr: docs/architecture/adr-0010-source-layout-static-typing-and-lint-enforcement.md
+    added: 2026-10-28
+  - pattern: foreign_private_member_access
+    status: active           # ADR-0010 is Proposed
+    description: "No access to a ._member through a receiver other than self, and no assignment to a frozen catalog _field outside its own _freeze (ARCH-06); a same-class peer access carries a '# lint-allow: ARCH-06 reason' waiver."
+    why: "GDScript has no private fields; write-once catalog fields and block internals are conventions the lint must hold (ADR-0007 section 1.5)."
+    adr: docs/architecture/adr-0010-source-layout-static-typing-and-lint-enforcement.md
+    added: 2026-10-28
+  - pattern: render_test_in_headless_lane
+    status: active           # ADR-0010 is Proposed
+    description: "Pixel, frame-diff, draw-call and flash checks live only under tests/render/ and run only in the windowed lane; the headless job lists them SKIPPED, and every rendered test asserts a nonzero draw or pixel count through RenderGuard."
+    why: "A headless runner has no rasteriser; a vacuous pass reads as evidence (TR-pxl-037, TR-percfilter-033, TR-debug-045)."
+    adr: docs/architecture/adr-0010-source-layout-static-typing-and-lint-enforcement.md
+    added: 2026-10-28
+  - pattern: await_in_presenter_or_subscriber
+    status: active           # ADR-0010 is Proposed
+    description: "No await in any script registered through PresenterDescriptor or that calls .subscribe( (PRES-06); a subscriber handler returns its CompletionToken synchronously and the kernel's token-identity check records anything else INCOMPLETE."
+    why: "A suspended coroutine returns a state object instead of the armed token; ADR-0004 section 2."
+    adr: docs/architecture/adr-0010-source-layout-static-typing-and-lint-enforcement.md
+    added: 2026-10-28
+  - pattern: thread_or_deferred_call_outside_save
+    status: active           # ADR-0010 is Proposed
+    description: "Thread, WorkerThreadPool, Mutex and Semaphore only under src/save/ (IO-02); call_deferred, set_deferred, call_thread_safe and Engine.get_main_loop absent from src/shared, kernel, sim, data and save (SIM-12); the only cross-thread payload is a PackedByteArray or PackedInt64Array handed over by value and never mutated afterwards."
+    why: "Threads are confined to the one legal user; deferred calls reorder work outside the tick."
+    adr: docs/architecture/adr-0010-source-layout-static-typing-and-lint-enforcement.md
+    added: 2026-10-28
+  - pattern: packed_array_exposed_or_setter_tracked
+    status: active           # ADR-0010 is Proposed
+    description: "Accessors return Array[T] or Dictionary[K, V] marked read-only, never a Packed*Array; a Packed*Array property with a set( accessor is a finding in src/ unless the owner marks dirty explicitly (ARCH-11, CNT-03)."
+    why: "Packed arrays have no read-only marker and pass by reference; 4.7 element writes skip setters."
+    adr: docs/architecture/adr-0010-source-layout-static-typing-and-lint-enforcement.md
+    added: 2026-10-28
+  - pattern: live_reference_in_snapshot_payload
+    status: active
+    description: "A snapshot payload never holds a live reference to a block's own packed array; every packed array in the payload is a duplicate. restore copies out of the payload and keeps no reference into it."
+    why: "The kernel hashes and queues the payload after snapshot returns; a live reference lets a later mutator change a payload already encoded or being written."
+    adr: docs/architecture/adr-0003-state-block-registry-and-owner-contract.md
+    added: 2026-10-28
+  - pattern: restore_epoch_read_outside_rng_facet
+    status: active
+    description: "restore_epoch is read only inside RngFacet.draw_epoch; no other code in src/sim/ reads kernel.clock.restore_epoch, and it is in no block, canonical byte string, state_hash or snapshot header."
+    why: "restore_epoch is non-persisted and non-hashed; any other simulation-visible use breaks bit-exact replay of (save bytes, restore_epoch)."
+    adr: docs/architecture/adr-0003-state-block-registry-and-owner-contract.md
     added: 2026-10-28
 
 # Example:

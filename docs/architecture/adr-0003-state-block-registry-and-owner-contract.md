@@ -10,7 +10,7 @@ Proposed
 2026-10-28 (against `design/gdd/command-simulation-layer.md` CR-2, CR-3, CR-6, CR-8, CR-9, CR-12, CR-14, CR-18, CR-19 and States and Transitions, and `docs/engine-reference/godot/breaking-changes.md` and `current-best-practices.md` 4.5–4.7). No code exists; nothing here has been run on 4.7.2.
 
 ## Decision Makers
-User (delegated all remaining design calls, 2026-10-28); Claude (author). Reviewed by godot-specialist (engine: design idiomatic and implementable; three verification and wording items and twelve minor notes, all applied) and technical-director (TD-ADR: CONCERNS; finding A1 and amendments B1–B11, C and E applied in this revision).
+User (delegated all remaining design calls, 2026-10-28); Claude (author). Reviewed by godot-specialist (engine: design idiomatic and implementable; three verification and wording items and twelve minor notes, all applied) and technical-director (TD-ADR: CONCERNS; finding A1 and amendments B1–B11, C and E applied in this revision). Amended 2026-10-28 by the Foundation-ADR adjudication (TD-07, TD-01, TD-08): see § Amendments.
 
 ## Summary
 About fifteen systems register state blocks, step hooks and command handlers with the kernel, and the kernel must call them, check that they finished, and let them write only inside a kernel-issued scope. This ADR fixes that contract in GDScript: owners are plain objects that register typed `Callable`s (no base class), every kernel call receives a reused context and ends in `return ctx.complete()`, all writes and dirty marks go through a reused `WriteScope` (including during new-game construction), faults are integers with static per-system domains, hooks run from a precomputed schedule, and the kernel state machine is a data table that generates its own test.
@@ -31,9 +31,9 @@ About fifteen systems register state blocks, step hooks and command handlers wit
 | Field | Value |
 |-------|-------|
 | **Depends On** | ADR-0001 (injected facets, frame order; Proposed), ADR-0002 (command-type descriptor meaning, handles; Proposed) |
-| **Enables** | ADR-0004 (notification consumes the dirty keys collected here), ADR-0005 (canonical encode and hash through `snapshot`), ADR-0006 (snapshot and restore callables), ADR-0016 (restore ordering; consumes `restore_after`), ADR-0031 (diagnostics channel descriptor), and every system ADR that registers a block or hook (ADR-0011, 0013, 0015, 0017, 0019, 0020 to 0027) |
+| **Enables** | ADR-0004 (notification consumes the dirty keys collected here), ADR-0005 (canonical encode and hash through `snapshot`), ADR-0006 (snapshot and restore callables), ADR-0009 (the two-face `PresentationViews`, `NotifyContext`), ADR-0016 (restore ordering; consumes `restore_after`), ADR-0031 (diagnostics channel descriptor), and every system ADR that registers a block or hook (ADR-0011, 0013, 0015, 0017, 0019, 0020 to 0027) |
 | **Blocks** | Every story that registers a block, hook or command type. |
-| **Ordering Note** | Scope edge with ADR-0002: ADR-0002 owns command-field meaning, ingress and the control plane; **this ADR states the complete `CommandTypeDescriptor`** and moves `register_command` onto the `BlockRegistrar` (ADR-0002 is amended to match, together with its result-handler signature, finding B5). Scope edge with ADR-0004: the dirty key is an opaque `int` here; ADR-0004 fixes its layout. The kernel GDD needs amendments listed in § GDD sync (epoch token; `FAULTED` re-entry qualifier; long-lived read views; fault-code table). |
+| **Ordering Note** | Scope edge with ADR-0002: ADR-0002 owns command-field meaning, ingress and the control plane; **this ADR states the complete `CommandTypeDescriptor`** and moves `register_command` onto the `BlockRegistrar` (ADR-0002 is amended to match, together with its result-handler signature, finding B5). Scope edge with ADR-0004: the dirty key is an opaque `int` here; ADR-0004 fixes its layout. The kernel GDD needs amendments listed in § GDD sync (epoch token; `FAULTED` re-entry qualifier; long-lived read views; fault-code table). **Registry amendments requested by ADR-0004, ADR-0005, ADR-0006 and ADR-0009 are applied here as one batch (§ Amendments, TD-07):** `register_key_space`, `emit_event`, `has_opened`, five violation names, the `touch_serial` and hash-cache registries, the `kernel.clock` view, `ModuleFacet.rng`, the kernel-internal hash `SnapshotContext`, the two-face `PresentationViews` and the host-service registrar facet. **ADR-0003 owns `kernel.clock`** (it is on the H1 allow-list; ADR-0001 does not define it); ADR-0005's attribution of the clock view to ADR-0001 is corrected in ADR-0005. `NotifyContext` is placed in `src/kernel/facets/` (ADR-0010, TD-01). |
 
 ## Context
 
@@ -68,11 +68,13 @@ The kernel GDD defines the owner contract in prose: eleven kernel-invoked callab
 
 An owner is any object (normally a `RefCounted`) that, during `BOOTING`, passes the kernel descriptors containing `Callable`s bound to its methods. There is no `BlockOwner` base class and nothing is overridden. Each owner method the kernel calls is declared `-> CompletionToken` and its last statement is `return ctx.complete()`.
 
-The 4.7 typed-return override rule applies only to overrides, so it does not touch owner methods. The context classes of § 3 add methods to their base and **override none**; a Guideline forbids overriding a context method, because an override of `complete() -> CompletionToken` would fall under the rule. This also avoids `@abstract` (documented since 4.5, not needed) and lets tests register a plain stub. That GDScript rejects at parse time a typed function with a path that has no `return` is UNVERIFIED (Verification 1); whatever it shows, the token check (§ 3) is what catches a function that aborts at run time. At registration the kernel checks every `Callable` with `is_valid()` and, where available, `get_argument_count()` against the expected arity, so a wrong signature fails boot naming the registration rather than appearing later as `INCOMPLETE`.
+The 4.7 typed-return override rule applies only to overrides, so it does not touch owner methods. The context classes of § 3 add methods to their base and **override none**; a Guideline forbids overriding a context method, because an override of `complete() -> CompletionToken` would fall under the rule. This also avoids `@abstract` (documented since 4.5, not needed) and lets tests register a plain stub. **Every override of a typed-return owner callable returns on all paths** *(Amended 2026-10-28, TD-07)*: a stub or subclass that overrides an owner callable inherits `-> CompletionToken` (4.7 rule) and must end every branch in `return ctx.complete()`; an early `return` without it is an `INCOMPLETE`, and a path that falls off the end is a parse error or an `INCOMPLETE` by Verification 1. That GDScript rejects at parse time a typed function with a path that has no `return` is UNVERIFIED (Verification 1); whatever it shows, the token check (§ 3) is what catches a function that aborts at run time. At registration the kernel checks every `Callable` with `is_valid()` and, where available, `get_argument_count()` against the expected arity, so a wrong signature fails boot naming the registration rather than appearing later as `INCOMPLETE`.
 
 ### 2. A block is a `RefCounted` held by its owner; the kernel holds descriptors
 
 The kernel never stores or inspects block data. It stores descriptors and calls the owner's callables. The owner's block object is a `RefCounted` with typed fields (packed arrays for struct-of-arrays state), never a `Resource` or `Node`. **`restore` copies into the existing block object and never replaces it**, because read views are long-lived facades over that object (§ 7); a test restores a block and checks its facade sees the restored values.
+
+**Snapshot payload contract** *(Amended 2026-10-28, TD-07; ADR-0005 § 5.3, ADR-0006)*: every packed array an owner puts in a `snapshot` payload is a **duplicate** (`PackedXArray.duplicate()` or a freshly built array), never a live reference to the block's own array. The kernel reads the payload after `snapshot` returns, hashes it outside SAVING (ADR-0005) and may hold it while the owner keeps writing; a live reference would let a later mutator change a payload already encoded or queued for the writer. `restore` likewise copies out of `data` and keeps no reference into it. A test mutates the block after `snapshot` and checks the payload unchanged.
 
 Every field is mandatory unless marked optional; a missing field fails boot naming the descriptor (CR-6: no silent defaults). GDScript reserves `class` as a keyword, so the GDD's `class` field is `block_class` in code.
 
@@ -118,7 +120,7 @@ Every field is mandatory unless marked optional; a missing field fails boot nami
 
 ### 3. Contexts: reused, re-armed per call, non-re-entrant
 
-Every kernel-invoked callable receives a context as its last argument and reports only through it. The kernel allocates **one context object per kind at boot and re-arms it before every call**; nothing is allocated per call.
+Every kernel-invoked callable receives a context as its last argument and reports only through it. The kernel allocates **one context object per kind at boot and re-arms it before every call**; nothing is allocated per call. *(Amended 2026-10-28, TD-07; ADR-0005 § 5.3.)* **One further kernel-internal `SnapshotContext`** serves hash reads (`block_hash`, `state_hash`) made **outside `SAVING`**, so a hash read never re-arms the context a save capture or a restore is using. It carries its own re-entrancy flag: a `block_hash` call made from inside a `snapshot` call (which would arm the same context twice) is a `CONTEXT_REENTRY` violation and returns a not-ok result, never a hash. It is a kernel member under H1 `kernel_state` and is never exposed to owners.
 
 ```gdscript
 class_name CallContext extends RefCounted          # base; subclasses add methods and override none
@@ -143,9 +145,12 @@ class_name HookContext extends TickContext          # step hooks; adds hook_id
 class_name SnapshotContext extends CallContext      # snapshot, restore, post_restore, default_state, init_world,
                                                     # commit_baseline, snap_baseline, binding_source, read_view, empty_view
 class_name NotifyContext extends CallContext        # subscriber, result and control-outcome handlers (a fault is counted, never fatal)
+                                                    # file: src/kernel/facets/notify_context.gd (ADR-0010 § 1.1, TD-01): a presenter handler must name it
 ```
 
 `submit_system` exists only on `TickContext`, so `validate` cannot submit (it receives a `ValidateContext`) and no "refused call" path is needed.
+
+**Placement of `NotifyContext`** *(Amended 2026-10-28, TD-01)*: the subscriber, result and control-outcome handler context lives in `src/kernel/facets/` with `CompletionToken`, `ChangeBatch`, `NotifyEvent` and the other types a presenter must name (ADR-0010 § 1.1, ADR-0004 placement table), because a presenter's handler signature `(batch: ChangeBatch, ctx: NotifyContext) -> CompletionToken` has to compile in `src/presentation/`. The tick-phase contexts (`CallContext`, `ValidateContext`, `ApplyContext`, `HookContext`, `SnapshotContext`) stay in kernel core and are on ADR-0010's presentation deny list; there is no `*Context` glob.
 
 **Re-arm list.** Before each call the kernel, in one step: increments `epoch`; sets `completed = false`, `_faulted = false`, the outcome (`ok`/`reject`) to none, the `put` payload to none and the fault detail to `EMPTY_DETAIL`; links the context to the call's scope (or to none); and sets a re-entrancy flag. After the call it clears the flag. A call made while the flag is set is a `CONTEXT_REENTRY` violation; the MVP needs one context per kind, because a hook's `submit_system` queues and does not call another kernel callable synchronously.
 
@@ -159,7 +164,9 @@ enum Phase { CLOSED, APPLY, HOOK, PAUSED_APPLY, INIT, RESTORE }
 var phase: Phase
 var faulted: bool                                   # set by fault(); closes the scope (fail-closed)
 func open_for(block_id: StringName) -> bool         # see the table below
-func mark_dirty(block_id: StringName, key: int) -> void   # key is an opaque int; its layout is ADR-0004's
+func mark_dirty(block_id: StringName, key: int) -> void   # key layout: ADR-0004 § 3
+func emit_event(block_id: StringName, kind: int, a0: int = 0, a1: int = 0, a2: int = 0, a3: int = 0, a4: int = 0, a5: int = 0) -> void   # P5 event record; ADR-0004 § 5
+func has_opened(block_index: int) -> bool           # true from the first granted open_for of that block until the scope is re-armed (ADR-0005 § 5.3)
 func fault(code: int, detail: Dictionary = EMPTY_DETAIL) -> void
 ```
 
@@ -176,7 +183,7 @@ The kernel allocates the scope objects once and re-arms them (phase, writable se
 
 `init_world` therefore receives the scope: `init_world(world_seed: int, scope: WriteScope, ctx: SnapshotContext)`, and Web Map's `init_world` passes it to Layout `build_section`, Emitter `instantiate_section_emitters` and Interaction `sync_section` (architecture § Initialisation order step 6). **Dirty keys marked in `INIT` and `RESTORE` scopes are discarded**: on the `LOADING → RUNNING` transition the kernel delivers one `ALL` batch per block instead (the GDD's "one ALL then silence"), which is what the PROJECTOR needs after a new game or a load; ADR-0004 defines that delivery.
 
-`open_for` returning false writes nothing, counts `WRITE_OUTSIDE_SCOPE` and reports a violation (CR-9) — except when the scope is closed because of an earlier fault, which is not counted again. Dirty keys are marked **only** through `scope.mark_dirty` inside the mutator that changed the data, never from a setter. ADR-0004 adds a debug-build check that catches a missed mark (hash each block before and after a tick and compare with whether it was marked). `writes_blocks` is enforced in `PAUSED_APPLY` as the GDD requires; under `STRICT_DEBUG` it is also checked during `RUNNING`, where a write to a block outside `writes_blocks` is a `WRITES_BLOCKS_UNDECLARED` violation, to catch undeclared cross-block writes early.
+`open_for` returning false writes nothing, counts `WRITE_OUTSIDE_SCOPE` and reports a violation (CR-9) — except when the scope is closed because of an earlier fault, which is not counted again. Dirty keys are marked **only** through `scope.mark_dirty` inside the mutator that changed the data, never from a setter. The debug-build check that catches a missed mark is ADR-0004 § 7 (it compares a block's hash with the kernel's `touch_serial` and with whether any key was marked, for blocks that do not declare `quiet_writes_allowed`); this ADR no longer states the rule. `emit_event` follows the same scope rules as `mark_dirty`: it needs an open block and its records are discarded in `INIT`, `RESTORE` and `CLOSED` (ADR-0004 § 5). `has_opened` is a pure read used by the kernel's hash path (ADR-0005 § 5.3): it never opens anything and never counts a violation. `writes_blocks` is enforced in `PAUSED_APPLY` as the GDD requires; under `STRICT_DEBUG` it is also checked during `RUNNING`, where a write to a block outside `writes_blocks` is a `WRITES_BLOCKS_UNDECLARED` violation, to catch undeclared cross-block writes early.
 
 ### 5. Mutators: status returns, fail-closed, no rollback
 
@@ -221,7 +228,7 @@ A fault code is a positive `int`: `(DOMAIN_ID << 16) | local`, `local` in `1..65
 | 7 | `CAPTURE_ERROR` | a `SAVING` capture failed |
 | 8 | `DUPLICATE_ID` | boot: duplicate block, command, hook, domain or channel id |
 | 9 | `HOOK_CYCLE` | boot: a cycle in hook `after` edges |
-| 10 | `UNKNOWN_DEPENDENCY` | boot: unknown `after` hook, `restore_after` block or `writes_blocks` block |
+| 10 | `UNKNOWN_DEPENDENCY` | boot: unknown `after` hook, `restore_after` block or `writes_blocks` block, or a subscription to an unknown block (ADR-0004 § 2) |
 | 11 | `ACTOR_SOURCE_INVALID` | boot: a command type's `actor_source` rule fails (CR-6) |
 | 12 | `COALESCE_DUAL_ORIGIN` | boot: a coalescing type allows both origins |
 | 13 | `DESCRIPTOR_FIELD_MISSING` | boot: a mandatory descriptor field is absent |
@@ -232,7 +239,7 @@ A fault code is a positive `int`: `(DOMAIN_ID << 16) | local`, `local` in `1..65
 
 A P3 above `STEP_BUDGET_MS` is a **diagnostic** (it logs the slowest hooks), not a fault.
 
-**Violations** are counted diagnostics, not fault codes, and never change kernel state unless the GDD says so. Closed set: `WRITE_OUTSIDE_SCOPE`, `PERCEPTION_READ_BLOCKED`, `SIM_WRITE_TRIPWIRE`, `CTX_DOUBLE_OUTCOME`, `CONTEXT_REENTRY`, `SUBMIT_DURING_SAVING`, `HANDLE_UNREGISTERED`, `RESULT_HANDLER_DEAD`, `DEAD_SUBSCRIBER`, `TIME_SCALE_NON_UNIT`, `KNOB_REFUSED`, `BINDING_DRIFT`, `WRITES_BLOCKS_UNDECLARED`, `STALE_EDGE_UNDECLARED` (a boot warning). Under `STRICT_DEBUG` each also calls `violation_handler(code, detail)`.
+**Violations** are counted diagnostics, not fault codes, and never change kernel state unless the GDD says so. Closed set: `WRITE_OUTSIDE_SCOPE`, `PERCEPTION_READ_BLOCKED`, `SIM_WRITE_TRIPWIRE`, `CTX_DOUBLE_OUTCOME`, `CONTEXT_REENTRY`, `SUBMIT_DURING_SAVING`, `HANDLE_UNREGISTERED`, `RESULT_HANDLER_DEAD`, `DEAD_SUBSCRIBER`, `TIME_SCALE_NON_UNIT`, `KNOB_REFUSED`, `BINDING_DRIFT`, `WRITES_BLOCKS_UNDECLARED`, `STALE_EDGE_UNDECLARED` (a boot warning), and, added 2026-10-28 and classified as ADR-0004 §§ 2, 3, 5 and 7 define them, `SUBSCRIBE_REFUSED` (a subscribe-time refusal, including the `PERCEPTION_OUT` rule of check 6), `DIRTY_KEY_INVALID`, `DIRTY_KEY_KIND_UNDECLARED`, `EVENT_OVERFLOW` and `MISSED_DIRTY_MARK` (dev, playtest and test builds only). Under `STRICT_DEBUG` each also calls `violation_handler(code, detail)`.
 
 Each owner's local code list is written with its system ADR (ADR-0011 onward); its domain id is fixed now.
 
@@ -240,7 +247,9 @@ Each owner's local code list is written with its system ADR (ADR-0011 onward); i
 
 The kernel never hands out a live container. **Each owner's `read_view(ctx)` is called once, at the registry freeze**, and delivers a long-lived getter-only facade over its block object (typed scalar getters and caller-owned-buffer queries, so hot paths allocate nothing). Each owner also supplies **`empty_view(ctx)`**: a facade of the same class whose getters return neutral values (zero, false, empty) and whose `is_empty()` is true. This replaces the GDD's per-request `read_view` (§ GDD sync); it is valid only because `restore` copies into the existing block object (§ 2).
 
-`ReadViews` has two faces, issued as facets by the composition root (ADR-0001): **`SimViews`** (to `validate`, `apply` and hooks) and **`PresentationViews`** (to subscribers). Both have `get(block_id: StringName) -> Object`, returning the owner's facade, which the caller casts to the owner's view class. For a `PERCEPTION_OUT` block, `SimViews.get` returns that block's typed `empty_view`, increments `PERCEPTION_READ_BLOCKED` and reports a violation; `PresentationViews` returns the real facade. A fault in `read_view` or `empty_view` at the freeze is recorded and leaves the empty view in place; it never faults the kernel (CR-19(a)). Under `STRICT_DEBUG` the `SIM_WRITE_TRIPWIRE` hashes SIM blocks per dispatch batch and around P5 (`TRIPWIRE_BUDGET_MS` 1.0 ms, full sweep every `TRIPWIRE_SWEEP_TICKS` 60), which catches a facade that leaks a mutable reference.
+`ReadViews` has two faces, issued as facets by the composition root (ADR-0001): **`SimViews`** (to `validate`, `apply` and hooks) and **`PresentationViews`** (to subscribers). Both have `get(block_id: StringName) -> Object`, returning the owner's facade, which the caller casts to the owner's view class. For a `PERCEPTION_OUT` block, `SimViews.get` returns that block's typed `empty_view`, increments `PERCEPTION_READ_BLOCKED` and reports a violation; `PresentationViews` returns the real facade (superseded for `PERCEPTION_OUT` by the two-face rule below). **Two faces of `PresentationViews`** *(Amended 2026-10-28, TD-07 item 10 and TD-08; ADR-0004 § 2 check 6, ADR-0009 § 1)*: `PresentationViews` carries a `perception_access: bool` that the composition root sets **once, at issue**, and presentation code cannot change. The **default face** (`perception_access == false`, every facet except the two below) answers `get(block_id)` for a `PERCEPTION_OUT` block with that block's typed `empty_view`, increments `PERCEPTION_READ_BLOCKED` and reports a violation, exactly as `SimViews` does. The **perception face** (`perception_access == true`) returns the real facade. ADR-0009 § 1 fixes which facets carry the flag: the Perception Filter's `PresentationFacet` and the `DIAGNOSTIC` facets only. The same flag gates the subscription: ADR-0004 § 2 check 6 refuses, at subscribe time and in the kernel, a subscription to a `PERCEPTION_OUT` block with `SUBSCRIBE_REFUSED` unless the issuing facet carries `perception_access = true`. A `SIM`-class block is readable through either face. ADR-0024 owns only the Filter's query surface, not this rule.
+
+A fault in `read_view` or `empty_view` at the freeze is recorded and leaves the empty view in place; it never faults the kernel (CR-19(a)). Under `STRICT_DEBUG` the `SIM_WRITE_TRIPWIRE` hashes SIM blocks per dispatch batch and around P5 (`TRIPWIRE_BUDGET_MS` 1.0 ms, full sweep every `TRIPWIRE_SWEEP_TICKS` 60), which catches a facade that leaks a mutable reference.
 
 ### 8. Hooks: validated, sorted once, run from a precomputed schedule
 
@@ -269,6 +278,10 @@ The control-plane test KRN-STATE-01 is **generated from this table**: every row,
 
 Everything this ADR adds to the kernel lives under the GDD's allow-listed groups, so the H1 lint stays a fixed list: **registries** (descriptors, the compiled schedule, the fault-domain table, `registry_valid`, the transition table); **kernel_state** (current state, the `PRIOR` return state, the reused contexts, tokens and scope objects); **diagnostics** (violation counters, boot warnings, the fault log).
 
+*(Amended 2026-10-28, TD-07.)* The H1 **registries** group also holds, by name: `touch_serial` (a `PackedInt64Array` of `MAX_BLOCKS`, written by every granted `open_for`; ADR-0004 § 7), the **hash-cache arrays** (`{hash, enc_len, serial}` as three parallel `PackedInt64Array`s sized once at the freeze; ADR-0005 §§ 5.1, 5.2), the per-block key-space table (ADR-0004 § 3) and the subscription tables (ADR-0004 § 2). **kernel_state** also holds the kernel-internal hash `SnapshotContext` of § 3 and the `kernel.clock` below. The H1 lint's fixed list is extended by exactly these names.
+
+**The `kernel.clock` view.** `kernel.clock` is an H1 member owned by this ADR. It carries `(T, world_seed, restore_epoch)` and is exposed to modules and the composition root only as a read-only view (getters `tick()`, `world_seed()`, `restore_epoch()`; no setters). `T` advances only in the tick driver's boundary. **`world_seed`** is set before `INIT` (by `request_new_game`, or from the payload by `request_restore`) and does not change until the next new game or restore. **`restore_epoch`** is a `u32`, **read-only to owners, non-persisted and non-hashed**: it is in no state block, no canonical byte string, no `state_hash` and no snapshot header (ADR-0005 § 2.4). `request_restore` and `request_new_game` set it **before** the first `restore()` or `init_world`; Save/Load supplies the value and persists it in `slot_epoch.bin` (ADR-0006), but the kernel's copy is the only one the simulation can see. It is read only inside `RngFacet.draw_epoch` (ADR-0005 § 2.3); a lint forbids any other read in `src/sim/`.
+
 ### Architecture Diagram
 
 ```
@@ -276,8 +289,10 @@ BOOTING (ModuleFacet.registrar, one-way; nulled at the freeze)
   owner.setup(facet) ──► registrar.register_block(BlockDescriptor{... callables})
                          registrar.register_command(CommandTypeDescriptor)
                          registrar.register_hook(HookDescriptor)
+                         registrar.register_key_space(KeySpaceDescriptor)       (ADR-0004 § 3)
                          registrar.register_fault_domain(XFaults.DOMAIN_ID, owner, XFaults.NAMES)
                          registrar.register_diagnostics_channel(DiagnosticsChannelDescriptor)
+  (host service, e.g. Save/Load: HostRegistrarFacet.register_fault_domain only)
   first request_new_game / request_restore boundary:
      validate · check Callables · Kahn sort · stale-edge warnings · compile schedule[C] · read_view + empty_view once
      → registry_valid = true → LOADING     (failure: boot_validation_failed → FAULTED, registry_valid = false)
@@ -299,6 +314,8 @@ class_name ModuleFacet extends RefCounted            # what a simulation module 
 var registrar: BlockRegistrar                         # BOOTING only; set to null at the freeze
 var views: SimViews                                   # kept after the freeze
 var fault_domain: int                                 # the module's static DOMAIN_ID
+var rng: RngFacet                                     # null when the module declares no RNG streams (ADR-0005 § 2.3)
+var clock: ClockView                                  # read-only (T, world_seed, restore_epoch); see § 10
 # Other owners' published mutator objects are wired by the composition root into the module's
 # own setup() arguments (for example Assembly receives Graph, Layout, Body and Interaction).
 
@@ -308,6 +325,19 @@ func register_command(desc: CommandTypeDescriptor) -> void
 func register_hook(desc: HookDescriptor) -> void
 func register_fault_domain(domain_id: int, owner_name: StringName, names: Array[StringName]) -> void
 func register_diagnostics_channel(desc: DiagnosticsChannelDescriptor) -> void
+func register_key_space(desc: KeySpaceDescriptor) -> void   # BOOTING only; descriptor and checks are ADR-0004 § 3
+
+class_name HostRegistrarFacet extends RefCounted      # issued to a host service that owns no block (Save/Load, ADR-0006)
+func register_fault_domain(domain_id: int, owner_name: StringName, names: Array[StringName]) -> void   # BOOTING only; nothing else
+
+class_name ClockView extends RefCounted               # read-only view of kernel.clock (§ 10)
+func tick() -> int
+func world_seed() -> int
+func restore_epoch() -> int                           # u32; read only inside RngFacet.draw_epoch
+
+class_name PresentationViews extends RefCounted       # § 7; src/kernel/facets/presentation_views.gd
+var perception_access: bool                           # set once by the composition root at issue
+func get(block_id: StringName) -> Object              # PERCEPTION_OUT: empty_view + PERCEPTION_READ_BLOCKED unless perception_access
 
 class_name CompletionToken extends RefCounted
 var epoch: int
@@ -325,6 +355,8 @@ const REFUSED: int = 1                                 # scope not open: violati
 #   default_state(ctx) / read_view(ctx) / empty_view(ctx) / commit_baseline(ctx) /
 #   snap_baseline(key: int, ctx) / binding_source(ctx)                            -> CompletionToken
 #   result and control-outcome handlers (ADR-0002): (record, ctx: NotifyContext) -> CompletionToken
+#   subscriber handlers (ADR-0004 § 2): (batch: ChangeBatch, ctx: NotifyContext) -> CompletionToken
+#   NotifyContext is declared in src/kernel/facets/notify_context.gd (ADR-0010 § 1.1)
 
 class_name GraphFaults extends RefCounted              # one per domain, own file; never instantiated
 const DOMAIN_ID: int = 3
@@ -350,6 +382,10 @@ Each `class_name` above is its own file; the block shows them together for readi
 - **Must** drop references at teardown: in `SHUTTING_DOWN` the kernel clears every descriptor and `Callable`, owners drop their facets and the composition root clears its owner list last; a teardown test checks `Performance.OBJECT_COUNT` returns to its pre-boot value. The test starts from "callables do not own": an owner freed early shows up as an invalid callable at boot, not as a leak.
 - **Must never** use `await` in a kernel-invoked owner callable or anything it calls (a lint over `src/sim/` and `src/kernel/`): a suspended call returns a coroutine state (caught as `INCOMPLETE`) but could later resume against a re-armed context and scope and write through them. *(Amended 2026-10-28 — architecture review.)*
 - **Must never** let an owner callable subscribe to notifications (CR-10).
+- **Must** put only duplicated packed arrays in a `snapshot` payload; **must never** return a live reference to a block's own array *(2026-10-28, TD-07)*.
+- **Must** end every branch of an override of a typed-return owner callable in `return ctx.complete()` *(2026-10-28, TD-07)*.
+- **Must** register a `KeySpaceDescriptor` with every block (ADR-0004 § 3) and emit P5 events only through `scope.emit_event`; **must never** read `restore_epoch` outside `RngFacet.draw_epoch` *(2026-10-28, TD-07)*.
+- **Must** give a host service that owns no block only the `HostRegistrarFacet`; **must never** hand it a full `BlockRegistrar` *(2026-10-28, TD-07)*.
 
 ## Alternatives Considered
 
@@ -460,7 +496,8 @@ No code exists. Document changes: amend the kernel GDD (§ GDD sync); amend ADR-
 - Registration after the freeze, a duplicate id, an unknown dependency, a cycle, a missing descriptor field, an invalid `Callable`, `divisor < 1`, an offset outside `0..divisor-1` and `C > 3,600` each fail boot naming the registration, in debug and release, with the kernel fault code of § 6.
 - The compiled schedule for the MVP hook set equals the table in `docs/architecture/architecture.md` § Data Flow 1, `C` = 60, and a 600-tick run calls each hook exactly when `T mod divisor == offset`, in total order.
 - KRN-STATE-01, generated from the table, reaches every tabled target (including `PRIOR`), ignores every invalid pair with one diagnostics entry, covers boot-failure `FAULTED` (shutdown only) and runtime `FAULTED` (three exits), and treats bind/unbind as non-transition requests.
-- `SimViews.get` of a `PERCEPTION_OUT` block returns its typed empty view and counts `PERCEPTION_READ_BLOCKED`; restoring a block and reading its facade shows the restored values.
+- `SimViews.get` of a `PERCEPTION_OUT` block returns its typed empty view and counts `PERCEPTION_READ_BLOCKED`; the default face of `PresentationViews` does the same, the perception face returns the real facade, and the flag cannot be changed after issue; restoring a block and reading its facade shows the restored values.
+- `emit_event` and `has_opened` obey the scope rules (discard in `INIT`/`RESTORE`/`CLOSED`; `has_opened` true from the first granted `open_for` until re-arm); the five new violation names are counted and call `violation_handler` under `STRICT_DEBUG`; `register_key_space` after the freeze fails boot; the clock view exposes `(T, world_seed, restore_epoch)` with no setter and `restore_epoch` is set before the first `restore()`/`init_world` and absent from every hash; a `block_hash` call from inside `snapshot` is `CONTEXT_REENTRY`; a `snapshot` payload is unchanged by a later mutation.
 - Each `*_faults.gd` constant matches its `NAMES` entry and domain id; two builds with an extra system inserted produce identical codes for every existing fault.
 - A quiet tick performs zero kernel container allocations (`Performance.OBJECT_COUNT` flat over 600 ticks plus a static scan of hot files, OQ-16); after teardown `OBJECT_COUNT` returns to its pre-boot value.
 
@@ -471,10 +508,37 @@ No code exists. Document changes: amend the kernel GDD (§ GDD sync); amend ADR-
 - CR-18: `init_world(world_seed, scope, ctx)` receives the shared `INIT` scope; dirty keys from `INIT`/`RESTORE` scopes are replaced by one `ALL` batch per block on `LOADING → RUNNING`.
 - States and Transitions, the `RUNNING / PAUSED / FAULTED request_new_game` row and the `FAULTED request_restore / request_new_game` row: "legal only when the registries validated (`registry_valid`); a boot-failure `FAULTED` exits only to `SHUTTING_DOWN`" (closes OQ-5). Add bind/unbind as non-transition requests.
 - Add the static fault-domain table, the kernel fault codes, the violation set and `MAX_SCHEDULE_CYCLE_TICKS` (Tuning Knobs).
+- *(Added 2026-10-28, TD-07)* `design/gdd/command-simulation-layer.md`: `kernel.clock` carries `(T, world_seed, restore_epoch)` with the `restore_epoch` rules of § 10; the violation set and the registries gain the names of § 6 and § 10; the `PERCEPTION_OUT` row of CR-10 matches the two-face rule of § 7.
 - `design/gdd/derelict-authoring-handmade-kits.md` (TR-derelict-021), `design/gdd/web-map-and-transit.md` (TR-webmap-025): `STEP_BUDGET_MS` is an alarm threshold; the P3 target is 2.0 ms P99 (IC-4).
 
 ## Related
 - `design/gdd/command-simulation-layer.md` (CR-2, CR-3, CR-6, CR-8, CR-9, CR-12, CR-14, CR-18, CR-19; States and Transitions; KRN-CTX-06, KRN-STATE-01)
 - `docs/architecture/architecture.md` (§ Data Flow 1 hook table, § Initialisation order, § API Boundaries, OQ-5, OQ-15, OQ-16)
-- ADR-0001, ADR-0002 (Proposed); ADR-0004, ADR-0005, ADR-0006, ADR-0016, ADR-0021, ADR-0031 (to be written)
+- ADR-0001, ADR-0002, ADR-0004, ADR-0005, ADR-0006, ADR-0009, ADR-0010 (Proposed); ADR-0016, ADR-0021, ADR-0024, ADR-0031 (to be written)
 - Review rulings: delegated ruling R3 (completion sentinel), R-8 (stale-edge warning), G1 (owner wins)
+
+## Amendments
+
+### 2026-10-28 - Foundation-ADR adjudication (status stays Proposed)
+Review Log. Earlier outcome: the architecture-review amendments of 2026-10-28 (finding A1, B1-B11, C, E; marked inline) stand unchanged. This pass applies only the cross-ADR rulings the adjudicator assigned to this ADR at the request of ADR-0004, ADR-0005, ADR-0006 and ADR-0009; nothing else in the decision changed. No earlier text said "review unavailable"; the Decision Makers line now points here.
+
+| Ruling / source id | What was done |
+|---|---|
+| **TD-07** [R14(ADR-0003), ADR-0004/R14, ADR-0005/R14, ADR-0005/X4, ADR-0006/R14, ADR-0009/R14] | One batch, items 1-13 below. `kernel.clock` is owned here; ADR-0005's attribution of the clock view to ADR-0001 is corrected in ADR-0005. |
+| TD-07 (1) | `BlockRegistrar.register_key_space(desc: KeySpaceDescriptor) -> void`, BOOTING only (Key Interfaces, diagram; ADR-0004 § 3). |
+| TD-07 (2) | `WriteScope.emit_event(block_id, kind, a0..a5 = 0)` (§ 4). |
+| TD-07 (3) | `WriteScope.has_opened(block_index) -> bool` (§ 4; ADR-0005 § 5.3). |
+| TD-07 (4) | Violation set adds `SUBSCRIBE_REFUSED`, `DIRTY_KEY_INVALID`, `DIRTY_KEY_KIND_UNDECLARED`, `EVENT_OVERFLOW`, `MISSED_DIRTY_MARK`; `UNKNOWN_DEPENDENCY` also covers a subscription to an unknown block (§ 6). |
+| TD-07 (5) | H1 registries group adds `touch_serial` (ADR-0004) and the hash-cache arrays (ADR-0005 § 5.2) (§ 10). |
+| TD-07 (6) | `kernel.clock` view `(T, world_seed, restore_epoch)`: `world_seed` set before `INIT`; `restore_epoch` a `u32`, read-only, non-persisted, non-hashed, set by `request_restore` / `request_new_game` before the first `restore()` / `init_world`, read only in `RngFacet.draw_epoch` (§ 10). |
+| TD-07 (7) | `ModuleFacet.rng: RngFacet`, null when the module declares no streams (Key Interfaces). |
+| TD-07 (8) | One kernel-internal `SnapshotContext` for hash reads outside `SAVING`, with a re-entrancy flag (§ 3). |
+| TD-07 (9) | The "hash before and after and compare" sentence is now a pointer to ADR-0004 § 7; the `mark_dirty` comment reads "key layout: ADR-0004 § 3" (§ 4). |
+| TD-07 (10) / **TD-08** | `PresentationViews` has two faces selected by `perception_access`, set by the composition root at issue; the default face returns `empty_view` for `PERCEPTION_OUT` and counts `PERCEPTION_READ_BLOCKED`; the perception face returns the real facade (§ 7). Subscribe-time refusal (check 6) is ADR-0004's; the flag's holders are ADR-0009 § 1's; ADR-0024 owns only the Filter's query surface. |
+| TD-07 (11) | Snapshot payload packed arrays are duplicates, never live references (§ 2); every override of a typed-return owner callable returns on all paths (§ 1). |
+| TD-07 (12) | A host service (Save/Load) receives a BOOTING-only `HostRegistrarFacet` limited to `register_fault_domain` (Key Interfaces). |
+| TD-07 (13) / **TD-01** | `NotifyContext` is placed in `src/kernel/facets/` (§ 3). The presentation deny list is ADR-0010's explicit list, not a `*Context` glob. ADR-0005 fixes its Depends On attribution: `kernel.clock`, facets and `has_opened` belong to ADR-0003; `touch_serial` to ADR-0004. |
+
+Cross-ADR note for ADR-0010 (not decided here): `NotifyContext extends CallContext`, and `CallContext` stays in kernel core, so `src/kernel/facets/` needs an allowed edge to that one base class (or ADR-0010 moves `CallContext`). ADR-0010 owns the answer; this ADR only requires that a presenter can name `NotifyContext` and `CompletionToken`.
+
+Open questions: this ADR carried none; none added.

@@ -31,7 +31,7 @@ Every change to the simulation must enter as an authority-checked, plain-data co
 | Field | Value |
 |-------|-------|
 | **Depends On** | ADR-0001 (the injected-kernel rule and the frame order this ADR relies on; **Proposed**, not yet Accepted) |
-| **Enables** | ADR-0003 (block registry uses the command-type descriptor defined here), ADR-0016 (binding-table rebuild on restore), ADR-0019 (Input Adapter uses a surface handle), ADR-0020/0021/0022/0026/0027 (each registers command types against this contract), ADR-0030 (`PauseGate` uses a control handle), ADR-0032 (remote ingress for VS-B) |
+| **Enables** | ADR-0003 (block registry uses the command-type descriptor defined here), ADR-0006 (Save/Load is the `request_snapshot` / `request_restore` caller and consumes the extended snapshot outcome, § 6), ADR-0016 (binding-table rebuild on restore), ADR-0019 (Input Adapter uses a surface handle), ADR-0020/0021/0022/0026/0027 (each registers command types against this contract), ADR-0030 (`PauseGate` uses a control handle), ADR-0032 (remote ingress for VS-B) |
 | **Blocks** | Every story that registers or submits a command type: Player Controller, Interaction, Suit, Emitter toggles, Assembly, Web Map, Chart Table pause. |
 | **Ordering Note** | Scope edge with ADR-0003: this ADR owns the **meaning** of the command fields, the ingress and the control-plane API; ADR-0003 owns the **registration descriptors**, the owner-callable contract and the kernel state machine. The `payload_schema` field defined here is added to ADR-0003's `CommandTypeDescriptor`. The kernel GDD's CR-6 field list does not name `payload_schema`; see § GDD sync. |
 
@@ -135,7 +135,9 @@ A command type with `actor_binding = OWNED_BY_ISSUER` passes P2 iff `(actor_sour
 
 ### 6. The control plane is a host-local API on a `ControlHandle`
 
-`request_pause()`, `request_resume()`, `request_snapshot()`, `request_restore(payload, restore_epoch, expected_state_hash)`, `request_new_game(world_seed, restore_epoch)`, `request_shutdown()`, `request_bind_seat(peer_id, player_id)` and `request_unbind_seat(peer_id)` are methods of `ControlHandle`, not commands. They are not stamped, queued, authority-checked or logged as commands. Each call is appended to a small host-local request list and served **at the next boundary service, in arrival order** (ADR-0001 § 1), and each request ends in exactly one outcome: `SERVED`, `DEFERRED` (made while an atomic step was active; evaluated at the first boundary after it) or `IGNORED` (a (state, trigger) pair the transition table does not list; one invalid-transition entry, no state change). **Outcome delivery.** Outcomes are always recorded in diagnostics. Callers that must act on one set `ControlHandle.set_outcome_handler(Callable)` and receive a typed `ControlOutcome` (`request_kind`, `outcome`, `tick`, and for `request_restore` the K-4 verdict `{T, computed_hash, match}`; for `request_snapshot` the captured payload, a deep copy) at the same per-frame flush point as command results, **in a separate list that is never part of the CR-5 command result buffer**. This amends one sentence of the kernel GDD (States and Transitions, "control-plane requests have none"; § GDD sync): the outcome list is not a command result record, but it exists, because Save/Load needs the snapshot payload and the K-4 verdict (CR-15) and PauseGate needs to converge. Two consequences are intentional: a `request_pause` and a `request_resume` in the same boundary pair up in order, and `PauseGate` (Chart Table) re-issues the latest desired pause state until the kernel matches it, so a same-boundary pair leaves no wedged half-open state (TR-charttable-004).
+`request_pause()`, `request_resume()`, `request_snapshot()`, `request_restore(payload, restore_epoch, expected_state_hash, has_expected_hash)`, `request_new_game(world_seed, restore_epoch)`, `request_shutdown()`, `request_bind_seat(peer_id, player_id)` and `request_unbind_seat(peer_id)` are methods of `ControlHandle`, not commands. They are not stamped, queued, authority-checked or logged as commands. Each call is appended to a small host-local request list and served **at the next boundary service, in arrival order** (ADR-0001 § 1), and each request ends in exactly one outcome: `SERVED`, `DEFERRED` (made while an atomic step was active; evaluated at the first boundary after it) or `IGNORED` (a (state, trigger) pair the transition table does not list; one invalid-transition entry, no state change). **Outcome delivery.** Outcomes are always recorded in diagnostics. Callers that must act on one set `ControlHandle.set_outcome_handler(Callable)` and receive a typed `ControlOutcome` (`request_kind`, `outcome`, `tick`, and for `request_restore` the K-4 verdict `{T, computed_hash, verdict}` with `verdict` one of `MATCH`, `MISMATCH` or `NONE`; for `request_snapshot` the captured payload, a deep copy, plus the hash data listed below) at the same per-frame flush point as command results, **in a separate list that is never part of the CR-5 command result buffer**. This amends one sentence of the kernel GDD (States and Transitions, "control-plane requests have none"; § GDD sync): the outcome list is not a command result record, but it exists, because Save/Load needs the snapshot payload and the K-4 verdict (CR-15) and PauseGate needs to converge. **Snapshot outcome carries the hash data (amended 2026-10-28, TD-05).** `request_snapshot()` stays asynchronous and returns `void`; its result arrives only through the outcome handler. The snapshot `ControlOutcome` adds `T: int`, `world_seed: int`, `state_hash: int`, `hash_algo: int`, `block_ids: Array[StringName]`, `schema_versions: PackedInt64Array`, `block_state_hashes: PackedInt64Array` and `enc_lens: PackedInt64Array`. The four arrays are parallel (index `i` describes `block_ids[i]`), sorted by `block_id`, and cover **every persist block, WORLD and PROFILE**; all hashes and lengths are computed uncached inside `SAVING` (ADR-0005 § 4.7 and § 5.4). ADR-0005 owns what the hash values mean; this ADR owns only that they travel on the outcome. **Restore verdict.** `request_restore(payload: Dictionary, restore_epoch: int, expected_state_hash: int = 0, has_expected_hash: bool = false)`: the "no verdict" case is a typed `bool`, not `Variant` or `null`, because ADR-0010 bans `Variant` in typed interfaces and `0` is a legal H64 (ADR-0005 reserves no sentinel value). When `has_expected_hash` is `false` the K-4 compare is skipped, `expected_state_hash` is ignored and the outcome's verdict is `NONE` (the pre-K-4 release file case). When it is `true` the verdict is `MATCH` or `MISMATCH`. A reproduction mismatch remains a diagnostic (CR-15); the verdict never changes the restore result.
+
+Two consequences are intentional: a `request_pause` and a `request_resume` in the same boundary pair up in order, and `PauseGate` (Chart Table) re-issues the latest desired pause state until the kernel matches it, so a same-boundary pair leaves no wedged half-open state (TR-charttable-004).
 
 **Seat binding (binding table half (a)).** `request_bind_seat(peer_id, player_id)` and `request_unbind_seat(peer_id)` are the host-only writers of `peer_id → PlayerId` (CR-7). The composition root, holding the `game` control handle, calls `request_bind_seat(HOST_PEER_ID, 1)` as its boot step; the Co-op Session calls the same two methods in VS-B, so the kernel's public API does not widen then. A restore, new game or death restart never touches half (a). Runtime seat reassignment (kernel open question 4) is deferred to ADR-0032 under this signature. When `issuer_peer` has no half (a) entry, a type with `actor_binding = OWNED_BY_ISSUER` is `Rejected(ACTOR_NOT_OWNED)`; a `NONE` type proceeds.
 
@@ -198,12 +200,19 @@ class_name ControlHandle extends RefCounted
 func request_pause() -> void
 func request_resume() -> void
 func request_snapshot() -> void
-func request_restore(payload: Dictionary, restore_epoch: int, expected_state_hash: int = 0) -> void
+func request_restore(payload: Dictionary, restore_epoch: int, expected_state_hash: int = 0, has_expected_hash: bool = false) -> void   # has_expected_hash = false: K-4 compare skipped, verdict NONE (TD-05)
 func request_new_game(world_seed: int, restore_epoch: int = 0) -> void
 func request_shutdown() -> void
 func request_bind_seat(peer_id: int, player_id: int) -> void
 func request_unbind_seat(peer_id: int) -> void
 func set_outcome_handler(handler: Callable) -> void   # handler(outcome: ControlOutcome, ctx: NotifyContext) -> CompletionToken; method Callable, cleared on teardown
+
+# ControlOutcome (typed record; snapshot fields added 2026-10-28, TD-05):
+#   request_kind, outcome (SERVED | DEFERRED | IGNORED), tick
+#   restore: T: int, computed_hash: int, verdict: MATCH | MISMATCH | NONE
+#   snapshot: payload: Dictionary (deep copy), T: int, world_seed: int, state_hash: int, hash_algo: int,
+#             block_ids: Array[StringName], schema_versions: PackedInt64Array,
+#             block_state_hashes: PackedInt64Array, enc_lens: PackedInt64Array   # parallel arrays, all persist blocks
 
 # On HookContext and ApplyContext only (ADR-0003 defines the contexts):
 func submit_system(type: StringName, payload: Dictionary, dedupe_key: Variant = null) -> void
@@ -233,7 +242,7 @@ func issue_control_handle(name: StringName) -> ControlHandle
 - **Must** hand result handlers as method Callables on long-lived objects and clear them in `_exit_tree`; **must never** pass a lambda that captures `self`.
 - **Must** treat a `Command` as owned by the ring: **must never** keep a reference to one past the callable it was passed to; copy the scalar fields needed.
 - **Must** sort before iterating anything that feeds a hash, a rebuild or a registration order.
-- **Where the greps run:** the "no `Command.new()`", "no `submit(` in `src/presentation/`" and "no handle outside the registered surfaces" rules run as a CI script (and a gdUnit4 test that scans `src/`), because GDScript has no analyser hook; the `_sealed`/slot checks and the issued-handle table are the run-time backstop.
+- **Where the greps run:** the "no `Command.new()`", "no `submit(` in `src/presentation/` except in files of objects named at `issue_surface_handle`" and "no handle outside the registered surfaces" rules run as a CI script (and a gdUnit4 test that scans `src/`), because GDScript has no analyser hook; the `_sealed`/slot checks and the issued-handle table are the run-time backstop.
 
 ## Alternatives Considered
 
@@ -329,7 +338,7 @@ No code exists. The document changes are: amend the kernel GDD (CR-4, CR-6, CR-1
 
 ## Validation Criteria
 - A command submitted by a surface handle carries `origin = PLAYER` and `issuer_peer = 1`; a payload containing the keys `issuer_peer`, `origin` or `seq` is `MALFORMED` (not in the schema) and the stamped fields are unchanged.
-- A grep finds no `Command.new()` outside `src/kernel/`, no `submit(` call in any `src/presentation/` script other than the surfaces named at issue, no call to a `_`-prefixed kernel member from outside `src/kernel/`, and no `request_*` call outside the named scripts (`save_load`, `pause_gate`, `game.gd`).
+- A grep finds no `Command.new()` outside `src/kernel/`, no `submit(` in `src/presentation/` except in files of objects named at `issue_surface_handle` (at MVP that is the Input Adapter only; the general `INPUT_SURFACE` rule, ADR-0009 § 7, applies once a second `SurfaceHandle` is issued), no call to a `_`-prefixed kernel member from outside `src/kernel/`, and no `request_*` call outside the named scripts (`save_load`, `pause_gate`, `game.gd`).
 - A command type registered without `payload_schema` (or with any other mandatory field missing) fails boot naming the type, in debug and release builds.
 - A PLAYER command acting on an entity not in the issuer's binding half (b) is `Rejected(ACTOR_NOT_OWNED)` with a state hash identical before and after.
 - Two surfaces submitting in the same frame get distinct dense `seq` values; only the test ingress can produce `DUPLICATE_SEQ`.
@@ -346,8 +355,25 @@ No code exists. The document changes are: amend the kernel GDD (CR-4, CR-6, CR-1
 - `design/gdd/command-simulation-layer.md` CR-5/CR-16: the queue-flush `Dropped(...)` results on entry to `LOADING`, `SHUTTING_DOWN` and `FAULTED` are already there; state that superseded tombstones free capacity.
 - Per-command owners (Controller, Interaction, Suit, Emitter, Assembly, Web Map, Sanity) list each command's `payload_schema` in their GDD when their stories are written (ADR-0020, -0021, -0026, -0027, -0019).
 
+## Amendments
+
+### 2026-10-28: cross-ADR rulings from the Foundation ADR set (status stays Proposed)
+
+- **TD-05 (snapshot outcome and restore verdict).** § 6 and Key Interfaces: the snapshot `ControlOutcome` now carries `T`, `world_seed`, `state_hash`, `hash_algo`, `block_ids`, `schema_versions`, `block_state_hashes` and `enc_lens` (every persist block, WORLD and PROFILE, computed uncached in `SAVING`; ADR-0005 § 4.7 and § 5.4). `request_restore` gains `has_expected_hash: bool = false`; false skips the K-4 compare and gives verdict `NONE`. The asynchronous shape (void return, outcome handler) is unchanged. Registry `control_plane` signature updated to match.
+- **TD-06 (who may call `submit()`).** This ADR issues the handle, so it owns the list: the objects named at `issue_surface_handle`. The grep is reworded in the Implementation Guidelines and Validation Criteria to "no `submit(` in `src/presentation/` except in files of objects named at `issue_surface_handle`"; the Input Adapter lives in `src/presentation/controller/`, which the former wording would have failed. At MVP that is the Input Adapter only. ADR-0010 KRN-04 implements this list keyed to the issue names; ADR-0009 § 7 and its lint cite it.
+- **TD-27 (edge rule).** `ADR-0006` added to Enables (Save/Load is the control-plane caller). Depends On is unchanged (ADR-0001 only). ADR-0010 is not a dependency of this ADR.
+
+### Review Log
+
+| Date | Id | Outcome |
+|---|---|---|
+| 2026-10-28 | TD-05 (R9 ADR-0005; R9, X1a `request_restore`, R14 ADR-0006) | Applied: snapshot outcome extended with the hash data; `request_restore` takes `has_expected_hash`; verdict `NONE` when false; typed bool instead of `Variant`/`null`; registry signature revised. ADR-0006 OQ-B is answered by this ruling (ADR-0006 closes it). |
+| 2026-10-28 | TD-06 (R19 KRN-04; ADR-0009 X1b `submit`, R19; ADR-0010 R19) | Applied: single `submit(` caller list is the objects named at `issue_surface_handle`; grep reworded in two places; MVP is Input Adapter only; `INPUT_SURFACE` rule applies once a second handle is issued. |
+| 2026-10-28 | TD-27 (owner ADR-0010) | Applied: ADR-0006 added to Enables. The other items of this ruling are owned by other ADRs. |
+| 2026-10-28 | Scope | No Open Questions section existed and no "review unavailable" text was present; nothing else in the ADR was changed. |
+
 ## Related
 - `design/gdd/command-simulation-layer.md` (CR-4 to CR-10, CR-13, CR-15 to CR-17, CR-19; D.8)
 - `docs/architecture/architecture.md` (§ Data Flow 2, § API Boundaries, OQ-13)
-- ADR-0001 (injected kernel; frame order), ADR-0003, ADR-0005, ADR-0016, ADR-0019, ADR-0030, ADR-0032 (to be written)
+- ADR-0001 (injected kernel; frame order), ADR-0003, ADR-0005 (hash data on the snapshot outcome), ADR-0006 (snapshot/restore caller), ADR-0009 § 7 and ADR-0010 KRN-04 (cite the `submit(` list), ADR-0016, ADR-0019, ADR-0030, ADR-0032 (to be written)
 - Review rulings: delegated ruling R2 (`seq` and `correlation`), G1 (owner wins)

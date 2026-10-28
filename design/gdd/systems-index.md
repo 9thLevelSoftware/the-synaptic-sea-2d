@@ -70,32 +70,32 @@ The tiers follow the producer-adjusted scope in the concept. **MVP** is the sing
 
 | # | System Name | Category | Priority | Status | Design Doc | Depends On |
 |---|-------------|----------|----------|--------|------------|------------|
-| 1 | Command & Simulation Layer (inferred) | Core | MVP | Needs Revision | design/gdd/command-simulation-layer.md | — |
+| 1 | Command & Simulation Layer (inferred) | Core | MVP | Approved | design/gdd/command-simulation-layer.md | — |
 | 2 | Life-Support Graph | Core | MVP | Needs Revision | design/gdd/life-support-graph.md | Command & Simulation Layer |
-| 3 | Item & Module Database (inferred) | Economy | MVP | Needs Revision | design/gdd/item-and-module-database.md | Life-Support Graph |
+| 3 | Item & Module Database (inferred) | Economy | MVP | Approved | design/gdd/item-and-module-database.md | Life-Support Graph |
 | 4 | Pixel-Perfect Render Pipeline & Camera (inferred) | Core | MVP | Needs Revision | design/gdd/pixel-perfect-render-pipeline-camera.md | — |
-| 5 | Emitter State & Light-Exposure Query (inferred) | Core | MVP | Needs Revision | design/gdd/emitter-state-and-light-exposure-query.md | Command & Simulation Layer, Life-Support Graph, Player Controller & Input |
-| 6 | 2D Lighting & Occlusion | Core | MVP | Needs Revision | design/gdd/2d-lighting-and-occlusion.md | Pixel-Perfect Render Pipeline & Camera, Emitter State & Light-Exposure Query |
-| 7 | Player Controller & Input (inferred) | Core | MVP | Needs Revision | design/gdd/player-controller-input.md | Command & Simulation Layer, Pixel-Perfect Render Pipeline & Camera |
-| 8 | Interaction System (inferred) | Gameplay | MVP | Needs Revision | design/gdd/interaction-system.md | Command & Simulation Layer, Player Controller & Input, Emitter State & Light-Exposure Query, Pixel-Perfect Render Pipeline & Camera |
-| 9 | Failure & Trail System | Gameplay | MVP | Needs Revision | design/gdd/failure-and-trail-system.md | Life-Support Graph, Pixel-Perfect Render Pipeline & Camera |
+| 5 | Emitter State & Light-Exposure Query (inferred) | Core | MVP | Approved | design/gdd/emitter-state-and-light-exposure-query.md | Command & Simulation Layer, Life-Support Graph, Player Controller & Input |
+| 6 | 2D Lighting & Occlusion | Core | MVP | Approved | design/gdd/2d-lighting-and-occlusion.md | Pixel-Perfect Render Pipeline & Camera, Emitter State & Light-Exposure Query |
+| 7 | Player Controller & Input (inferred) | Core | MVP | Approved | design/gdd/player-controller-input.md | Command & Simulation Layer, Pixel-Perfect Render Pipeline & Camera |
+| 8 | Interaction System (inferred) | Gameplay | MVP | Approved | design/gdd/interaction-system.md | Command & Simulation Layer, Player Controller & Input, Emitter State & Light-Exposure Query, Pixel-Perfect Render Pipeline & Camera |
+| 9 | Failure & Trail System | Gameplay | MVP | Approved | design/gdd/failure-and-trail-system.md | Life-Support Graph, Pixel-Perfect Render Pipeline & Camera |
 | 10 | Suit & Equipment (inferred) | Gameplay | MVP | Approved | design/gdd/suit-and-equipment.md | Command & Simulation Layer, Life-Support Graph, Item & Module Database, Player Controller & Input, Emitter State & Light-Exposure Query, Save/Load & Versioned Format |
-| 11 | Ship Section & Layout Data Model (inferred) | Core | MVP | Needs Revision | design/gdd/ship-section-and-layout-data-model.md | Command & Simulation Layer, Life-Support Graph, Item & Module Database |
-| 12 | Ship Body & Interior Physics (inferred) | Core | MVP | Needs Revision | design/gdd/ship-body-and-interior-physics.md | Command & Simulation Layer, Ship Section & Layout Data Model, Player Controller & Input, Pixel-Perfect Render Pipeline & Camera |
+| 11 | Ship Section & Layout Data Model (inferred) | Core | MVP | Approved | design/gdd/ship-section-and-layout-data-model.md | Command & Simulation Layer, Life-Support Graph, Item & Module Database |
+| 12 | Ship Body & Interior Physics (inferred) | Core | MVP | Approved | design/gdd/ship-body-and-interior-physics.md | Command & Simulation Layer, Ship Section & Layout Data Model, Player Controller & Input, Pixel-Perfect Render Pipeline & Camera |
 | 13 | Modular Ship Assembly | Gameplay | MVP | Needs Revision | design/gdd/modular-ship-assembly.md | Command & Simulation Layer, Life-Support Graph, Item & Module Database, Interaction System, Ship Section & Layout Data Model, Ship Body & Interior Physics, Save/Load & Versioned Format |
-| 14 | Derelict Authoring (Handmade Kits) | Gameplay | MVP | Needs Revision | design/gdd/derelict-authoring-handmade-kits.md | Ship Section & Layout Data Model, Item & Module Database, Emitter State & Light-Exposure Query |
+| 14 | Derelict Authoring (Handmade Kits) | Gameplay | MVP | Approved | design/gdd/derelict-authoring-handmade-kits.md | Ship Section & Layout Data Model, Item & Module Database, Emitter State & Light-Exposure Query |
 | 15 | Boarding & Salvage | Gameplay | MVP | Needs Revision | design/gdd/boarding-and-salvage.md | Interaction System, Suit & Equipment, Modular Ship Assembly, Derelict Authoring (Handmade Kits), Item & Module Database |
-| 16 | Web Map & Transit | Gameplay | MVP | Needs Revision | design/gdd/web-map-and-transit.md | Command & Simulation Layer, Derelict Authoring (Handmade Kits), Save/Load & Versioned Format |
-| 17 | Attention System | Gameplay | MVP | Needs Revision | design/gdd/attention-system.md | Command & Simulation Layer, Life-Support Graph, Emitter State & Light-Exposure Query, Suit & Equipment, Player Controller & Input, Save/Load & Versioned Format |
+| 16 | Web Map & Transit | Gameplay | MVP | Approved | design/gdd/web-map-and-transit.md | Command & Simulation Layer, Derelict Authoring (Handmade Kits), Save/Load & Versioned Format |
+| 17 | Attention System | Gameplay | MVP | Approved | design/gdd/attention-system.md | Command & Simulation Layer, Life-Support Graph, Emitter State & Light-Exposure Query, Suit & Equipment, Player Controller & Input, Save/Load & Versioned Format |
 | 18 | Horror Entities | Gameplay | MVP | Needs Revision | design/gdd/horror-entities.md | Command & Simulation Layer, Life-Support Graph, Emitter State & Light-Exposure Query, Attention System |
-| 19 | Sanity & Hallucination Rules | Gameplay | MVP | Needs Revision | design/gdd/sanity-and-hallucination-rules.md | Command & Simulation Layer, Attention System, Interaction System, Suit & Equipment, Save/Load & Versioned Format |
-| 20 | Perception Filter | Gameplay | MVP | Needs Revision | design/gdd/perception-filter.md | Command & Simulation Layer, Pixel-Perfect Render Pipeline & Camera, 2D Lighting & Occlusion, Sanity & Hallucination Rules |
-| 21 | HUD & Suit Layer | UI | MVP | Needs Revision | design/gdd/hud-and-suit-layer.md | Pixel-Perfect Render Pipeline & Camera, Suit & Equipment, Perception Filter, Player Controller & Input |
-| 22 | In-World Instruments & Inspect View | UI | MVP | Needs Revision | design/gdd/in-world-instruments-and-inspect-view.md | Life-Support Graph, 2D Lighting & Occlusion, Perception Filter, Interaction System |
-| 23 | Chart Table (Web Map & Menus) | UI | MVP | Needs Revision | design/gdd/chart-table-web-map-and-menus.md | Web Map & Transit, Pixel-Perfect Render Pipeline & Camera |
-| 24 | Adaptive Audio & Tells | Audio | MVP | Needs Revision | design/gdd/adaptive-audio-and-tells.md | Life-Support Graph, Horror Entities, Attention System, Sanity & Hallucination Rules |
-| 25 | Save/Load & Versioned Format | Persistence | MVP | Needs Revision | design/gdd/save-load-and-versioned-format.md | Command & Simulation Layer |
-| 26 | Debug Overlay (True Values) (inferred) | Meta | MVP | Needs Revision | design/gdd/debug-overlay-true-values.md | Command & Simulation Layer, Perception Filter, Pixel-Perfect Render Pipeline & Camera |
+| 19 | Sanity & Hallucination Rules | Gameplay | MVP | Approved | design/gdd/sanity-and-hallucination-rules.md | Command & Simulation Layer, Attention System, Interaction System, Suit & Equipment, Save/Load & Versioned Format |
+| 20 | Perception Filter | Gameplay | MVP | Approved | design/gdd/perception-filter.md | Command & Simulation Layer, Pixel-Perfect Render Pipeline & Camera, 2D Lighting & Occlusion, Sanity & Hallucination Rules |
+| 21 | HUD & Suit Layer | UI | MVP | Approved | design/gdd/hud-and-suit-layer.md | Pixel-Perfect Render Pipeline & Camera, Suit & Equipment, Perception Filter, Player Controller & Input |
+| 22 | In-World Instruments & Inspect View | UI | MVP | Approved | design/gdd/in-world-instruments-and-inspect-view.md | Life-Support Graph, 2D Lighting & Occlusion, Perception Filter, Interaction System |
+| 23 | Chart Table (Web Map & Menus) | UI | MVP | Approved | design/gdd/chart-table-web-map-and-menus.md | Web Map & Transit, Pixel-Perfect Render Pipeline & Camera |
+| 24 | Adaptive Audio & Tells | Audio | MVP | Approved | design/gdd/adaptive-audio-and-tells.md | Life-Support Graph, Horror Entities, Attention System, Sanity & Hallucination Rules |
+| 25 | Save/Load & Versioned Format | Persistence | MVP | Approved | design/gdd/save-load-and-versioned-format.md | Command & Simulation Layer |
+| 26 | Debug Overlay (True Values) (inferred) | Meta | MVP | Approved | design/gdd/debug-overlay-true-values.md | Command & Simulation Layer, Perception Filter, Pixel-Perfect Render Pipeline & Camera |
 | 27 | Procedural Derelict Generation | Gameplay | Vertical Slice | Not Started | — | Derelict Authoring (Handmade Kits), Ship Section & Layout Data Model, Item & Module Database, Web Map & Transit |
 | 28 | Depth Rings & Scarcity | Progression | Vertical Slice | Not Started | — | Attention System, Item & Module Database, Procedural Derelict Generation, Web Map & Transit, Modular Ship Assembly |
 | 29 | Resource Depletion & Wear | Economy | Vertical Slice | Not Started | — | Life-Support Graph, Item & Module Database, Depth Rings & Scarcity |
@@ -292,8 +292,8 @@ The tiers follow the producer-adjusted scope in the concept. **MVP** is the sing
 |--------|-------|
 | Total systems identified | 42 |
 | Design docs started | 26 |
-| Design docs reviewed | 26 (2026-10-27, three passes; confirming review after delegated rulings R1-R11: 1 Approved, 25 Needs Revision, 51 blocking items) |
-| Design docs approved | 1 |
+| Design docs reviewed | 26 (2026-10-27, three passes; 2026-10-28 two cross-GDD fix rounds under delegated rulings R12-R21 with confirming reviews: 21 Approved, 5 Needs Revision, 6 blocking items) |
+| Design docs approved | 21 |
 | MVP systems designed | 26/26 |
 | Vertical Slice systems designed | 0/10 |
 

@@ -126,3 +126,33 @@ Findings:
   - [RECOMMENDED] AC-CT-9; line-number cites: [main review] AC-CT-9 does not exempt HOLD_CONFIRM and SAVE_QUIT_WAIT. Cross-references cite line numbers that drift.
 Reviewed-Content-Hash: design/gdd/chart-table-web-map-and-menus.md 36e0c56da4dc6fde64b69242a671a6629d2d8245
 Reviewed-Content-Hash: design/registry/entities.yaml 259f2c28b21a009ca35000d94fe3ef5b4d3ef301
+
+## Review — 2026-10-28 — Verdict: APPROVED
+Scope signal: XL
+Specialists: none (lean confirming re-review after the second cross-GDD fix pass)
+Blocking items: 0 | Recommended: 20
+Summary: I agree with the main review: APPROVED, with no blocking items. The fifth pass resolved all five fourth-pass blockers, and the owner GDDs (Player Controller PC-2a and AC-PCI-226 to 230, Save/Load SL-21 at 3,000 ms) back the fixes.  I spot-checked the three findings that could have been blocking. - **Adaptive Audio master volume:** confirmed. adaptive-audio-and-tells.md has 0 hits for VOLUME_STEPS, 'master volume' or SettingsStore. - **DELETE_MARGIN_MIN_S range (L1094, L1115):** confirmed. The range is 0.3-0.8 and the loader refuses only above 0.8. At base 0.6 the Delete-Quit margin is 1.2 - 0.6 = 0.6 s, so a margin of 0.7-0.8 breaks C-10. This only happens at the edge of the tuning range, no
+Prior verdict resolved: Yes (confirming review of 2026-10-28)
+Findings:
+- [RECOMMENDED] Dependencies (Adaptive Audio) / CT-18, CT-29, AC-CT-129: [main review, confirmed by creative-director] adaptive-audio-and-tells.md contains no VOLUME_STEPS, no 'master volume' and no SettingsStore reference (0 grep hits), so the D85 master-volume control publishes a step that nothing reads. The 'Consistent' cell is wrong. This is the most player-visible gap: a volume slider that does nothing breaks player trust in the Display & Comfort page.
+- [RECOMMENDED] States and Transitions TX-38 (L574): [main review] The guard 'PauseGate.can_save_quit is false' contradicts CT-4 for SOLO PANEL/CHART, so AC-CT-103b would fail. The table is diffed as data by AC-CT-93a.
+- [RECOMMENDED] Tuning Knobs DELETE_MARGIN_MIN_S (L1094, L1115, L1733) / C-10 / AC-CT-127: [main review, confirmed by creative-director] The range is 0.3-0.8 and the loader refuses only values above 0.8. At base 0.6 the Delete-Quit margin is 1.2 - 0.6 = 0.6 s no matter what the cap is, so a value of 0.7-0.8 breaks the 'cannot occur by construction' claim.
+- [RECOMMENDED] Edge Cases EC-CT-70 / header L15: [main review] EC-CT-70 says a reload 'reproduces rather than rerolls', which contradicts R13/R14 (restore_epoch is in the draw key). The header claims R13/R14 do not touch this file.
+- [RECOMMENDED] Acceptance Criteria AC-CT-117, AC-CT-109(e): [main review] Both cite AC-PCI-225 to 228. The Controller's MenuInput ACs are 226 to 229, and 225 is the salvage BURDEN test.
+- [RECOMMENDED] Acceptance Criteria AC-CT-137(b): [main review] The 'T_cfg plus at most one frame' bound fails a correct build, because CT-21 presents a disabled frame before the call and Save/Load polls per frame.
+- [RECOMMENDED] CT-21 / ASK-CT-7 / TX-21 / Gap F-B: [main review] The 3,000 ms 'ceiling' is only the owner's default, because the configured range goes to 15,000. 'STARTED' and 'REFUSED_DOWNED' are not Save/Load enum values. F-B lists ASK-CT-13 and ASK-CT-14, which are answered, as open.
+- [RECOMMENDED] Formulas D.9 / CT-45: [main review] MOVE_DEADZONE_EXIT is used as a release threshold. The owner defines it as a band, so release happens at 0.25 - 0.05 = 0.20.
+- [RECOMMENDED] Transitions preamble, TX-10/12/19/35: [main review] Activating a Back item has no edge in the transition table, and TX-10 omits 'pointer exit'.
+- [RECOMMENDED] S2 / EC-CT-31 / TX-23 / AC-CT-89: [main review] The panel's FAILED word is keyed on a sticky save_status, so a pure autosave failure could show on the pause panel, which Save/Load UI-2 forbids.
+- [RECOMMENDED] Formulas D.2 / D.1c headings: [main review, confirmed: no '### D.2' heading exists] The formula about 30 items cite has had no heading for three passes.
+- [RECOMMENDED] EC-CT-41, S14, EC-CT-13, AC-CT-9, CT-41(1): [main review] Leftovers: the UI-9 order is flipped, EC-CT-13 cites an answered ask, AC-CT-9 has no HOLD_CONFIRM/SAVE_QUIT_WAIT exemption, and CT-41(1) is too narrow.
+- [RECOMMENDED] AC-CT-84, AC-CT-81, AC-CT-37, AC-CT-25: [main review] These criteria are untestable as written: no expected values, a placeholder with no pass line, or subjective judgements.
+- [RECOMMENDED] Dependencies vs Pixel-Perfect Render Pipeline; AC-CT-45; D.10: [main review] The layer-2-hidden rule, 'four display controls' and the D_L3 range are not reflected in the Pipeline GDD. CHART_REOPEN_MIN_MS_REDUCED is not constrained to be at least the base value.
+- [RECOMMENDED] Formulas D.1d notice example / AC-CT-134: [main review] Wrap width ignores the 45-75 character measure, so the line capacity is overstated.
+- [RECOMMENDED] D.1c / CT-18 volume row: [main review] The volume row's pointer target is tiny and the label term is missing at the compact rows.
+- [RECOMMENDED] C1 / Boarding row / Dependencies / CT-35: [main review] The Boarding reword has already landed, but C1 is still marked open.
+- [RECOMMENDED] D.4 / CT-9 / CT-11: [main review] 'legal', 'selectable' and 'focusable' are used interchangeably.
+- [RECOMMENDED] Header, TX-7, CT-24, AC-CT-57/128, CT-VA-3, CT-5, OQ preamble: [main review] Stale dates and wording.
+- [RECOMMENDED] Dependencies - Save/Load row vs SL-21: [main review] Save/Load says playtime is read once, while this GDD re-reads it on every MAIN_MENU entry.
+Reviewed-Content-Hash: design/gdd/chart-table-web-map-and-menus.md c1fe36ee3ec068241dbf7d0f2d00336833d86e24
+Reviewed-Content-Hash: design/registry/entities.yaml cafe6d1169a1fe5dd043eae35c2c07a90c93b4c6

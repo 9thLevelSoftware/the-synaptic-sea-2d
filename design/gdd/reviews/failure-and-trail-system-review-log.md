@@ -107,3 +107,24 @@ Findings:
   - [RECOMMENDED] D.8b n_arcs_room, V/A.6, Cross-References FT-29 row, D.7 example, UI table/D.8 '(provisional)', AC-115: [main review] Stale wording left over from the amendment rounds.
 Reviewed-Content-Hash: design/gdd/failure-and-trail-system.md e34615ee916931c5a6dc43bb3352e87578a236c2
 Reviewed-Content-Hash: design/registry/entities.yaml 9f5a7ba4a6da931db8091a4c0e4f949a0d3f8bd8
+
+## Review — 2026-10-28 — Verdict: APPROVED
+Scope signal: XL
+Specialists: none (lean confirming re-review after the cross-GDD fix pass, delegated rulings R12-R21)
+Blocking items: 0 | Recommended: 10
+Summary: Verdict: APPROVED. No blocking item remains. I spot-checked the claims the verdict depends on, by Grep with line numbers.  1. **Hole-variant fix.** The only prior blocker, the hole-variant band mismatch, is resolved as the main review describes. HOLE_MIN_BUCKET is now pinned, which is what I recommended.  2. **Carried items I confirmed.** Four of the carried items are real.    - The GDD has no 'vacuum' text.    - derelict-authoring-handmade-kits.md has 0 hits for mode_since_step or mode_key.    - AC-136d at line 1595 still pairs 18 rows with 40 draws.    - REGION_MIN_PX at line 674 is still 9,216, derived from the 384x216 field.     None of these is BLOCKING for implementation.    - The flas
+Prior verdict resolved: Yes (confirming review of 2026-10-27)
+Findings:
+- [RECOMMENDED] Edge Cases (DESTROYED subject); ET-4; row 5; FT-17/FT-18; AC-43: [main review][creative-director] Spot-checked: the GDD contains no occurrence of 'vacuum'. A hole-open BREACH's intensity_pm is the hole fraction, so on a vented dead derelict seg_b_breach stays LIVE for ever and animates wind and debris. That breaks the core 'a dead ship reads as dead' fantasy and contradicts AC-43. This is my carried request and I am keeping it. It is a hard prerequisite of the Derelict B content story, not of the system code.
+- [RECOMMENDED] Formulas D.8b; V/A.6; Tuning Knobs line 674 and invariant 10; AC-155 to AC-159; registry arc_flash_share: [main review] Confirmed at line 674 that REGION_MIN_PX is 9,216 and comes from a 384x216 field. The Pipeline's 320x180 field and the RM-DECK fields make smaller regions, where the swing passes the 10 percent counted threshold. The 3 flashes/s rate limit still holds, so this is a lost safety margin, not a violation. It is a photosensitivity item, so treat it as first in line.
+- [RECOMMENDED] Detailed Design rows 5 and 9; FT-3; FT-12; oracle: [main review] This is the third pass carrying the medium-key mismatch. The Graph gives an open BREACH the medium GAS and a starve SCRAM the medium FUEL. F&T keys these rows STRUCT and HEAT, so a literal resolver would mis-draw the hole variants that were just fixed.
+- [RECOMMENDED] Dependencies row 19; FT-8; ET-4; AC-24a/43/44/171 (sibling: derelict-authoring-handmade-kits.md): [main review] Confirmed: derelict-authoring-handmade-kits.md has 0 hits for mode_since_step and mode_key. The Graph (LS-14) has already ruled on these fields, so ET-1 and ET-4 cannot be met at integration until Authoring conforms.
+- [RECOMMENDED] AC-136d (line 1595): [main review] Confirmed: line 1595 still reads 'wall rows at 18 (draws 40 against 38)'. Under D.9, 17 rows give 40 draws and 18 rows give 42.
+- [RECOMMENDED] V/A.10 asset list; FT-38; AC-95; V/A.11: [main review] Confirmed: no trail_hull_hole stem appears anywhere in the GDD. The three hole sprites that the resolver chooses between are missing from the artist's list, and the MVP cut ('l 1') would leave only one.
+- [RECOMMENDED] AC-183; D.7; D.9/AC-80/AC-82; V/A.13 S2; FT-40: [main review] The RM-DECK reference machine was not carried into the models. A continuous walk produces no idle samples. The D.7 class mix assumes 60 fps. The field tables have no 1280x800 rows. S2 names D3D12 only. ft-render implies Steam Deck CI.
+- [RECOMMENDED] Overview; FT-9; AC-16; OQ 6f: [main review] The tell-window promise is wider than its test on the slow 1-2-3 ramp path (R21's residual risk).
+- [RECOMMENDED] Header lines 7-8; Open Questions heading, items 18, 46 and 47; Interactions row 3: [main review] Status and cross-references are stale. Confirmed: the header dates still read 2026-10-27.
+- [RECOMMENDED] AC-186c; Graph A_HOLE_MAX range; row 5 RAGGED stub: [main review] A legal Graph tuning of A_HOLE_MAX would brick F&T's data load. Separately, a RAGGED cut stub (A_hole 24) deliberately draws as a rib, and nothing explains that.
+Return "ok".
+Reviewed-Content-Hash: design/gdd/failure-and-trail-system.md 0496221baa9e226b541fe805fc01f3d9edfc8992
+Reviewed-Content-Hash: design/registry/entities.yaml 259f2c28b21a009ca35000d94fe3ef5b4d3ef301

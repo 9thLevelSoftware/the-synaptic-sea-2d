@@ -121,3 +121,32 @@ Findings:
   - [RECOMMENDED] Dependencies status paragraph; AC-SE-48b: [main review] The status paragraph is dated round-1 (2026-10-26) and is stale. AC-SE-48b does not mention R12's P99 frame headroom.
 Reviewed-Content-Hash: design/gdd/suit-and-equipment.md 58f7c05c96afb1439e97468929e20220e19e4e12
 Reviewed-Content-Hash: design/registry/entities.yaml 259f2c28b21a009ca35000d94fe3ef5b4d3ef301
+
+## Review — 2026-10-28 — Verdict: APPROVED
+Scope signal: XL
+Specialists: none (lean confirming re-review after the second cross-GDD fix pass)
+Blocking items: 0 | Recommended: 19
+Summary: APPROVED. Nothing blocks implementation, and nothing the main review flagged was blocking.  I spot-checked the findings the verdict depends on, by grep and range read of design/gdd/suit-and-equipment.md.  - **AC-SE-18 (L1628):** the lint still forbids any Suit field other than locomotion_cap and stowed_heavy. The Controller GDD confirms that the Adapter now also reads tool_in_hand, so the lint would fail a correct implementation. - **AC-SE-23b (L1649):** it still says 'below SUIT_HP_FAIL at run 125'. That is an off-by-one; the first run below is 126. - **AC-SE-44a (L1719):** it still has the wrong A16 window, and a value that is legal in the registry would trip A15 and fail boot. - **OQ-30 (
+Prior verdict resolved: Yes (confirming review of 2026-10-28)
+Findings:
+- [RECOMMENDED] SE-16, AC-SE-18 (L1628), L475, L502, L1141, L1500: [main review, creative-director confirmed] AC-SE-18's lint says the Controller's source references no Suit field other than locomotion_cap and stowed_heavy. The G6 edit in this pass made the Controller Adapter read tool_in_hand for PC-6 (SE-40, and player-controller-input.md uses tool_in_hand 8 times). A correct implementation would therefore fail this auto lint. Fix it first in this list, because the test fails correct code.
+- [RECOMMENDED] AC-SE-23b (L1649); D.7 Example 2: [main review, confirmed at L1649] Off-by-one oracle, now carried over a third time. At run 125 integrity_bp is exactly 2500, which is not below SUIT_HP_FAIL under the strict '<'. The first run below it is 126, and AC-SE-74's 225 already assumes 126.
+- [RECOMMENDED] AC-SE-44a (L1719); D.8 A15/A16; HOP_LEG_TICKS coupling: [main review, confirmed at L1719] A15 fails boot above HOP_LEG_TICKS 1,725, but the registry range for HOP_LEG_TICKS runs to 2,190. A legal Web Map value can therefore fail Suit's boot, and the window '1,500 or more, leg_runs 250 or more' is wrong. The default of 900 is safe. This becomes blocking if the Web Map pacing spike exceeds about 1,700 ticks.
+- [RECOMMENDED] BEAM_TOGGLE_MIN_INTERVAL_TICKS (SE-8, D.5, Edge Cases, Cross-Refs, AC-SE-47a/b, OQ-26): [main review] Suit still says '10 ticks, range 10-20' in 7 places. The registry owner (PC-5) set the value to 12, with 12 as the WCAG floor. This is the third carry-over (G3).
+- [RECOMMENDED] OQ-30 (L1818): [main review, confirmed] OQ-30 still states the withdrawn bound 'at most RESERVE_S / 2' as a live rule, which contradicts D.11, SE-6 and AC-SE-75c.
+- [RECOMMENDED] Dependencies (L1106, L1120, L1136), Interactions, AC-SE-75c (L1669), AC-SE-34a, Gaps (L1761-1762): [main review, confirmed at L1762] Web Map, Derelict Authoring and Save/Load have all conformed, but Suit still reports them as pending and leaves 75c and 34a NOT ASSESSED. The status paragraphs are dated round 1.
+- [RECOMMENDED] D.9 PASSIVE fallback: [main review] D.9 still uses the uncapped extra_credit form, which D.2 and AC-SE-8d replaced. The path is dormant in VERB mode.
+- [RECOMMENDED] AC-SE-36a, AC-SE-87, AC-SE-94: [main review] The exact valve-click edge counts assume the seat boards from an AIR_OK room and arrives in one, but no GIVEN says so.
+- [RECOMMENDED] D.8 item (3); Tuning Knobs TL_* rows: [main review] The independently published 'safe' ranges fail A13 at defaults, which has zero slack.
+- [RECOMMENDED] R_BREATH range and the 600 fixtures: [main review] Suit's range of 100-600 exceeds the Item DB's usable 100-375 at MAX_CREW 4, so a Suit-legal value fails a downstream BLOCKING lint.
+- [RECOMMENDED] D.10 rule (2), VA-R6, Audio requirements, UI-7: [main review; creative-director: Pillar-relevant] E3 (R21) is recorded only in AC-SE-91a/b and OQ-51. Universal 'every body cue has an audio witness' claims remain, and E1 to E3 falsify them. This touches the horror-readability promise: players need to trust what the doc says the cues guarantee.
+- [RECOMMENDED] OQ-11; registry STAGGER_WINDOW_TICKS unit text: [main review] OQ-11 and the registry say the stagger is 'live at MVP', while SE-35 and OQ-38 say it is dormant.
+- [RECOMMENDED] SE-30, UI suit panel vs HUD HS-12: [main review] Suit's 'never seconds' reads as a ban on the HUD's legal R8 conversion. Neither doc says the HUD's seconds figure is nominal.
+- [RECOMMENDED] D.11 assumptions and sink table: [main review] D.11 does not state its assumptions: an intact suit, no relax credit in DEEP_COLD, and N_hi of the slack leg. The sink table and the budget also use different leg bases.
+- [RECOMMENDED] AC count and coverage map; group-D table; SE-34: [main review] AC-SE-96 and 97 are missing from the criteria count, the coverage map and the gate table. SE-34 mirrors SL-15 item 5, which conflicts with kernel CR-8.
+- [RECOMMENDED] AC-SE-35 fixture; SE-38 size; AC-SE-48b; test infra item (5): [main review] The AC-SE-35 fixture uses a non-int 'S'. The SE-38 size estimate is out of date. AC-SE-48b lacks the 90 % headroom rule. Item (5) still says the RM machines are owed.
+- [RECOMMENDED] Overview L38, OQ-6, OQ-17, carried_class naming, OQ-38: [main review] Stale or loose wording remains in these places.
+- [RECOMMENDED] Sibling residue: [main review] Emitter L192 still has the bind_beam wording. The attention.step registry text has a false transitive-ordering claim. Save/Load SL-15 item 5 conflicts with kernel CR-19(b).
+- [RECOMMENDED] Sink/faucet table; OQ-49; OQ-48 (g): [main review; creative-director endorses] By the doc's own arithmetic the lamp cell never binds within a sortie, so the 'top up or push on' autonomy and the Pillar 3 go-dark lever are still unproven.
+Reviewed-Content-Hash: design/gdd/suit-and-equipment.md fbf0a624b02c49d2d168ab008412a116a85a4a4d
+Reviewed-Content-Hash: design/registry/entities.yaml cafe6d1169a1fe5dd043eae35c2c07a90c93b4c6

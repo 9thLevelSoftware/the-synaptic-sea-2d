@@ -124,3 +124,27 @@ Findings:
 Return "ok".
 Reviewed-Content-Hash: design/gdd/hud-and-suit-layer.md 194a7b1d91d36d1416bc6276d5b0a8d530279ba3
 Reviewed-Content-Hash: design/registry/entities.yaml 259f2c28b21a009ca35000d94fe3ef5b4d3ef301
+
+## Review — 2026-10-28 — Verdict: APPROVED
+Scope signal: XL
+Specialists: none (lean confirming re-review after the second cross-GDD fix pass)
+Blocking items: 0 | Recommended: 14
+Summary: Verdict: APPROVED. Nothing needs to be fixed before implementation can start.  I spot-checked what the verdict turns on: - **AC-HS-145 (l.1859):** it is still written to fail at about 2.8:1. Under the default BLOCKING Visual/UI gate this would block every HUD visual story that touches those strokes. Settling it takes a ruling, not a redesign, and I have made that ruling under the delegation (R21): the state-carrying strokes move to Hull Grey, which is already in the locked palette. - **HS-39 (l.283):** 'never withheld' sits next to 'a build-gate defect, not a runtime fallback', with no runtime behaviour defined. This is real but limited: AC-HS-147(c) guarantees placement on the offered pictu
+Prior verdict resolved: Yes (confirming review of 2026-10-28)
+Findings:
+- [RECOMMENDED] Acceptance Criteria AC-HS-145; OQ-HS-83; HS-20: [main review, confirmed by creative-director at l.1859] AC-HS-145 says 'the criterion is expected to FAIL for Graphite lit #5C6670 on Ground (about 2.8:1)'. Visual and UI gates are BLOCKING, so every story that touches the lamp-OFF outline, the mark's OFF outline, the dimmed notches or the dead-source band would be blocked. OQ-HS-83 is still open, which R21 does not allow. This is not a design blocker because the fix is a ruling, not a redesign. It must still be settled before the first HUD visual story starts.
+- [RECOMMENDED] HS-39 give_up/self plate placement (l.283); AC-HS-147(c), AC-HS-150: [main review, confirmed at l.283] The plate is 'never withheld', yet when no candidate fits, 'UI_PLACEMENT_WITHHELD increments and that is a build-gate defect, not a runtime fallback'. Nothing defines what is drawn at runtime in that case, so the D7 give-up exit could silently disappear.
+- [RECOMMENDED] AC-HS-147(c), AC-HS-150: [main review] The tested scales are H 2, 3 and 4. H 2 is never offered, and H 5 and 6 (offered at 1080p and above) are not tested. AC-HS-150 also cites 'five facings', which have no effect on placement.
+- [RECOMMENDED] HS-43 / EC-HS-39 carry set; HS-37 self plate; AC-HS-67: [main review] While carrying, the self plate can draw 'Patch suit' even though begin_patch is BUSY when carrying. The HUD would be showing a prompt the sim rejects.
+- [RECOMMENDED] perception-filter.md (owner); HS-6/HS-25; AC-HS-33(e); OQ-HS-79(2): [main review] G6 gap: perception-filter.md never mentions suit.alarm, so the user-ruled D89 ship-alarm mark cannot be fed end to end.
+- [RECOMMENDED] OQ-HS-81; D.8; Tuning Knobs: [main review] OQ-HS-81 still records a creative-director lean towards COLUMN, which was withdrawn on 2026-10-28 because COLUMN breaks P1's HUD-free upper 70%.
+- [RECOMMENDED] D.3 l.529, Tuning Knobs l.1132, Cross-References l.1667, OQ-HS-80(3) l.1977: [main review, confirmed at l.529 and l.1667] RESERVE_S is cited as 90 (45-240) at four sites, but the registry range is 63-240, so AC-HS-91 fails as written.
+- [RECOMMENDED] MARK_DUTY_PM (D.2, HS-23, Tuning Knobs, registry); AC-HS-123: [main review] The declared range of 400-600 includes failing values: at period 128, a duty above 531 breaks the flash-window proof.
+- [RECOMMENDED] R20 leftovers l.245, 261, 1362, 1953; Last Verified; memory-budget gap line (about l.1917): [main review, confirmed at l.1362] Four 'still subject to user confirmation' phrases remain. The header and the memory-budget gap line are stale.
+- [RECOMMENDED] UI Requirements item 2; registry bottom_row_fit.output; Game Feel step 4 CONFIRM_HOLD_S; HS-26/EC-HS-50 BREATH; AC-HS-46/51; confirm_view naming: [main review] Stale text and gaps that remain: the withdrawn 100-px box; the stale registry output sets; the 0.6-1.2 s range, which should be 0.6-1.9 s (2.25 to 7.125 ticks per px); no dispatch for BREATH or unknown motion_mode; two review-only ACs; and input_view vs confirm_view naming (G1: the publisher names it).
+- [RECOMMENDED] Player Fantasy; Anti-pillar 4; truth-channel table: [main review; creative-director concurs, this is a vision-coherence item] The DOWNED give_up plate and the self plate are new on-screen words and surfaces, but the fantasy, anti-pillar 4 and the truth-channel table do not mention them.
+- [RECOMMENDED] HS-37 self plate; Playtest questions: [main review] With a welder in hand, a 'Patch suit' plate may pop in and out constantly and draw on the flash budget.
+- [RECOMMENDED] Tone and language HUD_DEATH_WORDS: [main review] A plain stem match produces false positives ('diesel'). 'revive' is banned but will be needed at Vertical Slice B.
+- [RECOMMENDED] Siblings EM-22, Horror AC-59b: [main review] The stale lit(ref) prompt wording is unverified, not closed.
+Reviewed-Content-Hash: design/gdd/hud-and-suit-layer.md 177a175e64ca64307c8d41f7b6214315392e9e03
+Reviewed-Content-Hash: design/registry/entities.yaml cafe6d1169a1fe5dd043eae35c2c07a90c93b4c6

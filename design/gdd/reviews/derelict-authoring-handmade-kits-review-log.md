@@ -98,3 +98,56 @@ Findings:
   - [RECOMMENDED] DA-46 dock glow; DA-23; DA-40 SELF_POWERED_LAMP_COUNT; OQ-DA-46: [main-review] BOOT recognises the dock glows through a hard-coded node_ref exception list. That breaks the rule that BOOT is a pure function of files plus config.
 Reviewed-Content-Hash: design/gdd/derelict-authoring-handmade-kits.md 815e5d1eacffc0713b3dd11a867d33e22d8c17fd
 Reviewed-Content-Hash: design/registry/entities.yaml 9f5a7ba4a6da931db8091a4c0e4f949a0d3f8bd8
+
+## Review — 2026-10-28 — Verdict: APPROVED
+
+Scope signal: XL
+Specialists: none (lean confirming re-review after the cross-GDD fix pass, delegated rulings R12-R21)
+Blocking items: 0 | Recommended: 14
+
+Summary: Verdict: APPROVED. No blocking items are left, and the main review's verdict holds.  I spot-checked the Emitter conflict against the files. EM-3 (emitter l.115) names fixture_subkind_dock_status. EM E1 (l.156) and the Emitter's refresh-owed row (l.1109) say the DOCK_STATUS glow is created OFF whatever the authoring says. The Derelict Authoring anchors for 'doubles the speed', PART_TYPE_UNSUPPLIED, OQ-BS-31 and AC-DA-142 are all present where the review says.  The dock-glow conflict is the closest thing to a blocker, but under G1 the Emitter, as owner, decides it, so implementation is not ambiguous. It stays RECOMMENDED, though AC-DA-144 would currently test the wrong state.  The earlier bloc
+Prior verdict resolved: Yes (confirming review of 2026-10-27)
+
+Findings:
+- [RECOMMENDED] DA-46, DA-23, DA-41, OQ-DA-46, AC-DA-144: [main review][creative-director confirmed] The dock-glow handling conflicts with the Emitter GDD. EM-3 (emitter l.115) names fixture_subkind_dock_status. EM E1 (l.156) and the Emitter's refresh-owed row (l.1109) say a DOCK_STATUS glow is created OFF whatever the authoring says. DA-46 still authors switch_on true, calls the class 'owed', and has BOOT recognise glows from a hard-coded node_ref list. Under G1 the Emitter is the owner, so this does not block implementation: the Emitter's rule decides it. AC-DA-144 would still test the wrong state.
+- [RECOMMENDED] AC-DA-142, DA-32, D.17 cumulative table, INTERACT_BUDGET_REQUEST, registry interaction_subjects_if_adopted: [main review] AC-DA-142, DA-32 and the D.17 cumulative table still use the subject-budget figures from before DA-47 (79/117/128/128/166). The GDD's own D37 paragraph gives 81/119/130/130/168. That contradicts G4.
+- [RECOMMENDED] D.17 F(B); AC-DA-47/48/142; OQ-DA-54: [main review] F(B) = 40 does not reproduce from its stated definition, which gives 38. The error is conservative (it overcounts), but every figure derived from B is off by 2.
+- [RECOMMENDED] DA-48, C.2, D.1, D.18, door table, DA-3 spawn table, AC-DA-148: [main review] User ruling X3 (a 21-28 tile reference carry) is still not the plan of record. Shipped A still fails the user's band. Boarding and Attention already quote the 1,344 px figure.
+- [RECOMMENDED] Player Fantasy beat 4, DA-47 (i), DA-48, X-DA-11, AC-DA-148: [creative-director] The teaching order contradicts itself: Player Fantasy makes the failed scrubber the first carry, while DA-47/48 make htr_a the first carry. htr_a pays nothing back to the player, which weakens the Pillar 1 'every carry matters' beat.
+- [RECOMMENDED] Game Feel beat 2: [main review][creative-director] Beat 2 says the breaker swap 'doubles the speed of every wear row'. DA-13 (b) says wear compression applies from boarding. The framing prose is untrue to the rules, which is a Pillar 1 truthfulness defect.
+- [RECOMMENDED] AC-DA-153, DA-28: [main review] The 1,540 peak leaves out the bot's outbound crossing (about 2,100 with it). The AC fails its own script, though it stays safely below TL_CRITICAL 4,000.
+- [RECOMMENDED] DA-29/DA-48, Cross-References: [main review] Boarding's OQ-BS-31 (does the 600 px carry bound apply to the decision carry?) is unanswered.
+- [RECOMMENDED] DA-40 lint table, DA-25, D.4, registry: [main review] PART_TYPE_UNSUPPLIED is raised in DA-25 and D.4 but has no row in the lint table, so AC-DA-56's traceability check fails.
+- [RECOMMENDED] Header, Dependencies, Interactions, UI, Audio, ACs: [main review] Status labels are stale: Web Map, Boarding, Perception Filter, Adaptive Audio and Modular Ship Assembly are all Designed on disk.
+- [RECOMMENDED] Composition row, AC-DA-77, Edge Cases diet, AC-DA-96, AC-DA-100, l.1307: [main review] Orphaned values and untestable wording: '98 px' (should be 102), the 2,160,000 recovery lever (above the 1,950,000 ceiling), the 27-to-22 diet counts (now 29/24), the 'leaked RefCounted handles' check (gdUnit4 cannot report it), a 'third fixture' violation that is actually legal (needs a fourth), and 'may exceed 5' (ledger is 4).
+- [RECOMMENDED] DA-25 PART_INSTANCES_MAX: [main review] The tight bound is 68 (4 + 64 salvageable module nodes), not 70.
+- [RECOMMENDED] Open Questions: [main review] OQ-DA-6/8/V5/2/24/51 still list 'user' as owner, although each has a default applied.
+- [RECOMMENDED] Cross-GDD routed items: [main review] Sibling text is stale: Attention N_GLOW_DARK, Boarding BS-20 '144 vs 120', the systems-index row 14 wording, and the registry content_lint_ids count of 82.
+Reviewed-Content-Hash: design/gdd/derelict-authoring-handmade-kits.md e548810f73c880eadcbc10b8dfad25215ac92564
+Reviewed-Content-Hash: design/registry/entities.yaml 259f2c28b21a009ca35000d94fe3ef5b4d3ef301
+
+## Review — 2026-10-28 — Verdict: APPROVED
+Scope signal: XL
+Specialists: none (lean confirming re-review after the second cross-GDD fix pass)
+Blocking items: 0 | Recommended: 16
+Summary: Verdict: APPROVED. Nothing needs to be fixed before implementation can start. I spot-checked the findings the verdict depends on.  - **Dock-glow luminance conflict (confirmed).** The knob is set to 250 at l.1482 and the lint is at l.555. The Emitter's default is 500 with a floor of 300 (registry l.14319, Web Map l.813). - **Missing PART_TYPE_UNSUPPLIED row (confirmed).** The lint is referenced at l.427, 829 and 839, but the DA-40 table has no row for it. - **Stale counts and ACs (confirmed).** The 'registry still reads 82' sentence (l.541), the two pass lines in AC-DA-122 (l.2039) and the 'third fixture' in AC-DA-100 (l.2046) are all still present.  None of these leaves an implementer guessi
+Prior verdict resolved: Yes (confirming review of 2026-10-28)
+Findings:
+- [RECOMMENDED] DA-46; DA-40 DOCK_GLOW_LUMINANCE (l.555); Tuning Knobs DOCK_GLOW_OUTPUT_MAX_PM (l.1482); Visual/Audio l.1579; AC-DA-144/145: [main review, confirmed by creative-director] The default DOCK_GLOW_OUTPUT_MAX_PM is 250 permille of the residual lamp, with a range of 100-500. The Emitter's DOCK_STATUS_BASE_PM defaults to 500 and cannot go below 300 (registry l.14319; Web Map l.813). The ERROR lint therefore fires at the owner's default, and AC-DA-144 and AC-DA-145 cannot both pass. This is a placeholder that contradicts itself, which R10 allows us to fix. It is the most urgent item on this list, because CI on the shipped templates would fail on the first run.
+- [RECOMMENDED] DA-46; DA-41; SELF_POWERED_LAMP_COUNT; OQ-DA-46; AC-DA-144; registry dock_status_glow notes: [main review] Carried for the second time. The dock-glow text still describes the glow as 'switch_on true at build' and recognises it through a hard-coded node_ref BOOT list. The Emitter has since closed this: subkind fixture_subkind_dock_status, created OFF, with Web Map's E10 set_dock_status turning it on and off. G1 means the Emitter wins, but AC-DA-144 never parks the pod before it asserts.
+- [RECOMMENDED] AC-DA-142; D.17 cumulative table; registry interaction_subjects_if_adopted; DA-32 option (3): [main review] The table and AC still use the pre-DA-47 figures (S4 S_total 196). The GDD's own D37 paragraph gives 198, which is over by 6.
+- [RECOMMENDED] DA-40 lint table; DA-25; D.4; AC-DA-56: [main review, confirmed] DA-25 and D.4 raise PART_TYPE_UNSUPPLIED (l.427, 829, 839), and Item DB F-11 defers to Authoring as the owner of that lint id. Neither the 90-row table nor the registry has a row for it, so the AC-DA-56 traceability check fails.
+- [RECOMMENDED] Player Fantasy beat 4 vs DA-48 / X-DA-11 / AC-DA-148: [main review; creative-director weighting] The teaching order contradicts itself. Player Fantasy says the scrubber is the first V8 carry, while DA-48 makes htr_a the first sortie. This is a pillar-level problem: Player Fantasy should promise the moment the measured route actually delivers.
+- [RECOMMENDED] AC-DA-122 (l.2039); AC-DA-121: [main review, confirmed] AC-DA-122 gives two pass lines, the raw 16.6/33.3 ms ceilings and 90% of the ceiling. R12 makes 90% binding. AC-DA-121 applies a frame-ceiling clause to a per-tick simulation budget.
+- [RECOMMENDED] DWELL_BUDGET_LOW (D.23, DA-40, AC-DA-162, OQ-DA-56): [main review] DWELL_BUDGET_LOW is an ERROR in T2, but the shipped plan fails it (104 s against 190 s). T2 therefore cannot complete, and AC-DA-162 is blocked by design. The defect is in the sequencing, not the rule.
+- [RECOMMENDED] DA-48 decision reach (2); AC-DA-160; Boarding EC-BS-68: [main review] The decision-reach window overlaps the machine-door assembly extent. It is undefined whether 'door assembly cell' means leaf cells or the whole assembly, and that choice decides what DECISION_REACH_MISSING tests.
+- [RECOMMENDED] AC-DA-153; DA-28 Lethal cold: [main review] The 1,540 peak-exposure figure ignores the outbound in-room leg (about 19 s in total), so the AC fails against its own script. Safety still holds below 4,000.
+- [RECOMMENDED] AC-DA-96; AC-DA-100 (l.2046): [main review, confirmed] gdUnit4 does not report RefCounted leaks. A third fixture in b_pump is legal (bound 3), so AC-DA-100 injects no violation.
+- [RECOMMENDED] DA-40 l.541; header l.9; DA-24 worst-case: [main review, confirmed] Stale counts remain. 'The registry still reads 82' is wrong because the registry now reads 90. The header says 88 lints. DA-24 tallies 39 authored rows but omits the 3 dock glows, which makes 42.
+- [RECOMMENDED] DA-25 PART_INSTANCES_MAX; Dependencies Item DB row: [main review] The bound is 70, but the junctions cannot be salvaged, so the tight bound is 68. The roster is also cited as 24 defs, but there are now 23.
+- [RECOMMENDED] Open Questions OQ-DA-6/8/V5/2/24; OQ-DA-54: [main review] Five OQs are still owned by 'user' although their defaults are applied and confirmed under R20. OQ-DA-54 (F(B) is 40 vs 38) is still open.
+- [RECOMMENDED] Status labels; Boarding l.247/l.1694; systems-index row 14: [main review] Stale labels say Perception Filter and Web Map are 'undesigned' and MSA is 'In Design', but all three are Designed. The sibling lines are also stale.
+- [RECOMMENDED] Visual/Audio l.1614; DA-32 diet l.1346: [main review] Orphaned values remain: 98 px should be 102 px, and '27 to 22 ... 10 spare' should be '29 to 24 ... 8 spare'.
+- [RECOMMENDED] Tuning Knobs REF_CARRY_LEVER_N; SPINE_LENGTH_TILES: [main review] The R19 conditional (n = 13/14, 31 tiles) falls outside the stated ranges.
+Reviewed-Content-Hash: design/gdd/derelict-authoring-handmade-kits.md 12f8dddf20da30acfdbc6b13796e01e45f9c3667
+Reviewed-Content-Hash: design/registry/entities.yaml cafe6d1169a1fe5dd043eae35c2c07a90c93b4c6

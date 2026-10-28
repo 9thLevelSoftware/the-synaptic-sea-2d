@@ -61,3 +61,24 @@ project:
 modes:
   rigor: full
   automation: autonomous
+
+# Reference machines for every wall-clock criterion (X14, closed 2026-10-28 by
+# delegated ruling R12; the developer machine is not a reference machine).
+qa:
+  min_spec:
+    desktop:
+      id: RM-DESKTOP
+      os: Windows 10/11 64-bit
+      cpu: 6-core Intel Core i5-9400F / AMD Ryzen 5 2600 class
+      ram_gb: 8
+      gpu: NVIDIA GeForce GTX 1050 Ti 4 GB / AMD Radeon RX 570 4 GB class (Vulkan 1.2+)
+      storage: SATA SSD
+      display: 1920x1080 @ 60 Hz
+      p99_cpu_frame_ms: 16.6
+    handheld:
+      id: RM-DECK
+      device: Steam Deck LCD (2022), SteamOS stable
+      display: 1280x800 @ 60 Hz, 30 fps target
+      p99_cpu_frame_ms: 33.3
+    build: Godot 4.7.2 release export template, renderer forward_plus, vsync on, 120-frame warm-up
+    p99_headroom: P99 <= 90% of the ceiling

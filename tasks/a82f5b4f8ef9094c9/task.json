@@ -1,0 +1,17 @@
+{
+  "tool_use_id": "a82f5b4f8ef9094c9",
+  "agent_id": "a82f5b4f8ef9094c9",
+  "subagent_type": "workflow-subagent",
+  "files": [
+    "design/gdd/horror-entities.md"
+  ],
+  "token_usage": {
+    "input_tokens": 34,
+    "cache_creation_tokens": 87554,
+    "cache_read_tokens": 1332786,
+    "output_tokens": 12752,
+    "api_call_count": 16
+  },
+  "started_at": "2026-10-28T02:22:01.4816788-04:00",
+  "completed_at": "2026-10-28T02:25:52.5553174-04:00"
+}

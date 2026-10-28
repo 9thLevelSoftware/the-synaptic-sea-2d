@@ -1,0 +1,17 @@
+{
+  "tool_use_id": "a9473e6379dbbf0fd",
+  "agent_id": "a9473e6379dbbf0fd",
+  "subagent_type": "workflow-subagent",
+  "files": [
+    "design/gdd/pixel-perfect-render-pipeline-camera.md"
+  ],
+  "token_usage": {
+    "input_tokens": 32,
+    "cache_creation_tokens": 86466,
+    "cache_read_tokens": 1113056,
+    "output_tokens": 11749,
+    "api_call_count": 16
+  },
+  "started_at": "2026-10-28T02:22:00.0420011-04:00",
+  "completed_at": "2026-10-28T02:24:02.3470087-04:00"
+}

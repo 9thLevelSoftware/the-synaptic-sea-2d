@@ -1,0 +1,17 @@
+{
+  "tool_use_id": "a50efef049601e6ba",
+  "agent_id": "a50efef049601e6ba",
+  "subagent_type": "workflow-subagent",
+  "files": [
+    "design/gdd/modular-ship-assembly.md"
+  ],
+  "token_usage": {
+    "input_tokens": 20,
+    "cache_creation_tokens": 57854,
+    "cache_read_tokens": 627926,
+    "output_tokens": 5870,
+    "api_call_count": 10
+  },
+  "started_at": "2026-10-28T02:22:05.2329571-04:00",
+  "completed_at": "2026-10-28T02:23:16.8522246-04:00"
+}

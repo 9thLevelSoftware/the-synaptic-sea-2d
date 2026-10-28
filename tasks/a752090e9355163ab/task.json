@@ -1,0 +1,17 @@
+{
+  "tool_use_id": "a752090e9355163ab",
+  "agent_id": "a752090e9355163ab",
+  "subagent_type": "workflow-subagent",
+  "files": [
+    "design/gdd/suit-and-equipment.md"
+  ],
+  "token_usage": {
+    "input_tokens": 24,
+    "cache_creation_tokens": 67108,
+    "cache_read_tokens": 802943,
+    "output_tokens": 7686,
+    "api_call_count": 12
+  },
+  "started_at": "2026-10-28T02:22:05.116413-04:00",
+  "completed_at": "2026-10-28T02:23:59.1836658-04:00"
+}

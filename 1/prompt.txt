@@ -1,0 +1,13 @@
+/architecture-decision "Kernel tick driver and frame order"
+
+---
+
+/architecture-decision "Authority model and command pipeline"
+
+---
+
+/architecture-decision "State-block registry, write discipline and owner-callable contract"
+
+---
+
+/architecture-review

@@ -3,7 +3,7 @@
   "checkpoint_id": "01M61ZNZRVV63GJEKY9X7YNAG3",
   "strategy": "manual-commit",
   "branch": "main",
-  "checkpoints_count": 1,
+  "checkpoints_count": 4,
   "files_touched": [
     "design/gdd/command-simulation-layer.md",
     "design/gdd/derelict-authoring-handmade-kits.md",
@@ -12,6 +12,9 @@
     "design/gdd/player-controller-input.md",
     "design/gdd/suit-and-equipment.md",
     "design/gdd/web-map-and-transit.md",
+    "docs/architecture/adr-0001-kernel-tick-driver-and-frame-order.md",
+    "docs/architecture/adr-0002-authority-model-and-command-pipeline.md",
+    "docs/architecture/adr-0003-state-block-registry-and-owner-contract.md",
     "docs/architecture/tr-baseline.md",
     "docs/registry/architecture.yaml"
   ],
@@ -22,14 +25,21 @@
       "compact_transcript": "/0/transcript.jsonl",
       "content_hash": "/0/content_hash.txt",
       "prompt": "/0/prompt.txt"
+    },
+    {
+      "metadata": "/1/metadata.json",
+      "transcript": "/1/full.jsonl",
+      "compact_transcript": "/1/transcript.jsonl",
+      "content_hash": "/1/content_hash.txt",
+      "prompt": "/1/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 146,
-    "cache_creation_tokens": 282410,
-    "cache_read_tokens": 16402703,
-    "output_tokens": 78913,
-    "api_call_count": 71,
+    "input_tokens": 218,
+    "cache_creation_tokens": 617656,
+    "cache_read_tokens": 20466394,
+    "output_tokens": 105852,
+    "api_call_count": 107,
     "subagent_tokens": {
       "input_tokens": 346,
       "cache_creation_tokens": 3317847,

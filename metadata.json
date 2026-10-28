@@ -1,0 +1,68 @@
+{
+  "cli_version": "0.12.2",
+  "checkpoint_id": "01M61J0X71FFZBBRK6SY4QGGYC",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 5,
+  "files_touched": [
+    "design/gdd/boarding-and-salvage.md",
+    "design/gdd/command-simulation-layer.md",
+    "design/gdd/derelict-authoring-handmade-kits.md",
+    "design/gdd/horror-entities.md",
+    "design/gdd/life-support-graph.md",
+    "design/gdd/modular-ship-assembly.md",
+    "design/gdd/pixel-perfect-render-pipeline-camera.md",
+    "design/gdd/reviews/boarding-and-salvage-review-log.md",
+    "design/gdd/reviews/command-simulation-layer-review-log.md",
+    "design/gdd/reviews/derelict-authoring-handmade-kits-review-log.md",
+    "design/gdd/reviews/horror-entities-review-log.md",
+    "design/gdd/reviews/life-support-graph-review-log.md",
+    "design/gdd/reviews/modular-ship-assembly-review-log.md",
+    "design/gdd/reviews/pixel-perfect-render-pipeline-camera-review-log.md",
+    "design/gdd/reviews/save-load-and-versioned-format-review-log.md",
+    "design/gdd/reviews/suit-and-equipment-review-log.md",
+    "design/gdd/reviews/web-map-and-transit-review-log.md",
+    "design/gdd/save-load-and-versioned-format.md",
+    "design/gdd/suit-and-equipment.md",
+    "design/gdd/systems-index.md",
+    "design/gdd/web-map-and-transit.md",
+    "design/registry/entities.yaml"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": "/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 42,
+    "cache_creation_tokens": 23847,
+    "cache_read_tokens": 2945042,
+    "output_tokens": 9082,
+    "api_call_count": 19,
+    "subagent_tokens": {
+      "input_tokens": 2127,
+      "cache_creation_tokens": 5534684,
+      "cache_read_tokens": 140967397,
+      "output_tokens": 853022,
+      "api_call_count": 934
+    }
+  },
+  "redaction": {
+    "replacements": 306,
+    "layers": {
+      "betterleaks": 0,
+      "connection_string": 0,
+      "credential_key": 0,
+      "credential_value": 0,
+      "credentialed_uri": 0,
+      "entropy": 1028,
+      "key_context": 0,
+      "provider_token": 0,
+      "shell_stdin": 0
+    }
+  }
+}

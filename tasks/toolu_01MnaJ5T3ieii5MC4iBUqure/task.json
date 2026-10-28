@@ -1,0 +1,15 @@
+{
+  "tool_use_id": "toolu_01MnaJ5T3ieii5MC4iBUqure",
+  "agent_id": "ab104f9d77b34405b",
+  "subagent_type": "general-purpose",
+  "task_description": "TR completeness: boarding",
+  "token_usage": {
+    "input_tokens": 14,
+    "cache_creation_tokens": 119738,
+    "cache_read_tokens": 514495,
+    "output_tokens": 6771,
+    "api_call_count": 7
+  },
+  "started_at": "2026-10-28T14:57:24.5569255-04:00",
+  "completed_at": "2026-10-28T14:59:21.1867394-04:00"
+}

@@ -1,0 +1,15 @@
+{
+  "tool_use_id": "toolu_01NhPt8MbHH253TGLvAQrURe",
+  "agent_id": "a35c9157d4abfb895",
+  "subagent_type": "general-purpose",
+  "task_description": "TR completeness: attention",
+  "token_usage": {
+    "input_tokens": 10,
+    "cache_creation_tokens": 124397,
+    "cache_read_tokens": 363944,
+    "output_tokens": 5964,
+    "api_call_count": 5
+  },
+  "started_at": "2026-10-28T14:57:24.860572-04:00",
+  "completed_at": "2026-10-28T14:59:01.4872618-04:00"
+}

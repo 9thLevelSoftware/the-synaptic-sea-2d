@@ -1,0 +1,15 @@
+{
+  "tool_use_id": "toolu_012C5Ssghiaa87VLCQABgiJu",
+  "agent_id": "ac9124073390936a3",
+  "subagent_type": "general-purpose",
+  "task_description": "TR completeness: horror",
+  "token_usage": {
+    "input_tokens": 14,
+    "cache_creation_tokens": 131972,
+    "cache_read_tokens": 551027,
+    "output_tokens": 5565,
+    "api_call_count": 7
+  },
+  "started_at": "2026-10-28T14:57:24.863738-04:00",
+  "completed_at": "2026-10-28T14:59:08.6512713-04:00"
+}

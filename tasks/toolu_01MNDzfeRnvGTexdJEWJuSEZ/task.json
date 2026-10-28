@@ -1,0 +1,15 @@
+{
+  "tool_use_id": "toolu_01MNDzfeRnvGTexdJEWJuSEZ",
+  "agent_id": "ac7e28a5d85f9cc4d",
+  "subagent_type": "general-purpose",
+  "task_description": "TR completeness: webmap",
+  "token_usage": {
+    "input_tokens": 18,
+    "cache_creation_tokens": 127516,
+    "cache_read_tokens": 780242,
+    "output_tokens": 6380,
+    "api_call_count": 9
+  },
+  "started_at": "2026-10-28T14:57:24.5492732-04:00",
+  "completed_at": "2026-10-28T14:59:31.7448332-04:00"
+}

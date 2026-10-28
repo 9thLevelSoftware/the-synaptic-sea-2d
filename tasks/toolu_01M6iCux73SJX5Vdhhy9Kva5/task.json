@@ -1,0 +1,15 @@
+{
+  "tool_use_id": "toolu_01M6iCux73SJX5Vdhhy9Kva5",
+  "agent_id": "a6ab46639bd922382",
+  "subagent_type": "general-purpose",
+  "task_description": "TR completeness: shipbody",
+  "token_usage": {
+    "input_tokens": 14,
+    "cache_creation_tokens": 133780,
+    "cache_read_tokens": 559596,
+    "output_tokens": 7337,
+    "api_call_count": 7
+  },
+  "started_at": "2026-10-28T14:57:23.9111344-04:00",
+  "completed_at": "2026-10-28T14:59:23.3511244-04:00"
+}

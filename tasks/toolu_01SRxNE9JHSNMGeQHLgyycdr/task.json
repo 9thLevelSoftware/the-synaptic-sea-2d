@@ -1,0 +1,15 @@
+{
+  "tool_use_id": "toolu_01SRxNE9JHSNMGeQHLgyycdr",
+  "agent_id": "a9b0f98684cd06108",
+  "subagent_type": "general-purpose",
+  "task_description": "TR completeness: light",
+  "token_usage": {
+    "input_tokens": 12,
+    "cache_creation_tokens": 103276,
+    "cache_read_tokens": 392655,
+    "output_tokens": 5328,
+    "api_call_count": 6
+  },
+  "started_at": "2026-10-28T14:57:23.1901121-04:00",
+  "completed_at": "2026-10-28T14:59:02.5826697-04:00"
+}

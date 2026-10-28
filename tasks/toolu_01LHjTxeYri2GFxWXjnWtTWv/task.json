@@ -1,0 +1,15 @@
+{
+  "tool_use_id": "toolu_01LHjTxeYri2GFxWXjnWtTWv",
+  "agent_id": "ac6bd10f712e4f381",
+  "subagent_type": "general-purpose",
+  "task_description": "TR completeness: sanity",
+  "token_usage": {
+    "input_tokens": 16,
+    "cache_creation_tokens": 135380,
+    "cache_read_tokens": 667639,
+    "output_tokens": 5884,
+    "api_call_count": 8
+  },
+  "started_at": "2026-10-28T14:57:24.8648033-04:00",
+  "completed_at": "2026-10-28T14:59:29.7938161-04:00"
+}

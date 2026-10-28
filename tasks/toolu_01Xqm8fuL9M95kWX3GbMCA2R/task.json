@@ -1,0 +1,15 @@
+{
+  "tool_use_id": "toolu_01Xqm8fuL9M95kWX3GbMCA2R",
+  "agent_id": "a65b40433d43fc8d0",
+  "subagent_type": "general-purpose",
+  "task_description": "TR completeness: audio",
+  "token_usage": {
+    "input_tokens": 10,
+    "cache_creation_tokens": 110595,
+    "cache_read_tokens": 355513,
+    "output_tokens": 6559,
+    "api_call_count": 5
+  },
+  "started_at": "2026-10-28T14:59:41.5720285-04:00",
+  "completed_at": "2026-10-28T15:01:01.9537012-04:00"
+}

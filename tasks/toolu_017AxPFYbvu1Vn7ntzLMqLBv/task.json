@@ -1,0 +1,15 @@
+{
+  "tool_use_id": "toolu_017AxPFYbvu1Vn7ntzLMqLBv",
+  "agent_id": "ada0084a3feaf5cbb",
+  "subagent_type": "godot-specialist",
+  "task_description": "Engine second opinion on ADRs",
+  "token_usage": {
+    "input_tokens": 6,
+    "cache_creation_tokens": 89243,
+    "cache_read_tokens": 68454,
+    "output_tokens": 20600,
+    "api_call_count": 3
+  },
+  "started_at": "2026-10-28T15:00:11.9425064-04:00",
+  "completed_at": "2026-10-28T15:03:06.0555521-04:00"
+}

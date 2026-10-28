@@ -1,0 +1,14 @@
+{
+  "tool_use_id": "toolu_01Pm9iKWW3FVqaRyieVCR15A",
+  "agent_id": "a4c6176882be48fe1",
+  "task_description": "TR extraction: hud-and-suit-layer",
+  "token_usage": {
+    "input_tokens": 16,
+    "cache_creation_tokens": 92146,
+    "cache_read_tokens": 569973,
+    "output_tokens": 8994,
+    "api_call_count": 8
+  },
+  "started_at": "2026-10-28T12:09:50.2408311-04:00",
+  "completed_at": "2026-10-28T12:11:20.5503379-04:00"
+}

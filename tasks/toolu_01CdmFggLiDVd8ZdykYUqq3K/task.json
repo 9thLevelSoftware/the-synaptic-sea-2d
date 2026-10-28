@@ -1,0 +1,14 @@
+{
+  "tool_use_id": "toolu_01CdmFggLiDVd8ZdykYUqq3K",
+  "agent_id": "a02183d6ece49ebe6",
+  "task_description": "TR extraction: horror-entities",
+  "token_usage": {
+    "input_tokens": 18,
+    "cache_creation_tokens": 122607,
+    "cache_read_tokens": 708630,
+    "output_tokens": 7953,
+    "api_call_count": 9
+  },
+  "started_at": "2026-10-28T12:08:00.8508361-04:00",
+  "completed_at": "2026-10-28T12:10:16.4807532-04:00"
+}

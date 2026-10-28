@@ -1,0 +1,268 @@
+{
+  "cli_version": "0.12.2",
+  "checkpoint_id": "01M61ZNZRVV63GJEKY9X7YNAG3",
+  "session_id": "e887ccb9-1186-40d9-9566-5eacccbd9b44",
+  "strategy": "manual-commit",
+  "created_at": "2026-10-28T19:27:41.9738778Z",
+  "branch": "main",
+  "checkpoints_count": 10,
+  "save_step_count": 8,
+  "files_touched": [
+    "docs/architecture/adr-0001-kernel-tick-driver-and-frame-order.md",
+    "docs/architecture/adr-0002-authority-model-and-command-pipeline.md",
+    "docs/architecture/adr-0003-state-block-registry-and-owner-contract.md",
+    "docs/architecture/architecture.md",
+    "docs/architecture/tr-baseline.md",
+    "docs/registry/architecture.yaml"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-opus-5-5",
+  "turn_id": "5d7932ee72b0",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 262,
+    "cache_creation_tokens": 1982866,
+    "cache_read_tokens": 57290675,
+    "output_tokens": 260753,
+    "api_call_count": 123,
+    "subagent_tokens": {
+      "input_tokens": 568,
+      "cache_creation_tokens": 3654305,
+      "cache_read_tokens": 21285736,
+      "output_tokens": 326550,
+      "api_call_count": 280
+    }
+  },
+  "redaction": {
+    "replacements": 311,
+    "layers": {
+      "betterleaks": 0,
+      "connection_string": 0,
+      "credential_key": 0,
+      "credential_value": 0,
+      "credentialed_uri": 0,
+      "entropy": 1271,
+      "key_context": 0,
+      "provider_token": 0,
+      "shell_stdin": 0
+    }
+  },
+  "skill_events_version": 1,
+  "skill_events": [
+    {
+      "id": "claude-skill-toolu_01TFc9EMzNTnJe4X1rk43vT2",
+      "event_type": "tool_invocation",
+      "skill": {
+        "name": "design-system"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "skill_tool_use",
+        "confidence": "explicit"
+      },
+      "turn_id": "7f492ed9c847",
+      "transcript_anchor": {
+        "unit": "line",
+        "start": 1712,
+        "end": 1713,
+        "entry_ids": [
+          "c729daea-8049-4286-9cbd-948bcdb81930"
+        ],
+        "tool_use_id": "toolu_01TFc9EMzNTnJe4X1rk43vT2"
+      },
+      "native": {
+        "tool_name": "Skill",
+        "tool_use_id": "toolu_01TFc9EMzNTnJe4X1rk43vT2"
+      },
+      "collapse": {
+        "target": "tool_pair",
+        "label": "Skill: design-system",
+        "default_collapsed": true
+      }
+    },
+    {
+      "id": "claude-skill-toolu_01JDDUdzLkNNgCRcQN2KVRcd",
+      "event_type": "tool_invocation",
+      "skill": {
+        "name": "consistency-check"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "skill_tool_use",
+        "confidence": "explicit"
+      },
+      "turn_id": "7f492ed9c847",
+      "transcript_anchor": {
+        "unit": "line",
+        "start": 3277,
+        "end": 3278,
+        "entry_ids": [
+          "3f75ca77-8459-49df-884d-7c6b09328129"
+        ],
+        "tool_use_id": "toolu_01JDDUdzLkNNgCRcQN2KVRcd"
+      },
+      "native": {
+        "tool_name": "Skill",
+        "tool_use_id": "toolu_01JDDUdzLkNNgCRcQN2KVRcd"
+      },
+      "collapse": {
+        "target": "tool_pair",
+        "label": "Skill: consistency-check",
+        "default_collapsed": true
+      }
+    },
+    {
+      "id": "claude-skill-toolu_01TKbuE3NkpqhczyiNj1MwKQ",
+      "event_type": "tool_invocation",
+      "skill": {
+        "name": "design-system"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "skill_tool_use",
+        "confidence": "explicit"
+      },
+      "turn_id": "7f492ed9c847",
+      "transcript_anchor": {
+        "unit": "line",
+        "start": 3946,
+        "end": 3947,
+        "entry_ids": [
+          "b9059a88-67bd-4422-ac9c-82c20acb1183"
+        ],
+        "tool_use_id": "toolu_01TKbuE3NkpqhczyiNj1MwKQ"
+      },
+      "native": {
+        "tool_name": "Skill",
+        "tool_use_id": "toolu_01TKbuE3NkpqhczyiNj1MwKQ"
+      },
+      "collapse": {
+        "target": "tool_pair",
+        "label": "Skill: design-system",
+        "default_collapsed": true
+      }
+    },
+    {
+      "id": "claude-skill-toolu_01JXAvUfi6qmpkEejHTZ3CPk",
+      "event_type": "tool_invocation",
+      "skill": {
+        "name": "workflow-authoring"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "skill_tool_use",
+        "confidence": "explicit"
+      },
+      "turn_id": "7f492ed9c847",
+      "transcript_anchor": {
+        "unit": "line",
+        "start": 6468,
+        "end": 6469,
+        "entry_ids": [
+          "9c77f0e8-2ae0-4a70-a48d-916d36ad8a6e"
+        ],
+        "tool_use_id": "toolu_01JXAvUfi6qmpkEejHTZ3CPk"
+      },
+      "native": {
+        "tool_name": "Skill",
+        "tool_use_id": "toolu_01JXAvUfi6qmpkEejHTZ3CPk"
+      },
+      "collapse": {
+        "target": "tool_pair",
+        "label": "Skill: workflow-authoring",
+        "default_collapsed": true
+      }
+    },
+    {
+      "id": "prompt-skill-claude-code-create-architecture-2026-10-28T16:04:56.4204819Z",
+      "event_type": "prompt_invocation",
+      "skill": {
+        "name": "create-architecture"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "prompt_slash_command",
+        "confidence": "explicit"
+      },
+      "turn_id": "2c4b0dda0c58",
+      "timestamp": "2026-10-28T16:04:56.4204819Z",
+      "native": {
+        "command": "/create-architecture"
+      },
+      "collapse": {
+        "target": "user_message",
+        "label": "/create-architecture",
+        "default_collapsed": true
+      }
+    },
+    {
+      "id": "prompt-skill-claude-code-architecture-decision-2026-10-28T16:51:52.150163Z",
+      "event_type": "prompt_invocation",
+      "skill": {
+        "name": "architecture-decision"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "prompt_slash_command",
+        "confidence": "explicit"
+      },
+      "turn_id": "c2c5697faacb",
+      "timestamp": "2026-10-28T16:51:52.150163Z",
+      "native": {
+        "command": "/architecture-decision"
+      },
+      "collapse": {
+        "target": "user_message",
+        "label": "/architecture-decision",
+        "default_collapsed": true
+      }
+    },
+    {
+      "id": "prompt-skill-claude-code-architecture-decision-2026-10-28T16:55:23.9589408Z",
+      "event_type": "prompt_invocation",
+      "skill": {
+        "name": "architecture-decision"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "prompt_slash_command",
+        "confidence": "explicit"
+      },
+      "turn_id": "ea338fb8c247",
+      "timestamp": "2026-10-28T16:55:23.9589408Z",
+      "native": {
+        "command": "/architecture-decision"
+      },
+      "collapse": {
+        "target": "user_message",
+        "label": "/architecture-decision",
+        "default_collapsed": true
+      }
+    },
+    {
+      "id": "prompt-skill-claude-code-architecture-decision-2026-10-28T16:59:28.3243011Z",
+      "event_type": "prompt_invocation",
+      "skill": {
+        "name": "architecture-decision"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "prompt_slash_command",
+        "confidence": "explicit"
+      },
+      "turn_id": "e4d0d235aee9",
+      "timestamp": "2026-10-28T16:59:28.3243011Z",
+      "native": {
+        "command": "/architecture-decision"
+      },
+      "collapse": {
+        "target": "user_message",
+        "label": "/architecture-decision",
+        "default_collapsed": true
+      }
+    }
+  ],
+  "session_metrics": {
+    "turn_count": 19
+  }
+}

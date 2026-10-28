@@ -1,0 +1,14 @@
+{
+  "tool_use_id": "toolu_016PRhRh8p4sHzmEBG2Qnedg",
+  "agent_id": "a2188ca5429e3d4d1",
+  "task_description": "TR extraction: failure-and-trail",
+  "token_usage": {
+    "input_tokens": 16,
+    "cache_creation_tokens": 125955,
+    "cache_read_tokens": 664289,
+    "output_tokens": 8115,
+    "api_call_count": 8
+  },
+  "started_at": "2026-10-28T12:07:59.3427744-04:00",
+  "completed_at": "2026-10-28T12:10:08.8212619-04:00"
+}

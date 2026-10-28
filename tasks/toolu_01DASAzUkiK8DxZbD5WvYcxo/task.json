@@ -1,0 +1,14 @@
+{
+  "tool_use_id": "toolu_01DASAzUkiK8DxZbD5WvYcxo",
+  "agent_id": "a29be8754a9f4ff0f",
+  "task_description": "TR extraction: sanity-and-hallucination",
+  "token_usage": {
+    "input_tokens": 12,
+    "cache_creation_tokens": 108309,
+    "cache_read_tokens": 425879,
+    "output_tokens": 6730,
+    "api_call_count": 6
+  },
+  "started_at": "2026-10-28T12:08:00.8919844-04:00",
+  "completed_at": "2026-10-28T12:09:43.9069757-04:00"
+}

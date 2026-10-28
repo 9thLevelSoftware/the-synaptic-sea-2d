@@ -1,0 +1,14 @@
+{
+  "tool_use_id": "toolu_01XHd758jAnk8t4ncqHXGKmo",
+  "agent_id": "ab2cfa01ba08d027c",
+  "task_description": "TR extraction: in-world-instruments",
+  "token_usage": {
+    "input_tokens": 20,
+    "cache_creation_tokens": 134437,
+    "cache_read_tokens": 895014,
+    "output_tokens": 10627,
+    "api_call_count": 10
+  },
+  "started_at": "2026-10-28T12:10:26.287586-04:00",
+  "completed_at": "2026-10-28T12:12:17.7515605-04:00"
+}

@@ -1,0 +1,15 @@
+{
+  "tool_use_id": "toolu_01WArxcnVQvVD9ZcA8axcWxQ",
+  "agent_id": "afd13e781a123fd26",
+  "subagent_type": "godot-specialist",
+  "task_description": "Engine specialist validates ADR-0001",
+  "token_usage": {
+    "input_tokens": 4,
+    "cache_creation_tokens": 64569,
+    "cache_read_tokens": 22159,
+    "output_tokens": 10941,
+    "api_call_count": 2
+  },
+  "started_at": "2026-10-28T12:55:09.8124872-04:00",
+  "completed_at": "2026-10-28T12:56:42.1469223-04:00"
+}

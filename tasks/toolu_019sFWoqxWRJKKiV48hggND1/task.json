@@ -1,0 +1,14 @@
+{
+  "tool_use_id": "toolu_019sFWoqxWRJKKiV48hggND1",
+  "agent_id": "afc3f4e4c4abbf756",
+  "task_description": "TR extraction: emitter-state",
+  "token_usage": {
+    "input_tokens": 22,
+    "cache_creation_tokens": 135974,
+    "cache_read_tokens": 1007986,
+    "output_tokens": 9097,
+    "api_call_count": 11
+  },
+  "started_at": "2026-10-28T12:07:59.3432956-04:00",
+  "completed_at": "2026-10-28T12:10:25.5921453-04:00"
+}

@@ -1,0 +1,15 @@
+{
+  "tool_use_id": "toolu_01UXE8XVdPVLUaEmxeDksFib",
+  "agent_id": "a982da92874677a83",
+  "subagent_type": "technical-director",
+  "task_description": "TD-ARCHITECTURE gate review",
+  "token_usage": {
+    "input_tokens": 28,
+    "cache_creation_tokens": 85650,
+    "cache_read_tokens": 846750,
+    "output_tokens": 11646,
+    "api_call_count": 13
+  },
+  "started_at": "2026-10-28T12:22:14.3110887-04:00",
+  "completed_at": "2026-10-28T12:26:10.5559438-04:00"
+}

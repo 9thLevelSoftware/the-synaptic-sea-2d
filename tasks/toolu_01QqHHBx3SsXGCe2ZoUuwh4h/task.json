@@ -1,0 +1,14 @@
+{
+  "tool_use_id": "toolu_01QqHHBx3SsXGCe2ZoUuwh4h",
+  "agent_id": "aeca6485d514b96c6",
+  "task_description": "TR extraction: derelict-authoring",
+  "token_usage": {
+    "input_tokens": 14,
+    "cache_creation_tokens": 106742,
+    "cache_read_tokens": 504163,
+    "output_tokens": 7903,
+    "api_call_count": 7
+  },
+  "started_at": "2026-10-28T12:08:00.4259296-04:00",
+  "completed_at": "2026-10-28T12:10:01.832759-04:00"
+}

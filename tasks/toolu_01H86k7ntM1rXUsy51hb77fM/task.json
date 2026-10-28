@@ -1,0 +1,14 @@
+{
+  "tool_use_id": "toolu_01H86k7ntM1rXUsy51hb77fM",
+  "agent_id": "a14311c3ccf26091a",
+  "task_description": "TR extraction: debug-overlay",
+  "token_usage": {
+    "input_tokens": 18,
+    "cache_creation_tokens": 91180,
+    "cache_read_tokens": 644943,
+    "output_tokens": 8139,
+    "api_call_count": 9
+  },
+  "started_at": "2026-10-28T12:10:26.3132426-04:00",
+  "completed_at": "2026-10-28T12:11:45.0066174-04:00"
+}

@@ -1,0 +1,14 @@
+{
+  "tool_use_id": "toolu_011wSQpp4WyoBhQawbURofSK",
+  "agent_id": "a1c8fa82c9e4a7baf",
+  "task_description": "TR extraction: perception-filter",
+  "token_usage": {
+    "input_tokens": 14,
+    "cache_creation_tokens": 129914,
+    "cache_read_tokens": 602972,
+    "output_tokens": 8627,
+    "api_call_count": 7
+  },
+  "started_at": "2026-10-28T12:08:00.8903989-04:00",
+  "completed_at": "2026-10-28T12:10:06.5821956-04:00"
+}

@@ -1,0 +1,14 @@
+{
+  "tool_use_id": "toolu_01Qc9188pZoy2r4xTYgPbnji",
+  "agent_id": "acb089787c0fe4a53",
+  "task_description": "TR extraction: adaptive-audio",
+  "token_usage": {
+    "input_tokens": 12,
+    "cache_creation_tokens": 114565,
+    "cache_read_tokens": 435382,
+    "output_tokens": 8036,
+    "api_call_count": 6
+  },
+  "started_at": "2026-10-28T12:10:26.2902568-04:00",
+  "completed_at": "2026-10-28T12:11:43.8810557-04:00"
+}

@@ -1,0 +1,14 @@
+{
+  "tool_use_id": "toolu_01HJJDXuKaRZbhWDy8rQNxrM",
+  "agent_id": "aebf91dcd41810ca3",
+  "task_description": "TR extraction: player-controller-input",
+  "token_usage": {
+    "input_tokens": 14,
+    "cache_creation_tokens": 93461,
+    "cache_read_tokens": 494557,
+    "output_tokens": 7459,
+    "api_call_count": 7
+  },
+  "started_at": "2026-10-28T12:07:58.9774881-04:00",
+  "completed_at": "2026-10-28T12:10:00.0719212-04:00"
+}

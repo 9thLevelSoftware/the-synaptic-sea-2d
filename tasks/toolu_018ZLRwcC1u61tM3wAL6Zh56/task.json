@@ -1,0 +1,15 @@
+{
+  "tool_use_id": "toolu_018ZLRwcC1u61tM3wAL6Zh56",
+  "agent_id": "aee8da09aa16b2339",
+  "subagent_type": "technical-director",
+  "task_description": "TD-ADR gate review of ADR-0002",
+  "token_usage": {
+    "input_tokens": 24,
+    "cache_creation_tokens": 98722,
+    "cache_read_tokens": 909218,
+    "output_tokens": 14332,
+    "api_call_count": 11
+  },
+  "started_at": "2026-10-28T12:59:10.761203-04:00",
+  "completed_at": "2026-10-28T13:04:18.0370092-04:00"
+}

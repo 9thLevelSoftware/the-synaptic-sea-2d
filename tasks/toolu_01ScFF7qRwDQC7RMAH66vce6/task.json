@@ -1,0 +1,14 @@
+{
+  "tool_use_id": "toolu_01ScFF7qRwDQC7RMAH66vce6",
+  "agent_id": "a0db325be887cb63c",
+  "task_description": "TR extraction: suit-and-equipment",
+  "token_usage": {
+    "input_tokens": 12,
+    "cache_creation_tokens": 80159,
+    "cache_read_tokens": 388053,
+    "output_tokens": 6475,
+    "api_call_count": 6
+  },
+  "started_at": "2026-10-28T12:07:59.785475-04:00",
+  "completed_at": "2026-10-28T12:09:51.3288203-04:00"
+}

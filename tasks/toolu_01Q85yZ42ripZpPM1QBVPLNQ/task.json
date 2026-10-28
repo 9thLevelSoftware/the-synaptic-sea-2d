@@ -1,0 +1,14 @@
+{
+  "tool_use_id": "toolu_01Q85yZ42ripZpPM1QBVPLNQ",
+  "agent_id": "a84df0799590f9ae3",
+  "task_description": "TR extraction: 2d-lighting",
+  "token_usage": {
+    "input_tokens": 14,
+    "cache_creation_tokens": 82397,
+    "cache_read_tokens": 473636,
+    "output_tokens": 6987,
+    "api_call_count": 7
+  },
+  "started_at": "2026-10-28T12:07:59.4452714-04:00",
+  "completed_at": "2026-10-28T12:09:36.8772329-04:00"
+}

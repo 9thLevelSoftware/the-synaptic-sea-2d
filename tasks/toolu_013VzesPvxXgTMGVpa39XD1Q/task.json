@@ -1,0 +1,14 @@
+{
+  "tool_use_id": "toolu_013VzesPvxXgTMGVpa39XD1Q",
+  "agent_id": "a3ec27f5341d2cc45",
+  "task_description": "TR extraction: attention-system",
+  "token_usage": {
+    "input_tokens": 16,
+    "cache_creation_tokens": 119722,
+    "cache_read_tokens": 676601,
+    "output_tokens": 9211,
+    "api_call_count": 8
+  },
+  "started_at": "2026-10-28T12:08:00.8422936-04:00",
+  "completed_at": "2026-10-28T12:10:15.2684414-04:00"
+}

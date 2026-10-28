@@ -1,0 +1,14 @@
+{
+  "tool_use_id": "toolu_01QgRhr9ZcJAkrdeXSgBYMy8",
+  "agent_id": "a9df55bdc59eeb7ee",
+  "task_description": "TR extraction: boarding-and-salvage",
+  "token_usage": {
+    "input_tokens": 12,
+    "cache_creation_tokens": 96003,
+    "cache_read_tokens": 405089,
+    "output_tokens": 6043,
+    "api_call_count": 6
+  },
+  "started_at": "2026-10-28T12:08:00.8422936-04:00",
+  "completed_at": "2026-10-28T12:09:49.6927597-04:00"
+}

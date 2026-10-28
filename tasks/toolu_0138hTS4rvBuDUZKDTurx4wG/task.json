@@ -1,0 +1,14 @@
+{
+  "tool_use_id": "toolu_0138hTS4rvBuDUZKDTurx4wG",
+  "agent_id": "a0b663ab811f08bfe",
+  "task_description": "TR extraction: life-support-graph",
+  "token_usage": {
+    "input_tokens": 18,
+    "cache_creation_tokens": 113241,
+    "cache_read_tokens": 747628,
+    "output_tokens": 8232,
+    "api_call_count": 9
+  },
+  "started_at": "2026-10-28T12:07:58.980245-04:00",
+  "completed_at": "2026-10-28T12:10:15.2699461-04:00"
+}

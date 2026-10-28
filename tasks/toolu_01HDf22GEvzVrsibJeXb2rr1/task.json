@@ -1,0 +1,14 @@
+{
+  "tool_use_id": "toolu_01HDf22GEvzVrsibJeXb2rr1",
+  "agent_id": "a7e60144c45d9694f",
+  "task_description": "TR extraction: ship-body-physics",
+  "token_usage": {
+    "input_tokens": 16,
+    "cache_creation_tokens": 129583,
+    "cache_read_tokens": 673313,
+    "output_tokens": 9951,
+    "api_call_count": 8
+  },
+  "started_at": "2026-10-28T12:08:00.3958675-04:00",
+  "completed_at": "2026-10-28T12:10:19.6909993-04:00"
+}

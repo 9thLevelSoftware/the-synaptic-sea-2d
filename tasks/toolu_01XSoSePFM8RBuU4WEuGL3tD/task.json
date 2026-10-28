@@ -1,0 +1,14 @@
+{
+  "tool_use_id": "toolu_01XSoSePFM8RBuU4WEuGL3tD",
+  "agent_id": "ab8eabf01be45bebb",
+  "task_description": "TR extraction: ship-section-layout",
+  "token_usage": {
+    "input_tokens": 22,
+    "cache_creation_tokens": 119169,
+    "cache_read_tokens": 926186,
+    "output_tokens": 9622,
+    "api_call_count": 11
+  },
+  "started_at": "2026-10-28T12:07:59.8141691-04:00",
+  "completed_at": "2026-10-28T12:10:22.0094938-04:00"
+}

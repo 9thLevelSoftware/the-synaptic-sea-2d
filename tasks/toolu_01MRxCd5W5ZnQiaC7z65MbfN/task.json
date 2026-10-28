@@ -1,0 +1,14 @@
+{
+  "tool_use_id": "toolu_01MRxCd5W5ZnQiaC7z65MbfN",
+  "agent_id": "a0ea76e4d943510f2",
+  "task_description": "TR extraction: command-simulation-layer",
+  "token_usage": {
+    "input_tokens": 16,
+    "cache_creation_tokens": 120395,
+    "cache_read_tokens": 532952,
+    "output_tokens": 9656,
+    "api_call_count": 8
+  },
+  "started_at": "2026-10-28T12:06:02.0113591-04:00",
+  "completed_at": "2026-10-28T12:07:22.3047972-04:00"
+}

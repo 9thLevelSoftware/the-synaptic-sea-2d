@@ -1,0 +1,14 @@
+{
+  "tool_use_id": "toolu_01F75bwEDCTH12Y68CkQNnVb",
+  "agent_id": "aafbbc6fff5a6d587",
+  "task_description": "Map 794 TRs to planned ADRs",
+  "token_usage": {
+    "input_tokens": 26,
+    "cache_creation_tokens": 140463,
+    "cache_read_tokens": 1308424,
+    "output_tokens": 20009,
+    "api_call_count": 13
+  },
+  "started_at": "2026-10-28T12:17:11.9850193-04:00",
+  "completed_at": "2026-10-28T12:20:24.6661784-04:00"
+}

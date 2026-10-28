@@ -1,0 +1,17 @@
+{
+  "tool_use_id": "a327348a57628b0cf",
+  "agent_id": "a327348a57628b0cf",
+  "subagent_type": "workflow-subagent",
+  "files": [
+    "design/gdd/debug-overlay-true-values.md"
+  ],
+  "token_usage": {
+    "input_tokens": 204,
+    "cache_creation_tokens": 417487,
+    "cache_read_tokens": 33146134,
+    "output_tokens": 90472,
+    "api_call_count": 100
+  },
+  "started_at": "2026-10-28T00:55:51.7273504-04:00",
+  "completed_at": "2026-10-28T01:16:57.8541521-04:00"
+}

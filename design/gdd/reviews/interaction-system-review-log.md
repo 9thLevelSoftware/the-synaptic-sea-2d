@@ -104,3 +104,24 @@ Findings:
 - [RECOMMENDED] AC-IA-52, AC-IA-93, AC-IA-30, AC-IA-124, AC-IA-102, AC-IA-121, AC-IA-136b, AC-IA-2: [main review / qa-lead lens] Several ACs cannot be tested as written. AC-IA-52's oracle is fitted to the first build. AC-IA-93 is a prose grep of the GDD. AC-IA-30 uses abort tick 10 where the UNLIT recheck lands at 12. The playtest rows use unmeasured words like 'imperceptible', 'glitch', 'passes' and 'about 10 s'.
 Reviewed-Content-Hash: design/gdd/interaction-system.md 382b35596904b696f0325e534f0984b7c0a7d173
 Reviewed-Content-Hash: design/registry/entities.yaml 9f5a7ba4a6da931db8091a4c0e4f949a0d3f8bd8
+
+## Review — 2026-10-28 — Verdict: APPROVED
+Scope signal: XL
+Specialists: none (lean confirming re-review after the cross-GDD fix pass, delegated rulings R12-R21)
+Blocking items: 0 | Recommended: 11
+Summary: The verdict is APPROVED and nothing blocks implementation. I spot-checked the findings the verdict turns on. Derelict Authoring D.17 L1118 does show S4 at S_total 196 against the 192 cap once instruments and consoles are counted, so Interaction's 'nothing fails dark' guarantee is overstated. The window radius is spike-gated, so this is RECOMMENDED, not blocking. The HUD GDD has no last_result, prev_result or part_tell, so it still reads terminal states from channel_view.state. The fix belongs in the sibling GDD, and the HUD bar story is where it has to be enforced. Interaction has no ctx.complete conformance. IA-3 L128 still says 'Q / R3'. All three prior blockers are confirmed resolved here
+Prior verdict resolved: Yes (confirming review of 2026-10-27)
+Findings:
+- [RECOMMENDED] IA-41 / HUD & Suit Layer HS-41 (sibling): [main review, confirmed by creative-director] The HUD GDD has 0 hits for last_result, prev_result and part_tell. It still maps terminal bar states to channel_view.state. A HUD built from it would never play the DONE, ABORT or OUTCOME cue. Those cues are the confirmation moment that Pillar-level feedback depends on.
+- [RECOMMENDED] IA-37 / D.10 / Edge Cases F / AC-IA-59: [main review, confirmed] Derelict Authoring D.17 (L1113-1122) shows S4 with instruments (19) and consoles (4) at S_int 166 and S_total 196, which is over the 192 cap. Interaction's 'nothing fails dark whatever the window' guarantee counts only authored F + L_seed + C. It is spike-gated, but it is stated as a guarantee.
+- [RECOMMENDED] IA-41 / UI Requirements / AC-IA-64 / AC-IA-139 / OQ 45: [main review] input_view and command_id still contradict the Controller's confirm_view and kernel R2's correlation. The AC-IA-64 allow-list lint would reject a conforming HUD.
+- [RECOMMENDED] IA-1 / IA-10 / Dependencies engine note (1): [main review, confirmed: 0 hits for ctx.complete] The kernel CR-19 callable contract (ctx, return ctx.complete(), ctx.reject) is not acknowledged. IA-10 says validate 'returns' a reason.
+- [RECOMMENDED] AC-IA-110 / IA-36: [main review] Byte-identical snapshot-restore-snapshot conflicts with the post_restore normalisation of the channel record and last_result/prev_result. The OQ-39 reference dangles.
+- [RECOMMENDED] IA-41 press_blocked_moving / IA-10 / AC-IA-142: [main review] The hollow-keycap tell is true on HOLD_CONFIRM (V6) plates, but no rule rejects V6 BUSY while moving. A diegetic tell that lies breaks player trust in the feedback layer.
+- [RECOMMENDED] D.1b / AC-IA-143 / registry bead_segments: [main review] The 'about 250/340/440 s' re-leak figures are not assertable and mix window bounds. The stated h range and the non-negative clamp are wrong or missing.
+- [RECOMMENDED] G3 stale-value sweep (IA-3 L128, IA-29, Tuning BAR_LONG, registry channel_clock, Quick reference, intent_octant, 33b note): [main review, confirmed: L128 still reads 'Q / R3'] Leftovers from the last pass are still present. The BAR_LONG_FROM_TICKS range 180-300 is not jointly legal with the harm lint.
+- [RECOMMENDED] Acceptance Criteria AC-IA-93/102/124/136b/143/12: [main review] These rows are untestable as written: they are self-referential prose greps, or they use 'about', 'imperceptible' or keyword-based feel checks with no n or threshold.
+- [RECOMMENDED] Document hygiene (IA-17, IA-18, IA-41, D.8, Cross-References section 3): [main review; creative-director concurs this is the largest residual risk] At about 556 KB with inline superseded rules, a story author behind the 40 KB read gate can still build the retired selector or input_view. Several landed refreshes are still stamped 'owed' or 'proposed'.
+- [RECOMMENDED] Dependencies Ship Body strength / Design Test 4 wording / Summary AC count: [main review] These are minor wording inconsistencies: Hard vs Soft, three vs five exceptions, and 157 vs 156 AC bullets.
+Reviewed-Content-Hash: design/gdd/interaction-system.md 4536e8180c9c1ba13383dac24c93ef6f95d5e88e
+Reviewed-Content-Hash: design/registry/entities.yaml 259f2c28b21a009ca35000d94fe3ef5b4d3ef301

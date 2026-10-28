@@ -70,7 +70,7 @@ The tiers follow the producer-adjusted scope in the concept. **MVP** is the sing
 
 | # | System Name | Category | Priority | Status | Design Doc | Depends On |
 |---|-------------|----------|----------|--------|------------|------------|
-| 1 | Command & Simulation Layer (inferred) | Core | MVP | Approved | design/gdd/command-simulation-layer.md | — |
+| 1 | Command & Simulation Layer (inferred) | Core | MVP | Needs Revision | design/gdd/command-simulation-layer.md | — |
 | 2 | Life-Support Graph | Core | MVP | Approved | design/gdd/life-support-graph.md | Command & Simulation Layer |
 | 3 | Item & Module Database (inferred) | Economy | MVP | Approved | design/gdd/item-and-module-database.md | Life-Support Graph |
 | 4 | Pixel-Perfect Render Pipeline & Camera (inferred) | Core | MVP | Approved | design/gdd/pixel-perfect-render-pipeline-camera.md | — |
@@ -79,8 +79,8 @@ The tiers follow the producer-adjusted scope in the concept. **MVP** is the sing
 | 7 | Player Controller & Input (inferred) | Core | MVP | Approved | design/gdd/player-controller-input.md | Command & Simulation Layer, Pixel-Perfect Render Pipeline & Camera |
 | 8 | Interaction System (inferred) | Gameplay | MVP | Approved | design/gdd/interaction-system.md | Command & Simulation Layer, Player Controller & Input, Emitter State & Light-Exposure Query, Pixel-Perfect Render Pipeline & Camera |
 | 9 | Failure & Trail System | Gameplay | MVP | Approved | design/gdd/failure-and-trail-system.md | Life-Support Graph, Pixel-Perfect Render Pipeline & Camera |
-| 10 | Suit & Equipment (inferred) | Gameplay | MVP | Approved | design/gdd/suit-and-equipment.md | Command & Simulation Layer, Life-Support Graph, Item & Module Database, Player Controller & Input, Emitter State & Light-Exposure Query, Save/Load & Versioned Format |
-| 11 | Ship Section & Layout Data Model (inferred) | Core | MVP | Approved | design/gdd/ship-section-and-layout-data-model.md | Command & Simulation Layer, Life-Support Graph, Item & Module Database |
+| 10 | Suit & Equipment (inferred) | Gameplay | MVP | Needs Revision | design/gdd/suit-and-equipment.md | Command & Simulation Layer, Life-Support Graph, Item & Module Database, Player Controller & Input, Emitter State & Light-Exposure Query, Save/Load & Versioned Format |
+| 11 | Ship Section & Layout Data Model (inferred) | Core | MVP | Needs Revision | design/gdd/ship-section-and-layout-data-model.md | Command & Simulation Layer, Life-Support Graph, Item & Module Database |
 | 12 | Ship Body & Interior Physics (inferred) | Core | MVP | Approved | design/gdd/ship-body-and-interior-physics.md | Command & Simulation Layer, Ship Section & Layout Data Model, Player Controller & Input, Pixel-Perfect Render Pipeline & Camera |
 | 13 | Modular Ship Assembly | Gameplay | MVP | Approved | design/gdd/modular-ship-assembly.md | Command & Simulation Layer, Life-Support Graph, Item & Module Database, Interaction System, Ship Section & Layout Data Model, Ship Body & Interior Physics, Save/Load & Versioned Format |
 | 14 | Derelict Authoring (Handmade Kits) | Gameplay | MVP | Approved | design/gdd/derelict-authoring-handmade-kits.md | Ship Section & Layout Data Model, Item & Module Database, Emitter State & Light-Exposure Query |
@@ -293,7 +293,7 @@ The tiers follow the producer-adjusted scope in the concept. **MVP** is the sing
 | Total systems identified | 42 |
 | Design docs started | 26 |
 | Design docs reviewed | 26 (2026-10-27, three passes; 2026-10-28 three cross-GDD fix rounds under delegated rulings R12-R21 with confirming reviews: 26 Approved, 0 blocking items) |
-| Design docs approved | 26 |
+| Design docs approved | 23 (3 set to Needs Revision 2026-10-28 by /architecture-review: Godot 4 `var_to_bytes` takes one argument) |
 | MVP systems designed | 26/26 |
 | Vertical Slice systems designed | 0/10 |
 

@@ -1,0 +1,50 @@
+{
+  "cli_version": "0.12.2",
+  "checkpoint_id": "01M60BG1118WA14YWV4REJY6K7",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "design/gdd/command-simulation-layer.md",
+    "design/gdd/life-support-graph.md",
+    "design/gdd/pixel-perfect-render-pipeline-camera.md",
+    "design/gdd/player-controller-input.md"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": "/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 5748,
+    "cache_creation_tokens": 6082403,
+    "cache_read_tokens": 181570404,
+    "output_tokens": 770406,
+    "api_call_count": 582,
+    "subagent_tokens": {
+      "input_tokens": 154650,
+      "cache_creation_tokens": 270299555,
+      "cache_read_tokens": 6650351792,
+      "output_tokens": 57486854,
+      "api_call_count": 34884
+    }
+  },
+  "redaction": {
+    "replacements": 304,
+    "layers": {
+      "betterleaks": 0,
+      "connection_string": 0,
+      "credential_key": 0,
+      "credential_value": 0,
+      "credentialed_uri": 0,
+      "entropy": 916,
+      "key_context": 0,
+      "provider_token": 0,
+      "shell_stdin": 0
+    }
+  }
+}

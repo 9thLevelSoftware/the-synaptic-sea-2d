@@ -1,0 +1,11 @@
+<task-notification>
+<task-id>wn88em8ls</task-id>
+<tool-use-id>toolu_013voLqiymqDnwWMmmEbff53</tool-use-id>
+<output-file>C:\Users\dasbl\AppData\Local\Temp\claude\D--the-synaptic-sea-2d\d28c3174-734e-4317-b129-275526467f12\tasks\wn88em8ls.output</output-file>
+<status>completed</status>
+<summary>Dynamic workflow "Fix the stale owner-side text the targeted consistency check found after the rulings pass (one editor per GDD)" completed</summary>
+<diagnostics>Per-agent results: C:\Users\dasbl\.claude\projects\D--the-synaptic-sea-2d\e887ccb9-1186-40d9-9566-5eacccbd9b44\subagents\workflows\wf_a4c6dd44-0df/journal.jsonl — one {"type":"result",...} line per completed agent with its full return value.
+If the result above is empty or unexpected, Read this file BEFORE diagnosing — do not assume agents returned non-empty results.
+To re-run with edited post-processing: Workflow({scriptPath: 'C:\Users\dasbl\.claude\projects\D--the-synaptic-sea-2d\e887ccb9-1186-40d9-9566-5eacccbd9b44\workflows\scripts\rulings-leftovers-wf_a4c6dd44-0df.js', resumeFromRunId: 'wf_a4c6dd44-0df'}) — agents whose (prompt, opts) are unchanged replay from cache.</diagnostics>
+<usage><agent_count>7</agent_count><agents_done>7</agents_done><agents_error>0</agents_error><agents_skipped>0</agents_skipped><agents_empty_result>0</agents_empty_result><subagent_tokens>478836</subagent_tokens><tool_uses>45</tool_uses><duration_ms>91671</duration_ms></usage>
+</task-notification>

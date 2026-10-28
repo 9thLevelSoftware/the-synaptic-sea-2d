@@ -86,3 +86,27 @@ Findings:
 - [RECOMMENDED] BDY-4 / 3.3 / BDY_RESTORE_UNKNOWN_BODY / D.7: [main-review] Nothing deletes the pose row when Layout retires a body with a non-zero pose. The next autosave then becomes unloadable. The gap is latent and only reachable in the Vertical Slice (the MVP never discards).
 Reviewed-Content-Hash: design/gdd/ship-body-and-interior-physics.md 906630ebc3c771dbb09cf838632a727ce6fec4a0
 Reviewed-Content-Hash: design/registry/entities.yaml 9f5a7ba4a6da931db8091a4c0e4f949a0d3f8bd8
+
+## Review — 2026-10-28 — Verdict: APPROVED
+Scope signal: M
+Specialists: none (lean confirming re-review after the cross-GDD fix pass, delegated rulings R12-R21)
+Blocking items: 0 | Recommended: 14
+Summary: Verdict: APPROVED. No blocking items remain.  I spot-checked the claims the verdict turns on: - Body still has 18 combined hits for solid_in_into, QueryBuffer, AC-SL-149 and respawn. That matches the leftovers the main review reports. - Layout L329 defines `solid_in(body_id, aabb, out)` writing into a QueryBuffer. So the conflict is real, but the owner's answer already exists, which makes it a conformance edit rather than a design gap. - In Save/Load, AC-SL-149 and AC-SL-151 are at L1283-1285 as stated, and there are no `trapped_actors` hits.  The three prior blockers (seat-binding rebuild, canonical bytes, crisis-cut entombment) are resolved in Body and in the sibling GDDs, as the main revi
+Prior verdict resolved: Yes (confirming review of 2026-10-27)
+Findings:
+  - [RECOMMENDED] BDY-9/10/15, AC-BDY-117(ii), AC-BDY-125, OQ 32, 8.3 Layout row: [main review] [creative-director confirmed] Body still asks for a `solid_in_into(..., out: PackedInt32Array)` and says Layout's `solid_in` 'returns a fresh array'. That is false on disk. Layout L329 defines `solid_in(body_id, aabb, out)`, which writes into a caller-owned QueryBuffer (int64 keys, occupied spans, flags). Under G1 Layout owns the API, so an implementer can follow the owner, which is why this is not blocking. It is the first fix to make: AC-BDY-125 is CI-blocked on a function that does not exist, and the sweep needs the spans that only the QueryBuffer returns.
+  - [RECOMMENDED] BDY-7 (L139), 8.3 Save/Load row (L1042), AC-BDY-138 (L1237): [main review] Body cites AC-SL-149 for the binding rebuild. In Save/Load, AC-SL-149 (L1283) is the ItemInstance canonical-array test. The binding-rebuild criterion is AC-SL-151 (L1285).
+  - [RECOMMENDED] BDY-5 / AC-BDY-1 / BDY-21 / BDY-31 / 3.6: [main review] Block registration and callable shapes are stale against kernel CR-8 and R3. The `gameplay` and `interpolated` flags are missing, `default_state(ctx)` and `read_view(ctx)` are missing, `snapshot`/`restore` are not in ctx form, and there is no `binding_source(ctx)` wrapper around `seat_bindings()`. AC-BDY-1 would pass a registration that the kernel refuses at boot.
+  - [RECOMMENDED] AC-BDY-141 and the Edge Cases 'cut applied anyway' bullet: [main review] The clause about 'the next autosave' cannot be observed: the kernel never autosaves while FAULTED.
+  - [RECOMMENDED] L225 state table, L274 BM1 row, AC-BDY-107: [main review] 'respawn' is still named as a BM1 caller. That contradicts the user decision that MVP death restarts from the last autosave (G3).
+  - [RECOMMENDED] D.13 / BDY-20 / AC-BDY-137: [main review] The dirty key `(KIND<<32)|id` requires id < 2^32. Nothing guards int64 actor_id against reaching that bound, and AC-BDY-137 uses an actor_id of 2^40, which collides with the KIND bits.
+  - [RECOMMENDED] AC-BDY-117 (a)/(b): [main review] The budget AC skips the worst-case fixtures that D.12 names, W2b (n_sub = 6) and W2c, so the costly path is never gated.
+  - [RECOMMENDED] 8.3 rows; OQ 25/28/34/43/44: [main review] Several asks are still marked OPEN although Assembly, Layout and the Pipeline have already answered them. Assembly L353, L984, L1248 and L1887 also still say 'camera cut' where the ruling is REBASE.
+  - [RECOMMENDED] BDY-16 / OQ 33 / 8.3 Save/Load row: [main review] [creative-director confirmed: 0 `trapped_actors` hits in Save/Load] The autosave-guard MUST-REPEAT never landed. The impact is bounded now that BM4 refuses the cut, but the death-restart loop could still reload a lethal trapped state indefinitely. That directly undermines the 'restart from last autosave' user decision.
+  - [RECOMMENDED] AC-BDY-68: [main review] The criterion reads both as a pass threshold and as record-only.
+  - [RECOMMENDED] AC-BDY-69: [main review] It puts a per-frame maximum next to R12's P99 <= 90% rule, and gives a 60 Hz justification that does not apply to RM-DECK.
+  - [RECOMMENDED] AC-BDY-110 / AC-BDY-70: [main review] Both depend on a golden file from a spike that has not run yet.
+  - [RECOMMENDED] Dependencies preamble (L770), OQ preamble: [main review] The text still claims sibling GDDs have 'no file', but all of them exist.
+  - [RECOMMENDED] OQ 47: [main review] The kernel has not confirmed that restore() may call pure reads of restore_after blocks.
+Reviewed-Content-Hash: design/gdd/ship-body-and-interior-physics.md 1d74491b210090f366c37fed7d0ec2a39559980f
+Reviewed-Content-Hash: design/registry/entities.yaml 259f2c28b21a009ca35000d94fe3ef5b4d3ef301

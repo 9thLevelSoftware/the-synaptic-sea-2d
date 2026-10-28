@@ -403,8 +403,9 @@ Kernel request_restore(payload, restore_epoch, expected_state_hash) at P6: LOADI
 ```
 1. Engine boot; project.godot guard rails asserted (stretch, filters, snap, hdr_2d, physics_interpolation off)
 2. Pipeline root builds the viewport stack (BOOTING → PRESENTING)
-3. Content data loads in a fixed order: Item DB → section templates (manifest order) → world records,
-   verb tables, tuning tables; boot lints and invariant assertions (refuse the build on failure)
+3. Content data loads in a fixed order (ADR-0007 § 1.7): Graph type tables + GraphTuning → Item DB →
+   section templates (manifest order) → world records, verb tables, tuning tables; boot lints and
+   invariant assertions. On any error the composition root never starts the kernel (ADR-0007 § 2.3)
 4. Kernel BOOTING: owners register blocks, command types, hooks, binding sources, diagnostics channels
    (Layout, Graph last of the Item DB → Layout → Graph chain; then Body, Controller, Emitter, Suit,
    Interaction, Assembly, Web, Attention, Horror, Sanity). Registration then freezes; hook topo-sort.
@@ -693,6 +694,7 @@ Thirty-four decisions. Numbers are sequential; the GDD-named candidates each one
 | S1 / SP-ENG-1 (GDScript hot-path cost on an RM-DESKTOP and RM-DECK release export: a stub Graph with 12 phases, `emitter.place`, the P3 loop at realistic counts, **accessor and `Callable.call` overhead per ms**, four-tick catch-up; needs an exported benchmark harness outside gdUnit4) | ADR-0012, ADR-0014, ADR-0015, ADR-0017; decides the GDExtension rung | graph, layout, body, emitter |
 | Weld property test (generated section pairs: `can_join` true implies all four apply steps return OK; verifier INV-1..INV-10 after each) | ADR-0021 | modular-ship-assembly |
 | Save worker (`DirAccess.rename` over an existing file on Windows, including locked and antivirus-held targets; quit during a write with a bounded join; snapshot hitch size) | ADR-0006 | save-load-and-versioned-format |
+| CONTENT-EXP-1 (`template_release` export on Windows and Linux/Deck: manifest-listed `.json` read with `FileAccess.open` from the package; include-filter glob; `JSON.new().parse` number typing and the 2^53 boundary; BOM, duplicate key, trailing comma; content hashes equal to the editor run) | ADR-0007 (gates acceptance) | item-and-module-database, ship-section-and-layout-data-model, sanity-and-hallucination-rules |
 
 **Spike order** (lead-programmer): S1 first, then the kernel skeleton (KRN-LAT-02), then S0-a/b, then the weld property test, then the save worker. The rendering spikes (pipeline step 11, lighting, SP-YSORT-1) do not depend on the simulation and run in parallel once the first three are under way; the lighting spike must reach its renderer decision before Foundation coding.
 

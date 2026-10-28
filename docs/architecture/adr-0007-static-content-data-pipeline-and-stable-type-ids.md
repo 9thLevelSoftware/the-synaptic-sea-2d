@@ -410,7 +410,7 @@ static func verify(live_pairs: Array[LedgerPair], ledger: IdLedger) -> Array[Boo
 - **Network**: None. Content is not replicated; co-op peers load the same files and compare `catalogue_hash` / template hashes as a diagnostic.
 
 ## Migration Plan
-No code exists. GDD and architecture edits needed (see GDD sync):
+No code exists. **GDD sync applied 2026-10-28** (each edit is marked *Amended 2026-10-28 — ADR-0007 sync* in its GDD). The copies of TR-lsg-030 and TR-section-003 in `tr-registry.yaml` and `requirements-traceability.md` are refreshed by `/architecture-review` Phase 8, which owns those files. The edits were:
 - `item-and-module-database.md`:
   - IDB-26: close the export-filter and `catalogue_hash` ADR candidates; adopt the `BootError` shape and the Item DB manifest.
   - IDB-30: the composition root acts, not kernel BOOTING; codes are domain 2.

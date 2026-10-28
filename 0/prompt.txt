@@ -1,0 +1,148 @@
+This session is being continued from a previous conversation that ran out of context. The summary below covers the earlier portion of the conversation.
+
+
+Summary:
+1. Primary Request and Intent:
+   The user is building "The Synaptic Sea": a 2D HD-pixel-art co-op survival-horror game in Godot 4.7.2 / GDScript, using the CCGS template.
+   - Project config: rigor full, automation autonomous, review_mode full.
+   - Standing CLAUDE.md rule: "No commits without user instruction." The user's pattern is to say "commit and push" after I present a diffstat.
+   - Commit trailer (latest attribution reminder): `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>` plus `Claude-Session: https://claude.ai/code/session_01A1Hn3uVTKtAjVgscNshCEN`.
+
+   Sequence of requests this segment:
+   (a) Earlier: "ultracode … dynamic workflow of Sonnet 5.5 high subagents to run the map-systems next command for each of the remaining 22 systems … Ensure there is an advisor in place…"
+   (b) "Restart the handful of failed tasks in the workflow with Opus instead of Fable."
+   (c) "After all of that time, only 8 of the 22 systems were done?" I explained the timing and offered options; the user chose "4" (leave it running as is).
+   (d) "continue" (after the session ended mid-workflow).
+   (e) "/consistency-check full". The tail workflow was already doing this, so I deferred.
+   (f) Most recent: "I've reset your usage, you are back to full capacity. Please perform the requested fixes" — finish the registry-side fixes, the confirming scan, and the conflict log.
+
+2. Key Technical Concepts:
+   - **Workflow tool**
+     - Scripts use `agent()`, `parallel()`, `phase()`, `log()`, `args`.
+     - Model overrides: 'opus'/'sonnet'; omitted model inherits the session model.
+     - Resume cache is prefix-based in practice: once any live call happens, later calls with identical keys rerun live.
+     - Fix that worked: replay finished stage results via `args.replay` in a wrapper `A()`, and skip failed calls via `args.skipLabels`.
+     - Journal is at `<transcriptDir>/journal.jsonl` (started/result/failed entries keyed `v2:hash`).
+   - **Failures hit**
+     - Fable 429 `model_requires_usage_credits`; Fable seats were switched to Opus.
+     - Account weekly limit, now reset by the user.
+   - **CCGS rules**
+     - `validate-read.sh` refuses whole-file reads over 40 KB: grep `^#` headings, then Read by offset/limit.
+     - `registry.sh validate` checks duplicate/tr_unknown/path_missing/status/layout.
+     - Registry `source:` GDD owns each value; `referenced_by` is a block list of readers.
+     - Pending refs are parked as `# pending referenced_by (GDD not yet written): ...` comments.
+     - Amendments to the 4 pre-workflow GDDs carry `*(Amended 2026-10-27 — consistency pass, routed from <gdd>)*`.
+   - **Registry write pattern**
+     - Registry edits to the single file use parallel Opus "decide" agents that return entry-scoped `{name, old_text, new_text, reason}` edits.
+     - One scripted apply step prints a count per edit (memory lesson: print patch counts; a confirming run is required).
+
+3. Files and Code Sections:
+   - **Main authoring workflow script**
+     - Path: `C:\Users\dasbl\.claude\projects\D--the-synaptic-sea-2d\e887ccb9-1186-40d9-9566-5eacccbd9b44\workflows\scripts\design-mvp-gdds-wf_81e5f95e-865.js`, run `wf_81e5f95e-865`.
+     - Patched with a wrapper after `const SON = …`:
+       ```js
+       const KEEP_FABLE = new Set((args && args.keepFable) || [])
+       const DONE_EARLIER = new Set((args && args.doneSystems) || [])
+       const SKIP_LABELS = new Set((args && args.skipLabels) || [])
+       const REPLAY = (args && args.replay) || {}
+       function A(prompt, opts) {
+         if (opts && REPLAY[opts.label] !== undefined) return Promise.resolve(REPLAY[opts.label])
+         if (opts && SKIP_LABELS.has(opts.label)) return Promise.resolve(null)
+         if (opts && !opts.model && !opts.agentType && !KEEP_FABLE.has(opts.label)) opts = { ...opts, model: 'opus' }
+         return agent(prompt, opts)
+       }
+       ```
+     - All `agent(` calls were rewritten to `A(`.
+     - In `runSystem`: `if (DONE_EARLIER.has(s.slug)) { out.status = 'done'; out.note = 'completed before resume 2'; return out }`.
+     - Final result: 22/22 done, 0 failed (254 agents).
+   - **design/gdd/** — 22 new GDDs, all written (untracked): save-load-and-versioned-format, item-and-module-database, emitter-state-and-light-exposure-query, failure-and-trail-system, 2d-lighting-and-occlusion, interaction-system, suit-and-equipment, ship-section-and-layout-data-model, ship-body-and-interior-physics, derelict-authoring-handmade-kits, attention-system, modular-ship-assembly, web-map-and-transit, horror-entities, sanity-and-hallucination-rules, boarding-and-salvage, perception-filter, chart-table-web-map-and-menus, adaptive-audio-and-tells, hud-and-suit-layer, in-world-instruments-and-inspect-view, debug-overlay-true-values.
+     - The 4 older GDDs were modified: command-simulation-layer, pixel-perfect-render-pipeline-camera, player-controller-input, life-support-graph.
+     - Partial ship-body/derelict GDDs from before resume 2 were backed up to `scratchpad/wf-backup-pre-resume2/`.
+   - **design/registry/entities.yaml**
+     - Now 831 entries and validates clean.
+     - Backups: `scratchpad/tail/entities.pre-round1.yaml`; the next workflow writes `entities.pre-r<N>.yaml`.
+     - 14 remaining pending comments point at not-yet-written VS GDDs; they correctly stay parked.
+   - **design/gdd/systems-index.md**
+     - Regenerated via `scratchpad/systems.py`. A `STATUS.update({...22 names...})` line was inserted after the `STATUS = {` line, preserving CRLF.
+     - Output went to `scratchpad/idx-new.md` and was copied into place.
+     - The diff is status cells only; now 26/26 MVP Designed.
+   - **Scratchpad tail files** (`C:/Users/dasbl/AppData/Local/Temp/claude/D--the-synaptic-sea-2d/e887ccb9-1186-40d9-9566-5eacccbd9b44/scratchpad/tail/`):
+     - `reg_hits.py <slug>...`: writes `hits/<slug>.md`, listing registry entries per GDD (OWNER/LISTED/MENTIONS-UNLISTED) with yaml and matching GDD lines.
+     - `review-open/<slug>.json`: final review items per system.
+     - `pending-registry-round1.json`: 335 findings + 129 requests.
+     - `regbatch/b00-b11.json`.
+     - `conflicts-round1.json`: 212 round-1 CONFLICT/STALE items, for the log.
+     - `regedits/`: created, for round-2+ edit JSON files.
+     - `apply_reg.py`:
+       - Reads edits from `.jsonl` journals or `{"edits":[...]}` JSON files (glob args).
+       - Applies each edit scoped to the entry block, printing `SKIP(n)`/`NOENTRY` lines.
+       - Then un-parks pending refs whose files exist.
+       - Preserves CRLF.
+       - Ends with `edits: N ok X skip Y noentry Z; unparked paths U`.
+   - **Tail workflow** `mvp-gdd-tail-wf_4f800f00-a91.js` (run `wf_4f800f00-a91`)
+     - Completed: 22 Opus closers, registry pass 0 (36 applied), round-1 scans of 26 GDDs (603 findings: 184 CONFLICT, 28 STALE_REGISTRY, 81 NAME_MISSING, 178 UNLISTED_REF, 132 LISTED_UNUSED), and 26 round-1 fixers (613 applied, 95 declined into Open Questions).
+     - Failed at the weekly limit: round-1 registry pass, round-2 scans, log.
+   - **Registry decide workflow** `registry-round1-decide-wf_31799c2e-819.js`
+     - 12 Opus batches, 360 edits, 53 declined.
+     - Applied: 354 ok; 6 SKIP(0) were overlapping duplicates. Fixed by hand: added `design/gdd/player-controller-input.md` to WELD_CHANNEL_TICKS referenced_by; hull_act_ladder revised-date edit still SKIP (minor).
+   - **Confirming workflow (currently running)** `mvp-gdd-confirm-wf_56875ae7-455.js`, run `wf_56875ae7-455`, task `wp6cfrxo9`.
+     - Rounds start at 2.
+     - Scan: Sonnet high scanners per GDD run `reg_hits.py`.
+     - Fix: Opus fixers per target GDD.
+     - Registry: Opus decide batches of about 40 items write `regedits/r<round>-b<i>.json`; a Sonnet apply agent runs `cp entities.yaml entities.pre-r<round>.yaml && python -I apply_reg.py "regedits/r<round>-b*.json" && registry.sh validate`, fixes skips and validate problems, and returns affected_files.
+     - Next scope = fix targets ∪ affected ∪ failed scans; loop until a clean scan or round 4 cap.
+     - Log: Opus agent appends grouped entries to `docs/consistency-failures.md` from `conflicts-round1.json` plus later conflicts, with a "Patterns across this pass" paragraph.
+   - **production/session-state/active.md** (gitignored): appended Resume 2, Resume 3, authoring complete, TAIL running/stopped, registry round 1 applied, confirming-workflow notes, and the breadcrumb `<!-- CONSISTENCY-CHECK: 2026-10-27 | GDDs checked: 26 | Conflicts found: 212 (...) | Log: docs/consistency-failures.md (not yet written — weekly limit) -->`.
+   - **.claude/workflows/**: untracked; holds the saved design-mvp-gdds workflow.
+
+4. Errors and fixes:
+   - **Fable advisor seats hit 429 `model_requires_usage_credits`**: stopped task wnfp5330b, rerouted model-less seats to Opus via the wrapper, and short-circuited the 8 done systems.
+   - **Resume cache is prefix-based, so finished stages reran live**:
+     - Resume 2: ship-body and derelict re-authored from the specialist stage; partial GDDs were moved aside.
+     - Resume 3: first attempt reran again; stopped within a minute with no files touched.
+     - Fixed by journal replay (`args.replay`, trimmed to the fields the script reads, with long texts moved to sidecar files `scratchpad/wf/<slug>/checkpoint-corrections.json` and `cd-gate.json`) plus `skipLabels`.
+   - **Session ended mid-run (~21:43)**: resumed with replay as task wms2l19cd, which completed.
+   - **Weekly usage limit stopped the tail**: the user reset usage; pending work was saved to files and redone via new workflows.
+   - **Python issues**: cp1252 print errors (fixed with `PYTHONIOENCODING=utf-8`); a systems.py anchor assert failed on CRLF (fixed with line-based insertion using `newline=''`).
+   - **apply_reg overlap**: 6 skips from duplicate cross-batch edits; one fixed by hand, the rest were already covered.
+   - **User feedback**: the user was unhappy with throughput ("only 8 of the 22 … done?"). I explained the serial-chain/dependency gating (about 2.5–3 h per system, critical path about 6 deep); the user chose to keep the thorough approach.
+
+5. Problem Solving:
+   - Final authoring outcome: 22/22 GDDs; 14 systems had ended at REVISE after 3 review rounds, and their final-review items were applied by Opus closers in the tail.
+   - Round-1 consistency findings fixed on both GDD and registry sides.
+   - Remaining work: the confirming scan rounds (running) and the conflict log.
+
+6. All user messages:
+   - "Restart the handful of failed tasks in the workflow with Opus instead of Fable"
+   - "After all of that time, only 8 of the 22 systems were done?"
+   - "4"
+   - "continue"
+   - "/consistency-check full" (skill invocation)
+   - "I've reset your usage, you are back to full capacity.  Please perform the requested fixes"
+   - Standing constraint from CLAUDE.md: "No commits without user instruction"
+   - Earlier user decisions still in force: chest-mounted lamp, throwable glowsticks, lethal friendly fire ("This is like project zomboid, death is a bitch. It happens."), Zomboid zoom in/out, MVP death = restart from last autosave.
+
+7. Pending Tasks:
+   - Wait for confirming workflow `wf_56875ae7-455` (task wp6cfrxo9) to complete; do not poll or fabricate results.
+   - Then read its journal/result, run `bash .claude/scripts/registry.sh validate`, and check `git status --short` / `git diff --shortstat`.
+   - Update the active.md breadcrumb (`<!-- CONSISTENCY-CHECK: ... -->` with final counts, Log: docs/consistency-failures.md).
+   - Report the consistency-check verdict (PASS if the confirming scan is clean) per the skill format, and record `log_decision` in autonomous mode.
+   - Present the diffstat and wait for the user's "commit and push", including whether to commit `.claude/workflows/`.
+   - Optionally save a memory note on the workflow-resume lesson: the prefix cache breaks on any live call; replay from the journal instead.
+
+8. Current Work:
+   I had just launched the confirming workflow `mvp-gdd-confirm` (run `wf_56875ae7-455`, task `wp6cfrxo9`) to finish the user's request "Please perform the requested fixes". I created the `scratchpad/tail/regedits/` directory and appended progress to active.md: registry round 1 applied with 354/360 edits plus 2 by hand, 53 declined, 831 entries, validate clean; confirming workflow running; then diffstat and wait for "commit and push". Round-1 registry fixes are applied and validated; the confirming scan/fix rounds and the conflict log are in progress inside that workflow.
+
+9. Optional Next Step:
+   When the task-notification for `wp6cfrxo9` arrives:
+   - Read `C:\Users\dasbl\.claude\projects\D--the-synaptic-sea-2d\e887ccb9-1186-40d9-9566-5eacccbd9b44\subagents\workflows\wf_56875ae7-455\journal.jsonl` and the result.
+   - Verify `registry.sh validate`.
+   - Update the active.md breadcrumb.
+   - Present the consistency-check report and diffstat to the user, then wait for their "commit and push".
+   - If the run fails or is interrupted, replay finished stages from the journal rather than relying on the engine resume cache.
+   - Direct quote of the current task: user: "I've reset your usage, you are back to full capacity.  Please perform the requested fixes". My last stated plan: "launching the confirming workflow: scan all 26 GDDs, fix GDDs, decide registry edits in parallel batches, apply them with the counting script, repeat until a scan comes back clean (at most 3 fix rounds), then write the conflict log."
+
+If you need specific details from before compaction (like exact code snippets, error messages, or content you generated), read the full transcript at: C:\Users\dasbl\.claude\projects\D--the-synaptic-sea-2d\e887ccb9-1186-40d9-9566-5eacccbd9b44.jsonl
+Continue the conversation from where it left off without asking the user any further questions. Resume directly — do not acknowledge the summary, do not recap what was happening, do not preface with "I'll continue" or similar. Pick up the last task as if the break never happened.
+
+The messages after this summary are the most recent messages from before compaction, kept verbatim. The summary was written without seeing them, so something it says has not happened yet may already have happened in them.

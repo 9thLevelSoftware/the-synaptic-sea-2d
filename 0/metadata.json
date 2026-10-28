@@ -1,0 +1,44 @@
+{
+  "cli_version": "0.12.2",
+  "checkpoint_id": "01M5TREJCDFJ4R31D8Q04R8D8F",
+  "session_id": "e887ccb9-1186-40d9-9566-5eacccbd9b44",
+  "strategy": "import",
+  "created_at": "2026-10-26T00:06:02.893Z",
+  "commit_sha": "34a701abfacf46ab03257929771b932a111d3473",
+  "checkpoints_count": 1,
+  "files_touched": null,
+  "agent": "Claude Code",
+  "model": "claude-fable-5-1",
+  "checkpoint_transcript_start": 1090,
+  "transcript_lines_at_start": 1090,
+  "compact_transcript_start": 108,
+  "token_usage": {
+    "input_tokens": 38,
+    "cache_creation_tokens": 39316,
+    "cache_read_tokens": 929253,
+    "output_tokens": 6725,
+    "api_call_count": 3,
+    "subagent_tokens": {
+      "input_tokens": 1180,
+      "cache_creation_tokens": 650200,
+      "cache_read_tokens": 5549001,
+      "output_tokens": 210091,
+      "api_call_count": 42
+    }
+  },
+  "redaction": {
+    "replacements": 304,
+    "layers": {
+      "betterleaks": 0,
+      "connection_string": 0,
+      "credential_key": 0,
+      "credential_value": 0,
+      "credentialed_uri": 0,
+      "entropy": 916,
+      "key_context": 0,
+      "provider_token": 0,
+      "shell_stdin": 0
+    }
+  },
+  "kind": "imported"
+}

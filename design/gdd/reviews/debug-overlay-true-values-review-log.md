@@ -110,3 +110,28 @@ Findings:
 - [RECOMMENDED] DO-20; P-TRUTH; AC-DO-57: [main review] P-TRUTH staleness is unstated: the values shown are from the last fold, up to about 18 ticks old.
 Reviewed-Content-Hash: design/gdd/debug-overlay-true-values.md 854c39bfe459512bd5f5f0c61abc645d70027312
 Reviewed-Content-Hash: design/registry/entities.yaml 9f5a7ba4a6da931db8091a4c0e4f949a0d3f8bd8
+
+## Review — 2026-10-28 — Verdict: APPROVED
+
+Scope signal: L
+Specialists: none (lean confirming re-review after the cross-GDD fix pass, delegated rulings R12-R21)
+Blocking items: 0 | Recommended: 14
+Summary: Verdict: APPROVED. Of this pass's findings, 9 are RECOMMENDED and 4 are NICE. The three prior blockers (the away-entry join, scope at zero ACTIVE rows, and the DO-20 bypass claim) are resolved here and in their sibling GDDs, as the main review traced them. I spot-checked several open items and they are real but not blocking. 'NOTE absent' is still the PENDING exit at line 379. row_2 still requires n_skew >= 1 at line 521. The E-DO-52 guarded load names only the dev root at line 837, while AC-DO-171 tests both roots. None of these is a contradiction that would stop the E1 or E2 stories. They are wording, lint-scope or rare edge-case fixes. Before E3 (the classifier) starts, apply the AC-DO-15
+Prior verdict resolved: Yes (confirming review of 2026-10-27)
+Findings:
+- [RECOMMENDED] AC-DO-155 (iv); Perception Filter E-PF-10: [main review] AC-DO-155 (iv) requires DELIBERATE (SHORT_REACH) -> HONEST directly. Filter E-PF-10 allows a non-zero clamped departure, which passes through RETURNING first. This is unchanged from the last pass.
+- [RECOMMENDED] DO-2 load discipline; AC-DO-172: [main review] The guarded-load rule and the lint cover only the dev-root path. A preload or class_name reference to src/observer/ from runtime code would pass the lint and break the public release export. Confirmed: line 837 (E-DO-52) names only the dev root, while AC-DO-171 tests both roots.
+- [RECOMMENDED] Channel status machine; DO-14, DO-26; E-DO-38; AC-DO-66: [main review] 'NOTE absent' is an undeclared seventh status. Confirmed at line 379, the PENDING exit, while DO-26 and the UI table list six statuses.
+- [RECOMMENDED] Tuning Knobs DIAG_REFRESH_LADDER_HZ; F-7; AC-DO-148; AC-DO-151: [main review] No rule says how to build the ladder for a non-default DIAG_REFRESH_HZ. AC-DO-148 can only pass if the tester guesses the rule.
+- [RECOMMENDED] AC-DO-52 (lint): [main review] The denylist matches the bare word 'verified', which collides with the Overlay's own UNVERIFIED and 'could not verify' vocabulary.
+- [RECOMMENDED] DO-21 opening: [main review] The ledger_active definition still joins on `params`, which contradicts F-1's subject_ref + lie_targets join. The words 'each listed (ref, viewer)' contradict DO-20's split between the classified set and the displayed list.
+- [RECOMMENDED] F-1 row 2 / row 9; DO-21 (5)(iv); AC-DO-191: [main review] Confirmed: row_2 requires n_skew >= 1 (line 521). On the first fold of a session dT is 0, so row 9 is reached and returns DEFECT_UNCAUSED with no `why` tag. This is rare, but it is a false defect, and the debug tool's whole purpose is to be trusted.
+- [RECOMMENDED] OQ-DO-31; sibling release-export ACs (kern:916, pipe:1028, AC-PF-79, Controller :1071/:120, AC-AT-66, AC-SN-85, AC-SN-179): [main review] The sibling ACs say 'release export has no debug_overlay_*'. The playtest preset is a release-template export that carries debug_overlay_mark and src/observer/, so those ACs will fail on it. This was unresolved last pass and is the top cross-GDD risk.
+- [RECOMMENDED] ship-body-and-interior-physics.md :353, :795, :919: [main review] Body still says '15 expected MVP channels'. D98 ruled 14. The leftover is already recorded in OQ-DO-17 and OQ-DO-31.
+- [RECOMMENDED] F-1 n_skew / DIAG_SKEW_GRACE_TICKS: [main review] The grace window counts real dT, so two catch-up folds (15 + 12 = 27 ticks) exceed the 24-tick grace on a hitch frame.
+- [RECOMMENDED] F-1 silent-lie example; AC-DO-29: [main review] The text says the lie fires at about 26.2 s. The arithmetic gives 26.0 s.
+- [RECOMMENDED] Tuning Knobs / Acceptance Criteria counts: [main review] The knob count says 49 but there are 50 rows. The AC totals say 197 but the document has 198.
+- [RECOMMENDED] Cross-References B/F; OQ-DO-14; Overview / DO-35: [main review] Cross-References B and F describe steps that are already done. OQ-DO-14 still describes the old throttle recovery. Nothing says that the E3-dependent DO-35 lines stay empty before E3 lands.
+- [RECOMMENDED] Creative alignment (DO-35 / playtest preset): [creative-director] The tool's purpose is to make the Filter's deliberate lies separable from engineering defects. It gives playtest observers a trustworthy truth channel and never reaches players in the public release. The design still serves that purpose, and none of the findings changes the player-facing experience. The two items that most threaten observer trust are the false DEFECT_UNCAUSED on the first fold and the empty pre-E3 readout being misread as 'no defects'.
+Reviewed-Content-Hash: design/gdd/debug-overlay-true-values.md af12130eddb9e833e3d99f90defc5af39f31733a
+Reviewed-Content-Hash: design/registry/entities.yaml 259f2c28b21a009ca35000d94fe3ef5b4d3ef301

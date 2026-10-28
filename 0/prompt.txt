@@ -1,0 +1,156 @@
+This session is being continued from a previous conversation that ran out of context. The summary below covers the earlier portion of the conversation.
+
+
+Summary:
+1. Primary Request and Intent:
+   **Project:** "The Synaptic Sea", a 2D HD-pixel-art co-op survival-horror game in Godot 4.7.2 / GDScript, built on the CCGS template.
+   - Project config: rigor full, automation autonomous, review_mode full.
+
+   **Standing rules (must keep):**
+   - CLAUDE.md: "No commits without user instruction". The user's pattern is to say "commit and push" after seeing a diffstat.
+   - Commit trailer (latest system reminder):
+     - `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`
+     - `Claude-Session: https://claude.ai/code/session_01A1Hn3uVTKtAjVgscNshCEN`
+   - `.claude/workflows/` is always left untracked and out of commits.
+   - Earlier user decisions still in force: chest-mounted lamp, throwable glowsticks, lethal friendly fire, Zomboid-style zoom in/out, MVP death = restart from last autosave.
+   - The user asked earlier to use Sonnet/Haiku where applicable to save usage.
+   - X14 (reference machine): never invent one. Only the user names it.
+
+   **Requests in this segment:**
+   - The user invoked `/design-review` with no arguments. I re-reviewed all 26 MVP GDDs because every receipt read CHANGED.
+   - The user then said "just use best judgment" in response to my proposed ruling sheet. I made the design calls myself as delegated rulings R1–R11, ran a fix pass, then ran a lean confirming review.
+
+2. Key Technical Concepts:
+   - **Workflow tool**
+     - Uses `pipeline`/`parallel`/`agent` with model/effort/schema/agentType options.
+     - Results come from the task output JSON `result` key.
+     - `journal.jsonl` has `started` (key, label), `result` (key, result) and `failed` (key) entries. Map failures to labels via `started` entries.
+     - Specialist agents often fail StructuredOutput (37 of 130 in the second review).
+   - **Review receipts:** `bash .claude/scripts/review-receipts.sh check|hash`.
+   - **Registry** (`design/registry/entities.yaml`)
+     - The `source:` GDD owns each value.
+     - Validate with `bash .claude/scripts/registry.sh validate`; check strict YAML with `python -c "import yaml; yaml.safe_load(...)"`.
+     - Entries are never deleted; retired ones get `status: deprecated`. Changed values get a `# was:` comment.
+   - **Amendment tags**
+     - `*(Amended 2026-10-27 — re-review)*`
+     - `*(Amended 2026-10-27 — re-review, delegated ruling Rn)*`
+     - "Resolved 2026-10-27 — delegated ruling Rn (re-review; user delegated to best judgment): ..."
+   - **Helpers**
+     - `log_decision` (6 positional args) in `.claude/hooks/yaml-helper.sh`, which must be sourced.
+     - Large GDD reads: grep headings, then Read with offset/limit (a hook refuses whole files over 40 KB).
+     - Bash heredoc to python works when quoted with `<<'EOF'`.
+     - LF→CRLF warnings are harmless.
+
+3. Files and Code Sections:
+   - **design/gdd/*.md (26 MVP GDDs)**
+     - Revised by the fix pass (wf_0d589458-64c): about 480 edits.
+     - Spot-checked as landed: Emitter T+10 gone; WM "no draw_air" gone; Pipeline has f_q (17 hits); F&T PATCH_WEEP (42); Debug Overlay "6 frames later" gone.
+     - Derelict R7 applied: spine_corridor fixtures `base_pm` 750 → s = 24 px; OQ-DA-48 closed.
+     - Suit's one "1,110" is a history note only.
+   - **design/gdd/reviews/<slug>-review-log.md (26 files)**
+     - Two new entries appended today:
+       - (a) Second review (wf_47b6177d-93c): all NEEDS REVISION. I corrected the "Specialists:" line in 23 logs to `Specialists: <ok> (spawned but returned no output: <failed>)`.
+       - (b) Confirming lean review (wf_8a480888-e10): "Specialists: none (lean confirming re-review)".
+   - **design/gdd/systems-index.md**
+     - Rows 73–98: all "Needs Revision" except row 82 (Suit & Equipment), which is "Approved".
+     - Line 295: "| Design docs reviewed | 26 (2026-10-27, three passes; confirming review after delegated rulings R1-R11: 1 Approved, 25 Needs Revision, 51 blocking items) |"
+     - Line 296: approved | 1.
+   - **design/registry/entities.yaml**
+     - Went from 1023 to 1096 entries. Validates clean (duplicate/tr_unknown/path_missing/status/layout all 0) and strict-parses.
+     - The registry agent applied 251 of 274 requests and declined 9: act_gate ACTOR_SELF, weld_quality Q_MIN, mvp_part_ledger ×2, BEACON_W, cap_duct_junction, Assembly event_due, the filter.leak stream, and BURDEN in noise_push.
+     - Conflict flagged on both entries: `autosave_due` (Save/Load) vs Assembly `last_shape_change_T`.
+     - RESTORE_KEY_STRIDE source moved to command-simulation-layer.md.
+     - New entries include restore_epoch (owner Save/Load) and rng_derive_epoch.
+     - Several knobs deprecated.
+     - Backup: `scratchpad/tail/entities.pre-rr.yaml`; agent scripts in `scratchpad/regm/`.
+   - **production/session-logs/decision-log.md** (gitignored): logged the re-review decision and the R1–R11 rulings.
+   - **production/session-state/active.md** (gitignored): breadcrumbs appended for the re-review, the fix pass and the confirming review.
+   - **Scratchpad** (C:/Users/dasbl/AppData/Local/Temp/claude/D--the-synaptic-sea-2d/e887ccb9-1186-40d9-9566-5eacccbd9b44/scratchpad/tail/):
+     - `rr-rulings.md`: the binding delegated rulings G1–G5 and R1–R11.
+       - R1: restore_epoch is persisted in the save header, incremented and durably written on every restore before the first RUNNING tick, and exposed in kernel.clock. The kernel owns `counter_eff = rng_counter + RESTORE_KEY_STRIDE × restore_epoch` and RESTORE_KEY_STRIDE. ACs: successive restores advance the epoch; same (save, epoch) replays identically.
+       - R2: the kernel stamps seq; callers attach an opaque `correlation` that is echoed back; submit stays void.
+       - R3: owner callables take ctx (ctx.ok/reject/put) and return only ctx.complete().
+       - R4: the Player Controller's aim formula is canonical; the Pipeline publishes f_q; the cursor unit must be verified or marked [UNV].
+       - R5: the X3 burden applies only to salvage carry. Decay is suspended while it is held, and no rearm is granted on re-take. Values are PLACEHOLDER; AC-BS-123(d) becomes a spike gate if the margin can't be shown.
+       - R6: D60 "statuses run in the pod" — Suit's reading stands and WM conforms. The valve click plays on the transition edge only. Pod figures come from the registry leg formula.
+       - R7: 24 px stays (user ruling D31); spine_corridor is fixed in Derelict.
+       - R8: the producer defines units.
+       - R9: undesigned dependencies are not blockers.
+       - R10: placeholders are kept.
+       - R11: X14 stays open.
+     - Results files: `rr-result.json` (second review), `rr-failed.json`, `rr-cd.json`, per-GDD `rr/<slug>.json`, `rr-fix.json`, `rr-confirm.json` (confirming review), `mk_rereview.py`.
+   - **Workflow scripts** (C:/Users/dasbl/.claude/projects/D--the-synaptic-sea-2d/e887ccb9-1186-40d9-9566-5eacccbd9b44/workflows/scripts/):
+     - `design-review-rereview-all-mvp.js`: review-only full re-review.
+     - `rereview-fix-pass-wf_0d589458-64c.js`: fixers, with chains Attention→Boarding→Derelict on Opus and Suit→WebMap; Haiku residual grep; finisher; serial Opus registry agent.
+     - `design-review-confirm-lean.js`: main reviewer + creative director only, no specialists.
+
+4. Errors and fixes:
+   - **Review logs listed failed specialists as consulted:** mapped failures via the journal and rewrote 23 "Specialists:" lines.
+   - **Draft R7 would have raised 24 px to 26 px**, which reverses user ruling D31 ("static authored spill <= 24 px"). The advisor caught it; changed to fixing the spine corridor in Derelict.
+   - **Advisor tightenings applied:**
+     - R4 no longer asserts the Godot API unit claim; it requires verification.
+     - R5 scoped to salvage carry, with a spike-gate fallback and no invented weights.
+     - R1 states kernel ownership of the derivation and stride, plus the AC qa-lead asked for.
+     - Chained the dependent fixers.
+     - Added grep verification.
+     - R11 added.
+   - **R6 had a messy draft sentence** ("975? — no"): fixed with Edit.
+
+5. Problem Solving:
+   - **Second full review** (208 agents, about 31.8M tokens): all 26 NEEDS REVISION, 81 blockers. Ship Section and Sanity lost their Approved status; Boarding went from MAJOR to NEEDS REVISION.
+   - **Fix pass** (53 agents, about 12.7M tokens): residual greps all 0.
+   - **Confirming lean review** (78 agents, about 12.9M tokens): Suit APPROVED, 25 NEEDS REVISION, 51 blockers.
+   - **What the remaining 51 blockers are:** mostly cross-GDD propagation the per-GDD fixers were forbidden to make, plus AC arithmetic. Examples:
+     - The kernel CR-15 vs Save/Load SL-23 epoch-write timing contradiction (R1 implementation).
+     - Pipeline ACs at L1008, L1030 and L1132.
+     - PC self-patch vs Interaction act_gate exempt list; give_up surface vs HUD L938.
+     - Save/Load ×5, including the REBASED key containing the trailer SHA that the epoch rewrite changes.
+     - WM vs Attention WM-26.
+     - Lighting beam_spill.
+     - Perception vs Sanity SN-23 schema.
+     - Debug Overlay ×3, Chart Table ACs ×3, Horror Layout geometry.
+   - **Open USER DECISION items the fixers surfaced:**
+     - Save/Load OQ-50: R1 vs D16 "not steerable by quit"; alternative: a clean-quit Continue keeps the epoch.
+     - Save/Load OQ-52.
+     - Boarding OQ-BS-34: widen the X3 21–28 tile band (about 30 tiles needed).
+     - Debug Overlay OQ-DO-30: reveal chord in the playtest preset.
+     - Interaction OQ 48: no guaranteed escape for a wounded victim.
+     - PC OQ 29(ii): conditional on the aim spike.
+     - Horror OQ 35: X14.
+
+6. All user messages:
+   - (Invoked `/design-review` with no arguments, after compaction.)
+   - "just use best judgment" (in response to my proposal to draft a ruling sheet of about 8 design calls before a fixer pass)
+   - Earlier in the session (summarized): "I agree with all of your recommendations on those decisions, please fill them in accordingly."; "commit and push" (→10d7800); "yes to all"; "commit and push" (→34a701a).
+   - Standing constraints: "No commits without user instruction" (CLAUDE.md); leave `.claude/workflows/` out of commits; use Sonnet/Haiku where applicable to save usage; don't invent the X14 reference machine.
+
+7. Pending Tasks:
+   - Report the confirming-review results and the diffstat to the user. The diff is currently 54 files changed, +7575/−4003, uncommitted.
+   - Wait for "commit and push" before committing.
+   - Optional further work, only with the user's go-ahead (my recommendation): one more targeted fix pass that allows cross-GDD edits per G1 owner-wins, for the 51 blockers, then a lean confirm. Then `/review-all-gdds` and `/gate-check`.
+   - Surface the USER DECISION items listed above.
+   - X14 is still open for the user to name.
+
+8. Current Work:
+   The confirming lean review (wf_8a480888-e10) had just finished: Suit & Equipment APPROVED, 25 NEEDS REVISION, 51 blocking items (down from 81). I then:
+   - updated systems-index.md (Suit Approved, others Needs Revision, tracker lines 295–296);
+   - verified that Suit's log entry reads "Verdict: APPROVED / Specialists: none (lean confirming re-review) / Blocking items: 0 | Recommended: 13";
+   - appended a session-state breadcrumb;
+   - ran `git diff --stat`: 54 files changed, 7575 insertions(+), 4003 deletions(-).
+
+   Nothing is committed. The working tree holds the 26 GDDs, 26 review logs, the systems-index and the registry, with `.claude/workflows/` untracked.
+
+9. Optional Next Step:
+   Give the user a text summary covering:
+   - the confirming-review tally (1 Approved, 25 Needs Revision, 51 blockers, mostly cross-GDD propagation and AC arithmetic);
+   - the open USER DECISION items;
+   - the diffstat.
+
+   Then wait for "commit and push" (do not commit without instruction). Recommend a further targeted cross-GDD fix pass followed by a lean confirm, but don't start it without the user, given token usage: this cycle used about 57M subagent tokens, and the account hit its weekly cap earlier.
+
+   In my previous message I told the user: "When the confirming review finishes, I'll report the verdicts and show the diffstat. Nothing is committed yet."
+
+If you need specific details from before compaction (like exact code snippets, error messages, or content you generated), read the full transcript at: C:\Users\dasbl\.claude\projects\D--the-synaptic-sea-2d\e887ccb9-1186-40d9-9566-5eacccbd9b44.jsonl
+Continue the conversation from where it left off without asking the user any further questions. Resume directly — do not acknowledge the summary, do not recap what was happening, do not preface with "I'll continue" or similar. Pick up the last task as if the break never happened.
+
+The messages after this summary are the most recent messages from before compaction, kept verbatim. The summary was written without seeing them, so something it says has not happened yet may already have happened in them.

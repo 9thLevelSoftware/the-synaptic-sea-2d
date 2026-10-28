@@ -40,7 +40,7 @@
 #   unsupported layout, with its number.
 
 version: 1
-last_updated: ""
+last_updated: "2026-10-28"
 
 # ─── STATE OWNERSHIP ─────────────────────────────────────────────────────────
 # Who is the authoritative owner of each piece of shared game state.
@@ -53,7 +53,47 @@ last_updated: ""
 # interface: how other systems access this state (read-only property, method call,
 #   signal, shared resource, etc.) — this is the contract other ADRs depend on.
 
-state_ownership: []
+state_ownership:
+  - state: tick_alpha
+    status: active           # ADR-0001 is Proposed; entries become binding when it is Accepted
+    owner_system: command-simulation-layer (TickDriver)
+    adr: docs/architecture/adr-0001-kernel-tick-driver-and-frame-order.md
+    interface: "PresentationClock.tick_alpha (read-only float in [0, 1]; held at 1.0 while the kernel is not RUNNING); presentation-only, never a state block, never hashed or saved, never read by the simulation"
+    write_access: tick-driver-only
+    referenced_by:
+      - docs/architecture/adr-0001-kernel-tick-driver-and-frame-order.md
+    added: 2026-10-28
+    revised: ""
+  - state: command_queue_and_stamped_fields
+    status: active
+    owner_system: command-simulation-layer (kernel)
+    adr: docs/architecture/adr-0002-authority-model-and-command-pipeline.md
+    interface: "Kernel._admit stamps issuer_peer, origin, seq, submission_id for every command; callers reach it only through SurfaceHandle.submit or ctx.submit_system"
+    write_access: kernel-only
+    referenced_by:
+      - docs/architecture/adr-0002-authority-model-and-command-pipeline.md
+    added: 2026-10-28
+    revised: ""
+  - state: binding_table
+    status: active
+    owner_system: command-simulation-layer (kernel)
+    adr: docs/architecture/adr-0002-authority-model-and-command-pipeline.md
+    interface: "half (a) peer_id to PlayerId written only through ControlHandle.request_bind_seat / request_unbind_seat; half (b) PlayerId to owned (source block, entity) rebuilt by the kernel on every LOADING from registered binding sources; read through PlayerBindings.owns(source, entity)"
+    write_access: kernel-only
+    referenced_by:
+      - docs/architecture/adr-0002-authority-model-and-command-pipeline.md
+    added: 2026-10-28
+    revised: ""
+  - state: fault_domain_table
+    status: active           # ADR-0003 is Proposed
+    owner_system: command-simulation-layer (kernel)
+    adr: docs/architecture/adr-0003-state-block-registry-and-owner-contract.md
+    interface: "static domain ids (0 kernel, 1 save_load, 2 content data, 3 graph, 4 layout, 5 body, 6 emitter, 7 controller, 8 interaction, 9 suit, 10 assembly, 11 web_transit, 12 attention, 13 horror, 14 sanity, 15-31 presentation and tooling); codes pre-packed (DOMAIN_ID << 16) | local in each owner's *_faults.gd; registered by register_fault_domain"
+    write_access: kernel-only
+    referenced_by:
+      - docs/architecture/adr-0003-state-block-registry-and-owner-contract.md
+    added: 2026-10-28
+    revised: ""
 
 # Example:
 #
@@ -81,7 +121,94 @@ state_ownership: []
 #
 # pattern options: signal | direct_call | event_bus | shared_resource | rpc | none
 
-interfaces: []
+interfaces:
+  - contract: command_submission
+    status: active
+    pattern: direct_call     # capability handle issued in BOOTING
+    producer: input-adapter
+    consumers:
+      - command-simulation-layer
+    adr: docs/architecture/adr-0002-authority-model-and-command-pipeline.md
+    signal_signature: "SurfaceHandle.submit(type: StringName, payload: Dictionary, actor: int = NO_ACTOR, correlation: int = 0) -> void"
+    referenced_by:
+      - docs/architecture/adr-0002-authority-model-and-command-pipeline.md
+      - docs/architecture/adr-0001-kernel-tick-driver-and-frame-order.md
+    added: 2026-10-28
+    revised: ""
+  - contract: system_command_submission
+    status: active
+    pattern: direct_call
+    producer: step-hook-and-apply-owners
+    consumers:
+      - command-simulation-layer
+    adr: docs/architecture/adr-0002-authority-model-and-command-pipeline.md
+    signal_signature: "ctx.submit_system(type: StringName, payload: Dictionary, dedupe_key: Variant = null) -> void; ctx.has_pending(type, dedupe_key) -> bool (HookContext and ApplyContext only)"
+    referenced_by:
+      - docs/architecture/adr-0002-authority-model-and-command-pipeline.md
+    added: 2026-10-28
+    revised: ""
+  - contract: control_plane
+    status: active
+    pattern: direct_call     # host-local, not commands
+    producer: save-load, pause-gate, composition-root
+    consumers:
+      - command-simulation-layer
+    adr: docs/architecture/adr-0002-authority-model-and-command-pipeline.md
+    signal_signature: "ControlHandle.request_pause / request_resume / request_snapshot / request_restore(payload, restore_epoch, expected_state_hash) / request_new_game(world_seed, restore_epoch) / request_shutdown / request_bind_seat(peer_id, player_id) / request_unbind_seat(peer_id); set_outcome_handler(Callable)"
+    referenced_by:
+      - docs/architecture/adr-0002-authority-model-and-command-pipeline.md
+    added: 2026-10-28
+    revised: ""
+  - contract: presentation_clock
+    status: active
+    pattern: direct_call
+    producer: command-simulation-layer (TickDriver)
+    consumers:
+      - presentation-subscribers
+    adr: docs/architecture/adr-0001-kernel-tick-driver-and-frame-order.md
+    signal_signature: "PresentationClock.tick_alpha: float; PresentationClock.T: int; PresentationClock.running: bool (read-only)"
+    referenced_by:
+      - docs/architecture/adr-0001-kernel-tick-driver-and-frame-order.md
+    added: 2026-10-28
+    revised: ""
+  - contract: owner_callable_contract
+    status: active
+    pattern: direct_call
+    producer: command-simulation-layer (kernel invokes)
+    consumers:
+      - every-block-and-hook-owner
+    adr: docs/architecture/adr-0003-state-block-registry-and-owner-contract.md
+    signal_signature: "Registered Callables -> CompletionToken with return ctx.complete() last; validate(cmd, views, ValidateContext), apply(cmd, scope, ApplyContext), hook(views, scope, HookContext), init_world(seed, scope, SnapshotContext), handlers(record, NotifyContext)"
+    referenced_by:
+      - docs/architecture/adr-0003-state-block-registry-and-owner-contract.md
+      - docs/architecture/adr-0002-authority-model-and-command-pipeline.md
+    added: 2026-10-28
+    revised: ""
+  - contract: block_registration
+    status: active
+    pattern: direct_call
+    producer: every-block-and-hook-owner
+    consumers:
+      - command-simulation-layer
+    adr: docs/architecture/adr-0003-state-block-registry-and-owner-contract.md
+    signal_signature: "ModuleFacet.registrar (BOOTING only): register_block(BlockDescriptor), register_command(CommandTypeDescriptor), register_hook(HookDescriptor), register_fault_domain(domain_id, owner_name, names), register_diagnostics_channel(desc)"
+    referenced_by:
+      - docs/architecture/adr-0003-state-block-registry-and-owner-contract.md
+      - docs/architecture/adr-0002-authority-model-and-command-pipeline.md
+    added: 2026-10-28
+    revised: ""
+  - contract: mutator_status
+    status: active
+    pattern: direct_call
+    producer: block-owners (published mutators)
+    consumers:
+      - cross-block-apply-and-hook-callers
+    adr: docs/architecture/adr-0003-state-block-registry-and-owner-contract.md
+    signal_signature: "Class A check_x(views, args) -> StringName and x(scope, args, out) -> int (OK 0, REFUSED 1, -fault_code); Class B x(scope, args) -> void; every mutator begins scope.open_for(block) and marks scope.mark_dirty"
+    referenced_by:
+      - docs/architecture/adr-0003-state-block-registry-and-owner-contract.md
+    added: 2026-10-28
+    revised: ""
 
 # Example:
 #
@@ -110,7 +237,16 @@ interfaces: []
 # Register a budget when an ADR explicitly claims a frame time allocation.
 # The registry lets /architecture-review verify the total doesn't exceed the target.
 
-performance_budgets: []
+performance_budgets:
+  - system: kernel_p3_step_hooks
+    status: active
+    budget_ms: 2.0
+    adr: docs/architecture/adr-0003-state-block-registry-and-owner-contract.md
+    notes: "P3 target 2.0 ms P99 on a release export on RM-DESKTOP and RM-DECK; STEP_BUDGET_MS 4 ms is an alarm threshold that logs the slowest hooks, never a target (IC-4)"
+    referenced_by:
+      - docs/architecture/adr-0003-state-block-registry-and-owner-contract.md
+    added: 2026-10-28
+    revised: ""
 
 # Example:
 #
@@ -141,7 +277,37 @@ performance_budgets: []
 # Register an API decision when the choice is non-obvious and other ADRs might
 # make a different choice for the same purpose without knowing this was decided.
 
-api_decisions: []
+api_decisions:
+  - purpose: simulation_clock
+    status: active
+    api: "KernelHost._process(delta) -> TickDriver.frame(delta_us), delta_us = maxi(0, roundi(delta * 1_000_000.0))"
+    not: "_physics_process or physics_jitter_fix / max_physics_steps_per_frame coupling; a Time.get_ticks_usec accumulator (kept only as the spike fallback)"
+    adr: docs/architecture/adr-0001-kernel-tick-driver-and-frame-order.md
+    reason: "One accumulator, one wall-clock read that reaches the simulation, regular input latency; the kernel GDD (owner) rejected the physics callback in CR-1a"
+    referenced_by:
+      - docs/architecture/adr-0001-kernel-tick-driver-and-frame-order.md
+    added: 2026-10-28
+    revised: ""
+  - purpose: frame_order
+    status: active
+    api: "ProcessPriority constants INPUT_ADAPTER -100, TICK_DRIVER -50, PRESENTATION 0 (engine default), set from code, never in .tscn"
+    not: "tree order, literal process_priority values, process_thread_group other than the default on kernel-path nodes"
+    adr: docs/architecture/adr-0001-kernel-tick-driver-and-frame-order.md
+    reason: "Fixes adapter, then driver, then presentation; an unset presentation priority still runs after the driver; verified by spike KRN-LAT-02"
+    referenced_by:
+      - docs/architecture/adr-0001-kernel-tick-driver-and-frame-order.md
+    added: 2026-10-28
+    revised: ""
+  - purpose: payload_size_check
+    status: active
+    api: "whitelist walk (type, depth 8, finite floats, running byte estimate) then var_to_bytes(payload, false).size() <= MAX_PAYLOAD, then compiled payload_schema"
+    not: "serialising a payload before the walk; using var_to_bytes bytes as hash input; String payload keys"
+    adr: docs/architecture/adr-0002-authority-model-and-command-pipeline.md
+    reason: "A cyclic or very wide container must be rejected before serialisation; payload keys are StringName so schema lookup is exact"
+    referenced_by:
+      - docs/architecture/adr-0002-authority-model-and-command-pipeline.md
+    added: 2026-10-28
+    revised: ""
 
 # Example:
 #
@@ -167,7 +333,67 @@ api_decisions: []
 # Register a pattern when an ADR explicitly bans it AND other ADRs might
 # unknowingly use it (i.e., it's a tempting but wrong approach for this project).
 
-forbidden_patterns: []
+forbidden_patterns:
+  - pattern: kernel_autoload_or_global
+    status: active
+    description: "No autoload, static variable or group lookup exposes the kernel, a block or a read view. The composition root injects the narrowest facet each module needs through setup()."
+    why: "Hidden dependencies, shared state between headless tests, and no second kernel for MIRROR or replay comparison."
+    adr: docs/architecture/adr-0001-kernel-tick-driver-and-frame-order.md
+    added: 2026-10-28
+  - pattern: physics_callback_tick_source
+    status: active
+    description: "No kernel, simulation or presentation script defines _physics_process or _integrate_forces, and nothing is coupled to physics_jitter_fix or max_physics_steps_per_frame."
+    why: "Two accumulators drift; the simulation has no physics body; the kernel GDD rejected it."
+    adr: docs/architecture/adr-0001-kernel-tick-driver-and-frame-order.md
+    added: 2026-10-28
+  - pattern: cosmetic_phase_from_tick_counter
+    status: active
+    description: "Cosmetic animation phase uses present_time, never the tick counter; simulation-computed values use the committed tick."
+    why: "Keeps pause, reduced motion and render rate from changing simulation-visible values."
+    adr: docs/architecture/adr-0001-kernel-tick-driver-and-frame-order.md
+    added: 2026-10-28
+  - pattern: await_process_frame_in_sim_or_presentation
+    status: active
+    description: "src/sim and src/presentation code does not await get_tree().process_frame; waiting is expressed in ticks or present_time."
+    why: "That signal fires outside the per-node process_priority ordering (UNVERIFIED), outside the adapter-driver-presentation order."
+    adr: docs/architecture/adr-0001-kernel-tick-driver-and-frame-order.md
+    added: 2026-10-28
+  - pattern: command_constructed_outside_kernel
+    status: active
+    description: "Command.new() is called only inside src/kernel/ (_admit); issuer_peer, origin, seq and submission_id are never read from or written to payload data."
+    why: "The stamped fields are the authority boundary; GDScript has no private constructors, so a run-time seal and a CI check enforce it."
+    adr: docs/architecture/adr-0002-authority-model-and-command-pipeline.md
+    added: 2026-10-28
+  - pattern: presentation_submit_without_handle
+    status: active
+    description: "Only the objects named at handle issue hold a SurfaceHandle or ControlHandle; subscribing as INPUT_SURFACE does not confer submit rights; SYSTEM commands are submitted only through ctx.submit_system inside a tick phase."
+    why: "Presentation never writes the simulation (kernel H4); co-op must add ingress without changing owners."
+    adr: docs/architecture/adr-0002-authority-model-and-command-pipeline.md
+    added: 2026-10-28
+  - pattern: peer_id_keyed_persistent_state
+    status: active
+    description: "Persistent per-player state and ownership are keyed by PlayerId; the peer id appears only in the ingress stamp and binding table half (a). Ownership is never derived from scene-tree node authority."
+    why: "Peer ids change on reconnect and host change; a copied save or re-join must keep its characters."
+    adr: docs/architecture/adr-0002-authority-model-and-command-pipeline.md
+    added: 2026-10-28
+  - pattern: write_outside_writescope_or_setter_dirty
+    status: active
+    description: "No block is written outside a kernel WriteScope (APPLY, PAUSED_APPLY, HOOK, INIT, RESTORE); every mutator begins with scope.open_for; dirty keys are marked only through scope.mark_dirty, never from a property setter."
+    why: "Kernel CR-9 write discipline; 4.7 packed-array element writes no longer call setters, so setter-based dirty tracking silently misses changes."
+    adr: docs/architecture/adr-0003-state-block-registry-and-owner-contract.md
+    added: 2026-10-28
+  - pattern: void_or_value_returning_owner_callable
+    status: active
+    description: "No kernel-invoked owner callable is declared -> void or returns a domain value; each is -> CompletionToken with return ctx.complete() as its last statement; outcomes go through ctx."
+    why: "An aborted GDScript function returns a default the caller cannot tell from a result; the completion sentinel is the only release-build abort guard."
+    adr: docs/architecture/adr-0003-state-block-registry-and-owner-contract.md
+    added: 2026-10-28
+  - pattern: block_as_resource_or_node
+    status: active
+    description: "State blocks are RefCounted plain data held by their owner, never a Resource or Node; restore copies into the existing block object."
+    why: "Save-file trust (a .tres can embed scripts), canonical serialisation, scene-tree independence (H10), and long-lived read-view facades."
+    adr: docs/architecture/adr-0003-state-block-registry-and-owner-contract.md
+    added: 2026-10-28
 
 # Example:
 #

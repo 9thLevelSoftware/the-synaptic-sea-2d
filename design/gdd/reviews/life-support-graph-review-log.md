@@ -227,3 +227,50 @@ Next: fix the blocker, then this GDD can be closed as APPROVED without a further
 Rules, formulas, edge cases, ACs and tuning knobs are consistent in the changed regions. Restore semantics (LOADING to FAULTED owned by the kernel, `ctx.fault`, contents untouched on failure) agree across L258, L309, L934 and L974.
 Reviewed-Content-Hash: design/gdd/life-support-graph.md 9e79dcaef717cd13a3628c93bf9ee49a181e5bf6
 Reviewed-Content-Hash: design/registry/entities.yaml 4d9d9f7a469ff3c3aeb97b06fa6fa82c1b2dec16
+
+
+## Review — 2026-10-29 — Core ADR sync (lean confirming)
+
+**Verdict:** NEEDS REVISION
+
+**Scope:** `git diff -- design/gdd/life-support-graph.md`, 26 hunks. These are the ADR-0011 and ADR-0012 sync (plus the ADR-0016 stock-reconcile and TR-instr-027 citations). I checked every changed region against the two ADRs' "GDD sync" lists. I confirmed the cited ADR sections exist. I then grepped the whole GDD for stale wording: `_cur`/`_next`, `integer_division`, `graph_propagate`, `GraphFault.raise`, `2^20`/`2^43`, "phase 1", `S + D`, `served_pm`, `subject_id`, "rung", `virtual hole` and `alarm_sections`.
+
+**Confirmed consistent:**
+- ADR-0012 sync items 1-15 and ADR-0011 sync items 1-10 are applied.
+- The new RNG key math is correct: 26-bit subject key, `step_no` below 2^30 gives a key below 2^56, 2^30 steps is about 3.4 years at 10 Hz.
+- The sixteen counters per section equal the eight named in LS-1 (e) plus `discarded_*` and `withdrawn_*` over four media.
+- The HEATER `run_pm` change reproduces the old `duty_t × served` value.
+- `T_mach` in phase 9, `degrees` in phase 6, `block_hash` dirty flag removal, `alarm_sections` buffers, `LOAD_PM`, the RAGGED stub rows, `ONSET_UNKEYED` and the reconcile carve-out agree across LS-1/8/9/11/13/17/19/20/21/24, D.8, D.9, Edge Cases and Tuning.
+- Design intent is preserved: gate fairness, one-hop cascades, the dark-ship clock and exact conservation are unchanged.
+
+**Blockers (2):**
+1. The LS-21 persisted-field AC (Method A) still allows derived members on `GraphState` through the DERIVED allowlist. This contradicts the amended LS-1 and ADR-0011 sections 6.1 and 6.3. Its field list also omits `n_served`, `n_draw`, `e0` and `power_use_w5`.
+2. In LS-17 the inserted INIT sentence detaches "then it sets `dormant_since_step` to 0" from the load-time advance. It now reads as zeroing the stamp right after the INIT unload, and it uses two names for one field.
+
+**Advisories (10):** the undefined `req` in the HEATER formula (should be `req_w`); the M19 row stamp list; LS-1 (j) and the S0-a AC against ADR-0011 section 6.2; "decode, validate, swap" (carried over); ACs missing for the new rules; the golden RNG triples need `kind`; stale "phase 1" attributions; the INIT footprint-drain rule; the unregistered `STEP_STAMP_MAX` and `ID_MAX`; the header date and LS-3 `cause`.
+
+**Remaining after fixes:** none expected. Both blockers are one-sentence edits. A re-read of L224 and L1258 is enough.
+
+## Review — 2026-10-29 — Core ADR sync (lean confirming, round 2)
+
+**Verdict: APPROVED** (no blockers; 4 advisories).
+
+**Scope:** `design/gdd/life-support-graph.md`. All 27 hunks of `git diff` were checked against LS-1/8/9/11/13/15-17/19-21/24, D.6/D.9, Edge Cases, Tuning Knobs, Acceptance Criteria and Open Questions. This covered the ADR-0011 split into GraphState, GraphCaches, GraphScratch and GraphDiag, and the ADR-0012 changes (JAC, 26-bit RNG key, phase 0/1/6/9/10 moves, persisted hook products, isolated_at_step, dormancy advance list, `block_hash` dirty flag removed). ADR-0011 sections 6.1 and 6.3 were cross-checked.
+
+**Blockers resolved (2 of 2):**
+1. LS-21 AC Method A. It now says GraphState holds persisted columns only. Reflection must match the snapshot payload keys exactly, apart from the three holder references. No DERIVED-allowlist member may be in GraphState. The DERIVED allowlist is the member list of GraphCaches, GraphScratch and GraphDiag, and the test fails if any of them is written into the payload. This matches LS-1, the writer-lint AC and ADR-0011 6.3. The field list now includes `n_served`, `n_draw`, the CABLE `e0` net load and `power_use_w5`, and the carry-over note is present.
+2. LS-17 dormancy. 'then it sets `dormant_since_step` to 0' again directly follows the load-time advance list. The INIT unload-stamp sentence is a separate later clause and says the zeroing belongs to the load direction only. The field name is `dormant_since_step` throughout (12 occurrences, no variant).
+
+**Remaining blockers:** none.
+
+**Advisories:**
+- LS-21 AC: name the holder references (`_caches`, `_scratch`, `_diag`) and the `_h_*` to `hdr` mapping. State that Method B zero-fills scratch contents without resizing.
+- The golden thaw-roll AC (L1220) and the replay sentence (L133) still use `(world_seed, step_no, subject_id)`. The RNG key is now `(step_no << 26) | rng_subject(kind, id)`, so record kind and id.
+- HEATER `run_pm` uses an undefined `req`. Write `req_w`. The L1359 note 'now derives from `duty_t`' is stale.
+- D.16 'no lever after the stagger and call-overhead removal' omits tuning, which the lever-order sentence lists first.
+
+**Consistency checks passed:**
+- No stale `_cur`/`_next` buffers, `graph_propagate.gd`, `GraphFault.raise(`, `2^20`/`<< 20`, `2^43`, 'virtual hole' stubs or `integer_division` ignore outside superseded notes.
+- Stub ids, `SectionBases`, `alarm_sections(out)`, the `isolated_at_step` leak guard, `STEP_STAMP_MAX` 2^30 (about 3.4 years at 10 Hz) and the ID_MAX 2^24 boot assertion agree across rules, formulas, edge cases, tuning knobs and ACs.
+Reviewed-Content-Hash: design/gdd/life-support-graph.md 59ea14b2a4efb06822525d1c86e813556d796160
+Reviewed-Content-Hash: design/registry/entities.yaml 423447f14cd1ef7c387109f2b366b17ebdca9dd3

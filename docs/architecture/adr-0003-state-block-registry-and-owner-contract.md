@@ -91,12 +91,12 @@ Every field is mandatory unless marked optional; a missing field fails boot nami
 | `persist_scope` | `int` enum `WORLD` / `PROFILE` | Required when `persist` |
 | `scope` | `int` enum `SHARED` / `PER_PLAYER` | PER_PLAYER keyed by PlayerId |
 | `gameplay` | `bool` | The paused-write test (CR-16) |
-| `interpolated` | `bool` | Kernel runs `commit_baseline` at P4 |
+| `interpolated` | `bool` | Kernel runs `commit_baseline` at P4 (*clarified 2026-10-29, ADR-0015*: an owner may instead keep the previous/current pair inside its own hook and mutators and register `commit_baseline` as a **documented no-op** that returns `ctx.complete()`; the owner must then document why a P4 roll would be wrong, e.g. Body, where a roll would leave `prev == curr` at P5. The `key` argument of `snap_baseline` is **ignored for `SHARED` blocks**) |
 | `repl_hint` | `int` enum `HOST_ONLY` / `SHARED_SUMMARY` / `OWNER_PRIVATE` | Unused until VS-B, mandatory now |
-| `restore_after` | `Array[StringName]` | DAG for ADR-0016 |
+| `restore_after` | `Array[StringName]` | DAG for ADR-0016. *(Clarified 2026-10-29, ADR-0016.)* It orders **`restore`, `post_restore`, `default_state` and `init_world`**: a block is restored, post-restored and initialised after every block it lists. A persisted block's `default_state` ends with `ctx.put(payload)` of **snapshot shape**, which the kernel applies through that block's own `restore` (no `put` is `DEFAULT_STATE_NO_PAYLOAD`, § 6) |
 | `snapshot`, `restore`, `default_state`, `post_restore`, `read_view`, `empty_view` | `Callable` | Mandatory |
 | `commit_baseline`, `snap_baseline` | `Callable` | Mandatory iff `interpolated` |
-| `init_world`, `binding_source` | `Callable` | Optional (the binding source is this field only, never a separate registration) |
+| `init_world`, `binding_source` | `Callable` | Optional (the binding source is this field only, never a separate registration). *(Clarified 2026-10-29, ADR-0016, ADR-0002 § 4.)* `binding_source` does `ctx.put` of **one flat `PackedInt64Array` of `(player_id, entity_id)` pairs, strictly ascending**, newly built per call; the kernel validates the shape (even length, `player_id >= 1`, order) at the `LOADING` rebuild and reports a failure as `BINDING_REBUILD_CONFLICT` (§ 6) |
 
 **`CommandTypeDescriptor`** (complete; ADR-0002 owns the meaning of each field)
 
@@ -118,7 +118,7 @@ Every field is mandatory unless marked optional; a missing field fails boot nami
 
 **`DiagnosticsChannelDescriptor`** (CR-6 via the Debug Overlay's E-DO-38): the field list is ADR-0031's; registration is here.
 
-**Entity ids are block-local** *(GDD command-simulation-layer CR-8, TR-cmd-015)*: an entity id is allocated by the owning block's own counter and is unique only within that block; the kernel allocates no entity ids. A reference across blocks is the pair `(block_id, entity_id)`, and `(source block_id, entity_id)` is the key form used by the binding sources (ADR-0002 § 4, binding table). A block's counter lives inside the block and is part of its snapshot payload, so a restore returns it to the saved value.
+**Entity ids are block-local** *(GDD command-simulation-layer CR-8, TR-cmd-015)*: an entity id is allocated by the owning block's own counter and is unique only within that block; the kernel allocates no entity ids. A reference across blocks is the pair `(block_id, entity_id)`, and `(source block_id, entity_id)` is the key form used by the binding sources (ADR-0002 § 4, binding table). A block's counter lives inside the block and is part of its snapshot payload, so a restore returns it to the saved value. *(Clarified 2026-10-29, ADR-0034.)* The presentation sort-key composite `entity_id` (`EntityId.pack`: a namespace byte plus the publisher's persisted id) does not conflict with this rule: it is a pure function of persisted ids computed in presentation, is never a block id and is never persisted.
 
 ### 3. Contexts: reused, re-armed per call, non-re-entrant
 
@@ -180,7 +180,7 @@ The kernel allocates the scope objects once and re-arms them (phase, writable se
 | `PAUSED_APPLY` | the paused service cycle | only blocks in the command type's `writes_blocks` (GDD CR-16) |
 | `HOOK` | one P3 hook run | any block |
 | `INIT` | new-game construction in `LOADING`: all `init_world` steps share one `INIT` scope, before `post_restore` (CR-18) | any block |
-| `RESTORE` | an owner's `restore` / `post_restore` that uses its own mutators | the restoring block only |
+| `RESTORE` | an owner's `restore` / `post_restore` that uses its own mutators (*confirmed 2026-10-29, ADR-0016*: `post_restore` gets a `RESTORE` scope for that block alone, exactly as `restore` does) | the restoring block only |
 | `CLOSED` | everything else, and after the first `fault` | nothing |
 
 `init_world` therefore receives the scope: `init_world(world_seed: int, scope: WriteScope, ctx: SnapshotContext)`, and Web Map's `init_world` passes it to Layout `build_section`, Emitter `instantiate_section_emitters` and Interaction `sync_section` (architecture § Initialisation order step 6). **Dirty keys marked in `INIT` and `RESTORE` scopes are discarded**: on the `LOADING → RUNNING` transition the kernel delivers one `ALL` batch per block instead (the GDD's "one ALL then silence"), which is what the PROJECTOR needs after a new game or a load; ADR-0004 defines that delivery.
@@ -191,8 +191,9 @@ The kernel allocates the scope objects once and re-arms them (phase, writable se
 
 **Status values**: `OK = 0`; `REFUSED = 1` (the scope was not open for this block: a counted violation, **not** a fault, and never escalated by the caller); a **negative** value is `-fault_code` (a defect the mutator detected; it has also called `scope.fault`).
 
-- **Class A** (validate-then-apply): a pure `check_*(views, args) -> StringName` (`&""` = OK) takes read views only; the matching mutator `name(scope, args, out) -> int` is infallible once its check passed. A mutator that produces data (a new id, a `{seam_id, opening_ids}` record) writes it into a **caller-owned `out` object** passed in, so the return value is always the status. Example: `weld_join(scope: WriteScope, plan: JoinPlan, out: WeldResult) -> int`.
-- **Class B** (clamp, never reject): `name(scope, args) -> void`; it clamps out-of-range input and no-ops on a stale id; it still begins with `scope.open_for`.
+- **Class A** (validate-then-apply): a pure `check_*(views, args) -> StringName` (`&""` = OK) takes read views only; the matching mutator `name(scope, args, out) -> int` is infallible once its check passed. A mutator that produces data (a new id, a `{seam_id, opening_ids}` record) writes it into a **caller-owned `out` object** passed in, so the return value is always the status. Example: `weld_join(scope: WriteScope, plan: JoinPlan, out: WeldResult) -> int`. *(Clarified 2026-10-29, ADR-0019.)* The `out` argument exists only when the mutator produces data: a status-returning mutator with a pure check twin and nothing to hand back, such as the Controller's four (`name(scope, args) -> int`), is **Class A** without an `out`, and the Mutator contract block of `architecture.md` may list it that way.
+- **Check naming** *(Clarified 2026-10-29, ADR-0013, ADR-0015, ADJUDICATED)*: the Class A check is **conventionally `check_*`**; an owner may keep a GDD-published `can_*` name (Layout's `can_build`, `can_attach`, `can_detach`, `can_discard`; Body's) with the **same shape and return contract**: pure, taking read views plus scalars, returning a `StringName` with `&""` = OK. The prefix is a naming convention, not a lint; the registry stance `mutator_status` admits both. `can_*` is the project-wide published name wherever a GDD already uses it.
+- **Class B** (clamp, never reject): `name(scope, args) -> void`; it clamps out-of-range input and no-ops on a stale id; it still begins with `scope.open_for`. *(Clarified 2026-10-29, ADR-0017.)* A Class B mutator may take a trailing **caller-owned `out` outcome object** for a **non-error answer** (a duplicate, an overflow or a cap reached, a "returns false" in the GDD's words), which it sets and the caller reads; the return stays `void`, the mutator still never rejects, never returns a status and never calls `scope.fault`. The outcome is data, not a refusal: a defect is Class A.
 
 **Fail-closed.** The first `scope.fault` sets `scope.faulted`, which closes the scope: every later `open_for` on it is false (not counted again), so later mutators in the same apply write nothing and the dev-build diagnostics show the blocks exactly as they were at the fault. `ctx.faulted` includes the scope's flag (§ 3). **Fail-closed never depends on an engine error aborting the callee** *(Amended 2026-10-28 — architecture review)*: a release build may log a script error and continue. It is carried by the explicit paths only — mutator status checks, `scope.fault` and the closed scope — with the `STRICT_DEBUG` checks and ADR-0004's debug-build missed-mark hash as backstops. An engine error that a release build swallows and that no mutator detects is outside what the kernel can see; KRN-CTX-06 documents it rather than claims it.
 
@@ -238,6 +239,12 @@ A fault code is a positive `int`: `(DOMAIN_ID << 16) | local`, `local` in `1..65
 | 15 | `HOOK_OFFSET_INVALID` | boot: `divisor < 1` or `offset` not in `0..divisor-1` |
 | 16 | `CALLABLE_SIGNATURE` | boot: a `Callable` is invalid or has the wrong arity |
 | 17 | `MEMORY_BUDGET` | boot: the CR-17 joint memory assertion fails |
+| 18 | `RESTORE_CYCLE` | boot: a cycle or a self edge in `restore_after` (ADR-0016 § 2.2), naming the remaining blocks |
+| 19 | `BLOCK_LIMIT` | boot: more than `MAX_BLOCKS` blocks registered (TR-cmd-035), raised at the first excess registration |
+| 20 | `RESTORE_VERSION_UNSUPPORTED` | pre-check: a stored block `schema_version` is not in that block's `supported_versions`, before any `restore()` (ADR-0016 § 1.1 R1) |
+| 21 | `DEFAULT_STATE_NO_PAYLOAD` | a persisted block's `default_state` returned without `ctx.put` (ADR-0016 § 3.3) |
+
+*(Appended 2026-10-29, ADR-0016.)* Codes 18 to 21 are appended after 17 and, like every code, are never renumbered. Row 3's detail is `{reason, source, player_id, entity_id}` with `reason` one of `CONFLICT_OWNER`, `DUPLICATE_TRIPLE`, `SHAPE`, `ORDER`, `PLAYER_RANGE`, `SOURCE_FAULT` (ADR-0016 § 6.3). Boot warnings gain `RESTORE_AFTER_DUPLICATE` (a duplicate entry in one `restore_after` list, dropped; the warning list must be empty at the end of every CI run, as for `STALE_EDGE_UNDECLARED`).
 
 A P3 above `STEP_BUDGET_MS` is a **diagnostic** (it logs the slowest hooks), not a fault.
 
@@ -261,8 +268,27 @@ At the registry validation pass (an internal step of the boundary that serves th
 2. Runs Kahn's algorithm with the ready list ordered by **registration index** (unique, so a total order; `hook_id` is the printed name), always taking the smallest ready index and never iterating a Dictionary.
 3. Records a `STALE_EDGE_UNDECLARED` boot warning for any `after` edge between hooks that do not always run on the same tick unless it declares `tolerates_stale` (ruling R-8). The warning list must be empty at the end of every CI run (today it is not, because of `transit.step`, IC-11, until the Web Map GDD declares that edge).
 4. **Compiles a schedule.** `C = lcm(all divisors)`, computed with a small integer `gcd`/`lcm` at boot (no builtin), guarding overflow; a `C` above `MAX_SCHEDULE_CYCLE_TICKS` (3,600) fails boot naming the divisor. For each residue `r` in `0..C-1` the schedule holds a `PackedInt32Array` of hook indices, in the total order, of the hooks with `r mod divisor == offset`. Each entry is built as a local array, filled completely, then assigned once and never mutated in place. With the MVP divisors (1, 5, 6, 12) `C` = 60. A tick does `schedule[T mod C]` and calls each index: no per-tick scan, and the schedule is data the Debug Overlay prints.
+5. **Compiles the `RestorePlan`** *(Added 2026-10-29, ADR-0016 § 2.2)*, after the hook schedule: resolve each `restore_after` id to a registration index (unknown is `UNKNOWN_DEPENDENCY`, a duplicate entry is dropped with the `RESTORE_AFTER_DUPLICATE` boot warning), run Kahn's algorithm with the ready list ordered by registration index, smallest first (the rule of step 2), and fail boot with `RESTORE_CYCLE` on a cycle or self edge. The plan orders `restore`, `post_restore`, `default_state` and `init_world`; registering more than `MAX_BLOCKS` blocks fails boot with `BLOCK_LIMIT`.
+
+**Module setup order in boot** *(Added 2026-10-29, orchestrator ruling R1)*. The composition root sets modules up in registration order, and registration order puts Layout before Body, Emitter, Horror, Lighting and the PROJECTOR (`body.projector`), so the `SolidQuery` and `OccluderSource` adapters (ADR-0014) exist when each of those modules' `setup()` runs.
+
+**`ClockView.tick()` inside a hook** *(Clarified 2026-10-29, ADR-0012)*: `T` increments at P0 (GDD CR-2), so from P1 to P6 of a tick `ClockView.tick()` is the **executing tick**, the same `T` that selected `schedule[T mod C]`; it never names the next tick. KRN-LAT-02 records this.
 
 **P3 budget semantics (IC-4).** Settled by the owner and recorded here: **P3 ≤ 2.0 ms P99 is the target; `STEP_BUDGET_MS` = 4 ms is an alarm threshold, not a target.** A P3 above 4 ms logs the slowest hooks; the tick completes; nothing aborts a hook mid-run.
+
+**P3 share ledger** *(Added 2026-10-29, Core-tier adjudication CT-20; provisional pending S1)*. No other document held the apportionment of the 2.0 ms target, and the Core budgets alone use 83 percent of it. On the worst-aligned tick (every hook due) the whole-hook figures are:
+
+| Hook owner | Share (ms) | Source |
+|---|---|---|
+| Graph hooks (`graph.propagate.*`) | 0.5 | ADR-0012 |
+| `body.integrate`, including `solid_in` | 0.4 | ADR-0015, ADR-0014 |
+| `emitter.place` (`EXPOSURE_BUDGET_MS`) | 0.4 | ADR-0017 |
+| `controller.step` | 0.16 | ADR-0019 |
+| `layout.doors` | 0.2 | ADR-0013 |
+| **Core sum** | **1.66** | |
+| Unallocated, for the Feature hooks | 0.34 | 2.0 target minus 1.66 |
+
+A share is raised only from the unallocated remainder, never by taking another row's. The ledger is registry row `kernel_p3_step_hooks` (`docs/registry/architecture.yaml`); an ADR citing its row cites this table.
 
 ### 9. The kernel state machine is a data table
 
@@ -551,3 +577,5 @@ Open questions: this ADR carried none; none added.
 
 - **2026-10-29 /architecture-review follow-up.** Enables row gains ADR-0007 and ADR-0010, which list this ADR under Depends On (residual 10). No behaviour change.
 - **2026-10-29 /architecture-review follow-up (Foundation gaps).** Added: TR-cmd-015 (entity ids block-local, § 2) and TR-cmd-053 (build-mode equivalence of the two kernel profiles, Implementation Guidelines). Closes review gaps; no change to existing decisions.
+- **2026-10-29 Core-tier amendments.** Applied (clarifications and additions; no decision changed, no guarantee weakened; status stays Proposed). Requested by ADR-0013, ADR-0015 and the Core-tier adjudication (ADJUDICATED, binding): § 5 states that the Class A check prefix is a naming convention, not a lint, and that a GDD-published `can_*` name (Layout, Body) is admitted beside `check_*` with the same pure shape and `StringName` return (`&""` = OK); the registry stance `mutator_status` admits both. Requested by ADR-0019: § 5 confirms that a status-returning mutator with a pure check twin and no data to return is Class A without an `out`. Requested by ADR-0017: § 5 allows a Class B mutator (`-> void`) a caller-owned `out` outcome for non-error answers. Requested by ADR-0015: § 2 descriptor table lets an owner of an interpolated block keep its pair in its own hook and register `commit_baseline` as a documented no-op, and ignores the `snap_baseline` key for `SHARED` blocks. Requested by ADR-0016: § 6 appends kernel fault codes 18 `RESTORE_CYCLE`, 19 `BLOCK_LIMIT`, 20 `RESTORE_VERSION_UNSUPPORTED`, 21 `DEFAULT_STATE_NO_PAYLOAD`, the `BINDING_REBUILD_CONFLICT` reason set and the `RESTORE_AFTER_DUPLICATE` boot warning; § 2 states that `restore_after` orders `restore`, `post_restore`, `default_state` and `init_world`, that a persisted block's `default_state` ends in `ctx.put` of snapshot shape applied through its own `restore`, and the `binding_source` payload shape; § 4 confirms the `RESTORE` scope for `post_restore` opens the restoring block only; § 8 adds the `RestorePlan` compile as step 5. Requested by ADR-0012: § 8 states that `ClockView.tick()` inside a hook is the executing tick (`T` increments at P0). Requested by ADR-0034: § 2 states the presentation sort-key `entity_id` composite does not conflict with block-local ids. Adjudicated (CT-20): § 8 holds the P3 share ledger (graph 0.5, `body.integrate` 0.4, `emitter.place` 0.4, `controller.step` 0.16, `layout.doors` 0.2; Core sum 1.66 ms; 0.34 ms left for Feature hooks; provisional pending S1; raised only from the remainder). Not applied here: per-(tick, hook) elapsed samples for the benchmark harness (ADR-0012), and the registry rows (`kernel_p3_step_hooks` ledger notes, `mutator_status`, new fault codes), which sit outside this file.
+- **2026-10-29 orchestrator rulings.** R1 applied: § 8 states the boot module setup order (the composition root sets modules up in registration order; Layout before Body, Emitter, Horror, Lighting and the PROJECTOR, so the ADR-0014 `SolidQuery`/`OccluderSource` adapters exist at their `setup()`). Status stays Proposed.

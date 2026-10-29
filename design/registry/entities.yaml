@@ -178,10 +178,11 @@ entities:
       schema_version: 1
       restore_after: "[] (Layout is the restore root; graph.state and emitter.state declare restore_after: layout.state)"
       hooks: layout.doors (divisor 1, offset 0, after [])
-      holds: bodies, section instances by reference (template_id, geometry_hash, visual_hash (two u32 per instance row, 13 ints), body_id, offset_px, rot_q 0, room_id_base, graph_ref_base), sparse socket-state rows, welds[] history (canonicalised, the survivor side is recorded as section_a / socket_a whatever the call order), counters next_section_id / next_body_id / next_room_id (first allocated id 1)
+      holds: bodies, section instances by reference (template_id, geometry_hash, visual_hash, structure_hash (three u32 hashes per instance row, 14 columns, the 13 GDD fields plus structure_hash), body_id, offset_px, rot_q 0, room_id_base, graph_ref_base), sparse socket-state rows, welds[] history (canonicalised, the survivor side is recorded as section_a / socket_a whatever the call order; welded_at_T and cut_at_T are native int64 columns), counters next_section_id / next_body_id / next_room_id (first allocated id 1)
       never_holds: floats, geometry (templates are static), kind, a visited bit, a loose-item table, door area or door_state, atmosphere
     added: 2026-10-26
-    revised: 2026-10-27
+    revised: 2026-10-29
+    # was: instance row 'two u32 per instance row, 13 ints' (no structure_hash, welded_at_T / cut_at_T unspecified) before 2026-10-29 (ADR-0013 sync, OQ-3)
   - name: socket_state
     status: active
     source: design/gdd/ship-section-and-layout-data-model.md
@@ -195,12 +196,13 @@ entities:
       kind: persisted enum per socket (sparse; only non-FREE rows stored)
       values: "FREE | WELDED(seam_id) | CAPPED (after a SEALED cut) | CUT_OPEN (after a RAGGED cut)"
       rules: CAPPED and CUT_OPEN never return to FREE in MVP; state changes only inside attach_section / detach_section
-      reason_set_can_attach: "SOCKET_UNKNOWN, SOCKET_NOT_FREE, SAME_BODY, FACING_MISMATCH, WIDTH_MISMATCH, CLASS_MISMATCH, LANE_MISMATCH, GEOM_OVERLAP (closed, evaluated in this order)"
+      reason_set_can_attach: "SOCKET_UNKNOWN, SOCKET_NOT_FREE, SAME_BODY, FACING_MISMATCH, WIDTH_MISMATCH, CLASS_MISMATCH, LANE_MISMATCH, COORD_LIMIT, GEOM_OVERLAP (closed, nine reasons, evaluated in this order)"
+      # was: eight reasons without COORD_LIMIT before 2026-10-29 (ADR-0013 section 6, ruling CT-24)
       can_attach_preview_payload: "{reason, hatch_one_sided, openings_count}"
       reason_set_can_detach: "SEAM_UNKNOWN, SEAM_NOT_ACTIVE, CAPACITY (closed)"
       variant_slot_activity: "hatched socket, slots PLATE / JAMB / LEAF (idx reserved, omitted when off): FREE = PLATE on, JAMB off, LEAF off; WELDED two-sided = PLATE off, JAMB on iff W>=3 (W=2: length 0, omitted), LEAF on iff leaf_w>0; WELDED one-sided (this socket hatched, mate bare) = PLATE on, JAMB off, LEAF off; CAPPED = PLATE on, JAMB off, LEAF off; CUT_OPEN = PLATE on, JAMB off, LEAF off. W=2 span is the 96-px doorway (PLATE 96x24); W>=3 span is W*48 (PLATE W*48 x 24, JAMB (W*48-96) x 24). A hatchless socket reserves no variant slots"
     added: 2026-10-26
-    revised: 2026-10-27
+    revised: 2026-10-29
     # was: no reason_set_can_detach, no variant-slot matrix and no preview payload before 2026-10-27 (design review, LY-15 / LY-29); reason_set_can_attach unchanged
   - name: layout_rect_flags
     status: active
@@ -230,10 +232,12 @@ entities:
     # consumer hints (GDD exists, does not cite this name yet): design/gdd/failure-and-trail-system.md, design/gdd/command-simulation-layer.md
     attributes:
       kind: dirty-key families of the layout.state batch
-      keys: "SEC/<section_id> (KIND 1), BODY/<body_id> (KIND 2), S/<seam_id> (KIND 3), ALL past MAX_DIRTY_KEYS"
+      # confirmed 2026-10-29 (sync knock-on fix, round 3): the registered kinds are SEC 1, BODY 2, SEAM 3, LEAF 4 (LEAF/<section_id> = (4 << 32) | id, marked by layout.doors, ADR-0013 section 8)
+      keys: "SEC/<section_id> (KIND 1), BODY/<body_id> (KIND 2), S/<seam_id> (KIND 3), LEAF/<section_id> (KIND 4, marked by layout.doors), ALL past MAX_DIRTY_KEYS"
+      # was: KIND set SEC 1, BODY 2, SEAM 3 (no LEAF) before 2026-10-29 (ADR-0013 section 8)
       encoding: "int (KIND << 32) | id; namespaced by block, so Layout's SEC/<id> and the Graph's SEC/<id> are different keys"
     added: 2026-10-26
-    revised: 2026-10-26
+    revised: 2026-10-29
 
 # Example (remove when first real entry is added):
 #
@@ -472,22 +476,27 @@ entities:
     # consumers: Modular Ship Assembly (BM3, BM4, can_rebase_*, actors_overlapping, docked, actors_on, body_count, foot_boxes), Web Map & Transit (BM1, BM5, BM6, BM7, world_pose, can_set_pose), Derelict Authoring (can_place, BM1, DA-3) - all three designed
     attributes:
       # was: kind "seven Class A mutators, apply is total" before 2026-10-27
-      kind: "seven Class A mutators; each returns OK (0) or a negative FAULT_CODE (BM1 returns actor_id >= 1 or a negative FAULT_CODE); check-then-write; validation is a pure can_* read owned by the caller's validate; per-class split: BM4 pose or velocity range overflow saturates and returns OK, every other defect returns the code"
-      plan_mismatch_sink: injectable Callable (mutator_id, code); default increments BDY_PLAN_MISMATCH in all builds
+      # was: kind "seven Class A mutators; each returns OK (0) or a negative FAULT_CODE (BM1 returns actor_id >= 1 or a negative FAULT_CODE) ..." before 2026-10-29 (ADR-0015 sync, sections 5 and 9)
+      # confirmed 2026-10-29 (sync knock-on fix, round 3): BM1 returns OK (0) / REFUSED (1) / -fault_code and writes the allocated actor_id (>= 1) into PlaceResult; the "returns actor_id >= 1 or a negative FAULT_CODE" form above is superseded and survives only in this history line
+      kind: "eight Class A mutators; every mutator takes scope: WriteScope first and returns OK (0) / REFUSED (1, scope.open_for refused, a counted violation) / -fault_code (domain 5); BM1 returns the status and writes actor_id >= 1 into a caller-owned PlaceResult; check-then-write; validation is a pure can_* read owned by the caller's validate; per-class split: BM4 pose or velocity range overflow saturates and returns OK, every other defect returns the code"
+      # was: plan_mismatch_sink injectable Callable (mutator_id, code) before 2026-10-29 (ADR-0015 section 9, alternative 11)
+      plan_mismatch_sink: the PlanMismatchSink port (@abstract RefCounted, injected at setup; not a Callable); default increments BDY_PLAN_MISMATCH in all builds
     # was: six Class A mutators before 2026-10-27 (consistency pass)
-      mutators: "BM1 place_actor(body_id, pos, kind, seat) -> actor_id; BM2 remove_actor(actor_id); BM3 rebase_on_attach(surviving_body_id, absorbed_body_id, frame_shift_px); BM4 rebase_on_detach(old_body_id, new_body_id, moved_sections[], frame_shift_px, cap_rects[]) (cap_rects[] = the rects[] of Layout's detach_section record, the seam's hatch rectangles in the pre-cut body frame; class-(i) apply-time reason BDY_REBASE_ACTOR_IN_CAP: actors_overlapping(old_body_id, cap_rects) non-empty writes nothing and returns the negated code; can_rebase_detach(old_body_id, frame_shift_px) unchanged); BM5 transfer_actor(actor_id, to_body_id, pos, cause POD); BM6 set_body_velocity(body_id, vx, vy); BM7 set_body_pose(body_id, world_x, world_y) (exterior pose only, vel unchanged, no actor row touched, no event, subsumes re-origin; caller Transit only)"
+      # was: mutators BM1 place_actor(body_id, pos, kind, seat) -> actor_id; BM2 remove_actor(actor_id); BM3 rebase_on_attach(surviving_body_id, absorbed_body_id, frame_shift_px); BM4 rebase_on_detach(old_body_id, new_body_id, moved_sections[], frame_shift_px, cap_rects[]) ...; BM5 transfer_actor(actor_id, to_body_id, pos, cause POD); BM6 set_body_velocity; BM7 set_body_pose (no scope argument, a single frame_shift_px, no BM8) before 2026-10-29 (ADR-0015 sync, sections 5 and 9)
+      mutators: "BM1 place_actor(scope, body_id, x, y, kind, seat, out: PlaceResult) -> status (out.actor_id); BM2 remove_actor(scope, actor_id); BM3 rebase_on_attach(scope, surviving, absorbed, shift_x, shift_y, moved_sections) (apply phase after Layout's LM2; absorbed must be DISSOLVED); BM4 rebase_on_detach(scope, old, new, moved_sections, shift_x, shift_y, cap_rects) with can_rebase_detach(views, old, shift_x, shift_y, cap_rects) (cap_rects = Layout's DetachResult.rects, a flat PackedInt32Array of four ints per rectangle, half-open, in the pre-cut body frame; class-(i) apply-time reason BDY_REBASE_ACTOR_IN_CAP: actors_overlapping(old, cap_rects) non-empty writes nothing and returns the negated code); BM5 transfer_actor(scope, actor_id, to_body_id, x, y, cause POD); BM6 set_body_velocity(scope, body_id, vx, vy); BM7 set_body_pose(scope, body_id, world_x, world_y) (exterior pose only, vel unchanged, no actor row touched, no event, subsumes re-origin; caller Transit only); BM8 release_body(scope, body_id) with can_release_body(views, body_id) (after Layout's LM4 in the same apply: deletes the pose row of a DISSOLVED body, refuses while actor rows remain)"
     # was: mutators BM1-BM6 only before 2026-10-27 (consistency pass)
       order: "Graph mutator, then Layout, then Body inside one WriteScope (KRN:197)"
-      reasons: "BDY_PLACE_UNKNOWN_BODY, BDY_PLACE_INSIDE_FOOTPRINT, BDY_PLACE_CAPACITY, BDY_PLACE_BAD_KIND, BDY_PLACE_DUPLICATE_SEAT, BDY_UNKNOWN_ACTOR, BDY_REBASE_SAME_BODY, BDY_REBASE_UNKNOWN_BODY, BDY_VEL_UNKNOWN_BODY, BDY_VEL_OUT_OF_RANGE, BDY_POSE_UNKNOWN_BODY, BDY_POSE_OUT_OF_RANGE, BDY_REBASE_POSE_OUT_OF_RANGE, BDY_REBASE_SHIFT_OFF_GRID, BDY_REBASE_SECTION_NOT_OWNED (apply-time only), BDY_REBASE_ACTOR_IN_CAP (apply-time only; counter reads 0 in every clean build, QA gate with PC_FOOTPRINT_OVERLAP and BDY_TRAPPED_ACTOR)"
+      reasons: "BDY_PLACE_UNKNOWN_BODY, BDY_PLACE_INSIDE_FOOTPRINT, BDY_PLACE_CAPACITY, BDY_PLACE_BAD_KIND, BDY_PLACE_DUPLICATE_SEAT, BDY_UNKNOWN_ACTOR, BDY_REBASE_SAME_BODY, BDY_REBASE_UNKNOWN_BODY, BDY_VEL_UNKNOWN_BODY, BDY_VEL_OUT_OF_RANGE, BDY_POSE_UNKNOWN_BODY, BDY_POSE_OUT_OF_RANGE, BDY_REBASE_POSE_OUT_OF_RANGE, BDY_REBASE_SHIFT_OFF_GRID, BDY_REBASE_SECTION_NOT_OWNED (apply-time only), BDY_REBASE_ACTOR_IN_CAP (check-time reason of can_rebase_detach and apply-time fault of BM4, which writes nothing and returns the negated code; counter reads 0 in every clean build, QA gate with PC_FOOTPRINT_OVERLAP and BDY_TRAPPED_ACTOR), BDY_PLACE_ID_EXHAUSTED, BDY_ARG_RANGE (check-only; also mirrored by can_rebase_detach), BDY_RELEASE_ACTORS_PRESENT, BDY_RELEASE_BODY_NOT_DISSOLVED"
+      faults: "BDY_APPLY_PRECONDITION (domain 5, local 32: an argument no check can have passed, or BM3 with the absorbed body still LIVE), BDY_RESTORE_COLUMN_RANGE (local 33: restore, an int32-column value outside its bound)"
     # was: reasons without BDY_POSE_* before 2026-10-27 (consistency pass)
     # was: reasons without BDY_REBASE_POSE_OUT_OF_RANGE before 2026-10-27 (design review); BDY_VEL_OUT_OF_RANGE is now also a can_rebase_detach reason
-      pure_reads: "pos_curr, pos_prev, body_of_actor, can_rebase_attach(surviving_body_id, absorbed_body_id, frame_shift_px), foot_box, foot_boxes(body_id), actor_section, actor_local_px, actors_overlapping(body_id, rects[]), actors_on, world_pose, docked(a, b, frame_shift_px), body_count, odometer, moved (only from a hook after body.integrate), blocked (presentation and diagnostic only), can_set_pose (bound abs(world_*) <= WORLD_COORD_LIMIT), can_rebase_detach(old_body_id, frame_shift_px) (replaces can_rebase_detach(old_body_id); answers BDY_REBASE_UNKNOWN_BODY, BDY_REBASE_POSE_OUT_OF_RANGE, BDY_VEL_OUT_OF_RANGE), seat_bindings() -> [(seat, actor_id)] ascending seat (a binding source registered at BOOTING for the kernel's LOADING rebuild, CR-7, KRN-BIND-01; see kernel_binding_table), trapped_actors() -> actor_id[] ascending (derived, recomputed on every read, not persisted, not hashed), world_prev and canvas_offset_render(b, tick_alpha) (derived, non-persisted, BDY-26/D.7), diagnostic BDY_TRAPPED_ACTOR (defect counter)"
+      pure_reads: "pos_curr, pos_prev, body_of_actor, can_rebase_attach(views, surviving, absorbed, shift_x, shift_y), foot_box, foot_boxes(body_id), actor_section, actor_local_px, actors_overlapping(body_id, rects[]), actors_on, world_pose, docked(a, b, frame_shift_px), body_count, odometer, moved (only from a hook after body.integrate), blocked (presentation and diagnostic only), can_set_pose (bound abs(world_*) <= WORLD_COORD_LIMIT), can_rebase_detach(views, old, shift_x, shift_y, cap_rects) (replaces can_rebase_detach(old_body_id, frame_shift_px); answers BDY_REBASE_UNKNOWN_BODY, BDY_REBASE_POSE_OUT_OF_RANGE, BDY_VEL_OUT_OF_RANGE, BDY_REBASE_ACTOR_IN_CAP (actors_overlapping(old, cap_rects) non-empty, for every cut origin) and the BDY_ARG_RANGE mirror (malformed cap_rects, shift or ids); amended 2026-10-29, sync knock-on fix round 3), seat_bindings() -> [(seat, actor_id)] ascending seat (a binding source registered at BOOTING for the kernel's LOADING rebuild, CR-7, KRN-BIND-01; see kernel_binding_table), trapped_actors() -> actor_id[] ascending (derived, recomputed on every read, not persisted, not hashed), world_prev and canvas_offset_render(b, tick_alpha) (derived, non-persisted, BDY-26/D.7), diagnostic BDY_TRAPPED_ACTOR (defect counter)"
     # was: pure_reads without can_set_pose before 2026-10-27 (consistency pass)
     # was: can_rebase_detach(old_body_id) and no seat_bindings, trapped_actors, world_prev, canvas_offset_render, BDY_TRAPPED_ACTOR before 2026-10-27 (design review)
       dirty_keys: "(KIND << 32) | id with BODY 2 and ACT 4, namespaced by block"
     # was: BM4 rebase_on_detach with four arguments and no BDY_REBASE_ACTOR_IN_CAP before 2026-10-28 (delegated ruling G6: Body rules REFUSE, not EJECT, for the crisis-cut / entombment question, Layout OQ-LY-ENTOMB / OQ-35, giving the guard an apply-time owner behind Assembly's V5; plus the kernel-owned seat-binding rebuild)
     added: 2026-10-26
-    revised: 2026-10-28
+    revised: 2026-10-29
     # Rewritten BDY-21 contract (re-review blocking 1, 2026-10-27); conforms to MSA-14/31 and AC-MSA-142
   - name: body_events
     status: active
@@ -5834,12 +5843,14 @@ formulas:
     referenced_by:
       - design/gdd/ship-section-and-layout-data-model.md
     attributes:
-      expression: "ARRIVE_SETTLE_TICKS >= max(ceil(tiles_max / BUILD_TILES_PER_FRAME) * ceil(TICK_RATE / MIN_FRAME_RATE) + ARRIVE_MARGIN_TICKS, SLIP_MAX_TICKS + 2) and <= 180 (below W_MIN_WARNING_S * TICK_RATE); lint L3b ARRIVE_SETTLE_TICKS - 1 > SLIP_MAX_TICKS; MIN_FRAME_RATE in 1..TICK_RATE (playable 24-60), ARRIVE_MARGIN_TICKS 10..60, BUILD_TILES_PER_FRAME >= 1; leg-versus-window lint LEG_EXCEEDS_WINDOW: when n + ARRIVE_SETTLE_TICKS > W_MIN_WARNING_S * TICK_RATE (945 > 600 at defaults) the WM-26b home-away rule must be declared by the Graph and Attention"
+      expression: "ARRIVE_SETTLE_TICKS >= max((ceil(U / BUILD_TILES_PER_FRAME) + S) * ceil(TICK_RATE / MIN_FRAME_RATE) + ARRIVE_MARGIN_TICKS, SLIP_MAX_TICKS + 2) and <= 180 (below W_MIN_WARNING_S * TICK_RATE); lint L3b ARRIVE_SETTLE_TICKS - 1 > SLIP_MAX_TICKS; MIN_FRAME_RATE in 1..TICK_RATE (playable 24-60), ARRIVE_MARGIN_TICKS 10..60, BUILD_TILES_PER_FRAME >= 1; leg-versus-window lint LEG_EXCEEDS_WINDOW: when n + ARRIVE_SETTLE_TICKS > W_MIN_WARNING_S * TICK_RATE (945 > 600 at defaults) the WM-26b home-away rule must be declared by the Graph and Attention"
     # was: no leg-versus-window check (only the settle bounds) before 2026-10-27 (design review)
-      variables: "tiles_max 331 (home + B: 182 + 149); BUILD_TILES_PER_FRAME 256 (Layout knob, not registered); MIN_FRAME_RATE 30 [PLACEHOLDER]; ARRIVE_MARGIN_TICKS 20 [PLACEHOLDER]; TICK_RATE 60; W_MIN_WARNING_S 10"
+      variables: "U the projector work-unit count (tiles plus sprites, ADR-0034 section 6) of the largest destination scene and S one mount frame per scene, both computed by a test from real build_section output (tiles_max 331 = home + B: 182 + 149 is the tile floor of U); BUILD_TILES_PER_FRAME 256 (Layout knob, not registered); MIN_FRAME_RATE 30 [PLACEHOLDER]; ARRIVE_MARGIN_TICKS 20 [PLACEHOLDER]; TICK_RATE 60; W_MIN_WARNING_S 10"
     # was: tiles_max 334 (home + B) before 2026-10-27 (consistency pass)
-      output: lower bound 24 ticks (ceil(331/256) = 2 frames), upper bound 600 ticks
+      output: lower bound 24 ticks (ceil(331/256) = 2 frames, before the S mount frames), upper bound 600 ticks
+    # was: numerator ceil(tiles_max / BUILD_TILES_PER_FRAME) frames (no sprites, no mount frame) before 2026-10-29 (ADR-0034 sync, WM-19 and D.13)
     added: 2026-10-26
+    revised: 2026-10-29
     revised: 2026-10-27
     # Re-review 2026-10-27: the settle floor 24 failed at MIN_FRAME_RATE 24, and settle could submit before arrive applied (L3b)
 
@@ -7168,10 +7179,11 @@ formulas:
     referenced_by: []
     attributes:
       expression: entity_id = (LAYOUT_ID_NS << 56) | (section_id << 24) | (kind_ordinal << 16) | template_local_idx
-      variables: LAYOUT_ID_NS in 1..127 (byte value to be agreed with the Pipeline owner, OQ-33); tiles carry no entity_id
+      variables: LAYOUT_ID_NS = 1 (in 1..127; the EntityNs table, append-only, pinned by a golden test, ADR-0034 section 4, LAYOUT 1, BODY 2, INTERACTION 3, HORROR 4, SUIT 5, WEB 6, TRAIL 7, LIGHTING 8; 9..127 reserved); kind_ordinal DOOR_LEAF 1, PROP 2, MACHINE 3, BEAD 4, PLATE 5, SCAR 6, JAMB 7 (append-only; ADR-0013 section 13 owns which kinds, ADR-0034 the values); tiles carry no entity_id
+      # was: LAYOUT_ID_NS in 1..127, byte value to be agreed with the Pipeline owner (OQ-33) before 2026-10-29 (ADR-0034 sync)
       output: a globally unique, namespace-tagged publisher id for Layout sprite objects (LY-31); the Pipeline's sort_key entity_id contract (D.12, PR-5) stays the owner of the key, and a bare per-block instance id is not a valid entity_id
     added: 2026-10-27
-    revised: 2026-10-27
+    revised: 2026-10-29
     # LY-31 (re-review 2026-10-27); other GDDs must not collide with this namespace
     # consumer hints (GDD exists, does not cite this name yet): design/gdd/pixel-perfect-render-pipeline-camera.md
   - name: ESCAPE_ROUTE_BUDGET_PX
@@ -8167,9 +8179,10 @@ constants:
       - design/gdd/modular-ship-assembly.md
     attributes:
       value: 4096
-      unit: nodes (edges 8192); can_join CAPACITY reason; subject_id < 2^20
+      unit: nodes (edges 8192); can_join CAPACITY reason; id < GraphLimits.ID_MAX <= 2^24 (Graph rng_subject, ADR-0012 section 8.2)
+      # was: unit '... subject_id < 2^20' before 2026-10-29 (ADR-0012 sync, T7); no value change
     added: 2026-10-26
-    revised: 2026-10-26
+    revised: 2026-10-29
     # LS-9
 
   - name: GRAPH_HOOK_BUDGET_MS
@@ -9007,6 +9020,19 @@ constants:
     # Owner technical-director. Raised 8 -> 10 in CD-GDD-ALIGN stage 12 (the 8-fault MVP slice reached 8 by design content alone). Eviction: lowest sev first, ties by higher descriptor id, never a record younger than ticks_for_seconds(W_MIN_WARNING_S) = 600 ticks (canonical placed_tick); all-protected -> table stays over cap, emitter_fault_glow_overcap telemetry. F&T AC-61 and its 'placeholder 8' mentions need a refresh
     # [PLACEHOLDER] registry status active; the value awaits the owner or confirming spike named above
 
+  - name: EMITTER_CELL_PX
+    status: active
+    source: design/gdd/emitter-state-and-light-exposure-query.md
+    referenced_by: []
+    attributes:
+      value: 2 tiles (96 px at TILE_PX 48)
+      unit: tiles (the edge of one cell of the Emitter's section-local PointGrid)
+      range: 1-4 tiles
+    added: 2026-10-29
+    revised: 2026-10-29
+    # EmitterTuning knob introduced by ADR-0017 D10.4 (registry candidate); owner technical-director. Smaller cells mean fewer candidates and more cells per query; the CELL work unit (weight W_CELL, 2, range 1-4) prices the traversal (ADR-0017 D12.6; Emitter GDD D.14 T_cell). Affects cost only: the oracle proves answers are independent of the cell size (ADR-0017 R5). Registered by the 2026-10-29 sync knock-on fix, round 3
+    # [PLACEHOLDER] registry status active; the value awaits the owner or confirming spike named above
+
   - name: DOOR_LIGHT_OPEN_PM
     status: deprecated
     source: design/gdd/emitter-state-and-light-exposure-query.md
@@ -9771,7 +9797,8 @@ constants:
       # was: 8-24, even before 2026-10-27 (design review)
     added: 2026-10-26
     revised: 2026-10-27
-    # Coupling: BROADPHASE_CELL_PX >= FOOT_BOX_W + 3 (D.12 4-cell bound); the upper bound may rise only if Layout's LY D.5 east-west passage extent changes in the same edit.
+    # was: Coupling BROADPHASE_CELL_PX >= FOOT_BOX_W + 3 before 2026-10-29 (ADR-0014 sync; the former literal 3 is V_RUN)
+    # Coupling: BROADPHASE_CELL_PX >= max(FOOT_BOX_W, FOOT_BOX_H) + V_RUN (D.12 4-cell bound; ADR-0014 BROADPHASE_CELL_COUPLING, BroadphaseCoupling.holds); the upper bound may rise only if Layout's LY D.5 east-west passage extent changes in the same edit.
     # Confirms PCI:103. Layout passage extent 16 across an east-west doorway (LY D.5).
   - name: FOOT_BOX_H
     status: active
@@ -9819,6 +9846,17 @@ constants:
     revised: 2026-10-27
     # [PLACEHOLDER]; float32 exactness of a canvas offset up to 2^23 is [UNV] pending spike S2. Web Map & Transit must keep legs inside it by re-origining.
     # lowering = schema bump (BDY_RESTORE_POSE_RANGE rejects saved rows beyond the current limit); a 2^21 default was declined (WM WEB_COORD_BUDGET_PX <= LIMIT/32).
+  - name: BODY_COORD_LIMIT
+    status: active
+    source: design/gdd/ship-body-and-interior-physics.md
+    referenced_by:
+      - design/gdd/ship-section-and-layout-data-model.md
+    attributes:
+      value: "derived default MAX_SECTIONS * MAX_SECTION_EXTENT_PX (numeric value pending, OQ-8)"
+      unit: "base px, per axis, symmetric; bound on every body-frame coordinate (actor pos, frame shift, section offset); part of the BodyTuning ScalarTable (ADR-0007 section 1.5)"
+      range: "from MAX_SECTIONS * MAX_SECTION_EXTENT_PX up to the schema ceiling 2^24 (int32 column and float32 canvas exactness); default well below the canvas bound"
+    added: 2026-10-29
+    # [PLACEHOLDER] ADR-0015 T8, CT-24, OQ-8. Boot invariants BODY_COORD_LIMIT_COVERS_LAYOUT (BODY_COORD_LIMIT >= MAX_SECTIONS * MAX_SECTION_EXTENT_PX) and BODY_CANVAS_BOUND (2 * WEB_COORD_BUDGET_PX + BODY_COORD_LIMIT < 2^23). Restore rejects a value beyond it with BDY_RESTORE_COLUMN_RANGE; Layout can_attach repeats it as COORD_LIMIT (ADR-0013 section 6).
   - name: VEL_MAX_PX_PER_TICK
     status: active
     source: design/gdd/ship-body-and-interior-physics.md
@@ -14020,10 +14058,31 @@ constants:
       - design/gdd/modular-ship-assembly.md
     attributes:
       value: 8192
-      unit: "edges; hard capacity beside MAX_GRAPH_NODES 4096; can_join CAPACITY reason; keeps edge ids below 2^14 (subject_id < 2^20)"
+      unit: "edges; hard capacity beside MAX_GRAPH_NODES 4096; can_join CAPACITY reason; keeps edge ids below 2^14; id < GraphLimits.ID_MAX <= 2^24 (ADR-0012 section 8.2)"
+      # was: unit ended (subject_id < 2^20) before 2026-10-29 (ADR-0012 sync, T7); no value change
       range: 2048-16384
     added: 2026-10-27
+    revised: 2026-10-29
     # LS-9; registered alongside MAX_GRAPH_NODES (star-marked registry candidate in the LSG Tuning Knobs)
+  - name: GRAPH_ID_MAX
+    status: active
+    source: design/gdd/life-support-graph.md
+    referenced_by: []
+    attributes:
+      value: 16777216
+      unit: "ids (2^24); GraphLimits.ID_MAX, a structural schema ceiling and not a tuning knob: node, edge, seam and section ids are allocated below it and never reused; the Graph rng_subject id field is sized to it (ADR-0011 section 3, ADR-0012 section 8.2, T7)"
+      range: "2^24 only (structural: changing it changes the rng counter layout, a schema bump)"
+    added: 2026-10-29
+    # ADR-0011 / ADR-0012 (Proposed); GDD request from life-support-graph.md
+  - name: GRAPH_STEP_STAMP_MAX
+    status: active
+    source: design/gdd/life-support-graph.md
+    referenced_by: []
+    attributes:
+      value: 1073741824
+      unit: "graph steps (2^30); GraphLimits.STEP_STAMP_MAX, structural ceiling for every persisted step stamp and for step_no (fault STEP_RANGE); keeps the rng counter (step_no << 26) | rng_subject below 2^56 (ADR-0011 section 3, ADR-0012 section 8.2)"
+      range: "2^30 only (structural)"
+    added: 2026-10-29
   - name: P_BAND_BOUNDARIES
     status: active
     source: design/gdd/life-support-graph.md

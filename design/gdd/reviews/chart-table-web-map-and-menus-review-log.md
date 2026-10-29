@@ -196,3 +196,28 @@ Design intent preserved: the player-facing behaviour is unchanged. Reading face 
 6. The C-6 relation does not mention the CHART_REOPEN_MIN_MS_REDUCED variant (it holds trivially).
 Reviewed-Content-Hash: design/gdd/chart-table-web-map-and-menus.md 02128b336977e5f298fe78dd5cd94e71e387bdb3
 Reviewed-Content-Hash: design/registry/entities.yaml 4d9d9f7a469ff3c3aeb97b06fa6fa82c1b2dec16
+
+
+## Review — 2026-10-29 — Core ADR sync (lean confirming)
+
+**Verdict:** APPROVED (no blockers; 7 advisories).
+**Scope:** `design/gdd/chart-table-web-map-and-menus.md`, working-tree diff of 4 hunks, all the ADR-0019 key-echo sync. The hunks are CT-41 *Why*, EC-CT-10, and the ASK-CT-15 row. The diff also touched no other rule, formula, knob or AC. Checked against ADR-0019 (Engine Compatibility, spike list, PC-2a, § 3.2) and the rest of the GDD.
+
+**Checks passed**
+- References resolve. PC-INPUT-SPIKE-1 (d) exists in ADR-0019 as 'real OS echo', RECORDED, fallback 'the held-set drops a press for a control already held, § 3.2'. The wording 'synthetic echo does not re-fire is_action_just_pressed' matches the ADR's probe.
+- The Adapter owns echo suppression in CT-41(3), CT-45, EC-CT-10 and PC-2a. This agrees with ADR-0019 § 3.2.
+- Design intent is preserved: the closing activation is consumed and a held Esc does not flicker the layer. No numeric, tuning or invariant text changed, so the CT_INV_* round-2 results stand.
+- Amendment notes follow the file's convention ('Amended 2026-10-29 — ADR-0019 sync'). Focus-out stays an open NOT SOURCEABLE item (ADR candidate (e)), which is correct since ADR-0019 spike (e) is RECORDED, not run.
+
+**Advisories**
+1. AC-CT-13 still calls echo behaviour NOT SOURCEABLE (gap F-F). Align it with the spike (d) wording and add a held-set case.
+2. Gap F-F and the engine-items paragraph (about line 505) still list 'key echo' as NOT SOURCEABLE. Narrow both to real OS key repeat.
+3. Two '(e)' labels now coexist: this GDD's ADR candidate (e) and ADR-0019 spike (e) 'focus events'. Disambiguate in CT-41 Why, EC-CT-10, EC-CT-17 and CT-41(5).
+4. EC-CT-10's parenthetical is a run-on. 'Is verified by' overstates a RECORDED spike that has not run.
+5. No 2026-10-29 sync line in the header.
+6. ASK-CT-15: AC-CT-135 (f) is the cursor-hint and POINTER mapping. Cite PC-INPUT-SPIKE-1 (a) for the REQUIRED cursor-unit spike.
+7. Carried over: the CT_INV_* names and the FILAMENT_DRIFT_FRACTION bound are not yet in the schema file, and C-10 still has a loader refusal with no named invariant.
+
+Reviewed-Content-Hash: not computed (review run read-only; no content hash taken).
+Reviewed-Content-Hash: design/gdd/chart-table-web-map-and-menus.md 2e1a37c340079d1b1c9d837c2b9dde5e990c016a
+Reviewed-Content-Hash: design/registry/entities.yaml 423447f14cd1ef7c387109f2b366b17ebdca9dd3

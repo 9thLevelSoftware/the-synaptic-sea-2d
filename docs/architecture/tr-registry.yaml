@@ -492,9 +492,9 @@ requirements:
 - id: TR-lsg-004
   system: lsg
   gdd: design/gdd/life-support-graph.md
-  requirement: "Extensive quantities are stored and intensive ones (P, p_o2, served_pm, descriptors) are derived on read; only hysteresis memory (band_o2/p/t, p_prev, SEAL_STRAIN bits) and warn trackers are persisted."
+  requirement: "Extensive quantities are stored and intensive ones (P, p_o2, o2_pm, descriptors) are derived on read; persisted are the hysteresis memory (band_o2/p/t, p_prev, SEAL_STRAIN bits), the warn trackers and the phase-2 hook products (n_served, n_draw, CABLE net load, power_use window)."
   created: 2026-10-28
-  revised: ""
+  revised: 2026-10-29
   status: active
 
 - id: TR-lsg-005
@@ -548,9 +548,9 @@ requirements:
 - id: TR-lsg-011
   system: lsg
   gdd: design/gdd/life-support-graph.md
-  requirement: "Randomness (thaw-burst only at MVP) is `rng_derive(world_seed, \"graph.fail\", (step_no<<20) | subject_id)`, a pure function of persisted state with no restore-epoch input, so a reload replays identical outcomes; subject_id < 2^20 asserted."
+  requirement: "Randomness (thaw-burst only at MVP) is counter `(step_no << 26) | rng_subject(kind, id)` on the plain stream `graph.fail` (`rng_derive(world_seed, \"graph.fail\", counter)`), `rng_subject = (kind << 24) | id`, kind 0 node, 1 edge, 2 reserved, `id < GraphLimits.ID_MAX <= 2^24` (ADR-0012 section 8.2, T7), a pure function of persisted state with no restore-epoch input, so a reload replays identical outcomes; the old `(step_no << 20) | subject_id` and `subject_id < 2^20 is asserted` wording is superseded."
   created: 2026-10-28
-  revised: ""
+  revised: 2026-10-29
   status: active
 
 - id: TR-lsg-012
@@ -740,9 +740,9 @@ requirements:
 - id: TR-lsg-035
   system: lsg
   gdd: design/gdd/life-support-graph.md
-  requirement: "M17/M14/M15 deposits drain in phase 0 of the same tick when made by a P2 command or a hook ordered before graph.propagate.power, and at the next hook tick when made by a hook ordered after it, always in arrival order within the cap."
+  requirement: "M17/M14/M15 deposits drain in phase 0 of the first graph.propagate.power execution that follows the deposit in kernel order (tick, P2 before P3, compiled schedule position): the same tick when that tick is a power-hook tick and the deposit precedes the hook, otherwise the next power-hook tick; an INIT deposit drains at the first power-hook tick after LOADING to RUNNING; always in arrival order within the cap."
   created: 2026-10-28
-  revised: ""
+  revised: 2026-10-29
   status: active
 
 - id: TR-lsg-036
@@ -1164,9 +1164,9 @@ requirements:
 - id: TR-pxl-005
   system: pxl
   gdd: design/gdd/pixel-perfect-render-pipeline-camera.md
-  requirement: "Presentation code places every node at integer base-px via pos = floor(prev + (curr-prev)*tick_alpha) in the current body frame (one floor function everywhere, incl. camera and beam chest point); snap_2d_transforms/vertices_to_pixel are a safety net only; no per-node scale animation, Camera2D.zoom stays (1,1)."
+  requirement: "Presentation code places every node at integer base-px via pos = floor(prev + (curr-prev)*tick_alpha) in the current body frame (one floor function everywhere, incl. camera and beam chest point); Light2D position is the floored cell plus CELL_CENTRE, written only by Placement.put_light_origin (ADR-0009 section 4); snap_2d_transforms/vertices_to_pixel are a safety net only; no per-node scale animation, Camera2D.zoom stays (1,1)."
   created: 2026-10-28
-  revised: ""
+  revised: 2026-10-29
   status: active
 
 - id: TR-pxl-006
@@ -1620,9 +1620,9 @@ requirements:
 - id: TR-emitter-025
   system: emitter
   gdd: design/gdd/emitter-state-and-light-exposure-query.md
-  requirement: "Read-view reads are pure table lookups served from a per-tick snapshot built in W7 (packed/typed columns, sorted by id; no-retain rule, no allocation), at most one tick stale unless the reader declares after emitter.place; never callable from notification handlers that decide state."
+  requirement: "Read-view reads are pure table lookups served from the typed columns written only by emitter.place (no snapshot copy, ADR-0017 D4.2) (packed/typed columns, sorted by id; no-retain rule, no allocation), at most one tick stale unless the reader declares after emitter.place; never callable from notification handlers that decide state."
   created: 2026-10-28
-  revised: ""
+  revised: 2026-10-29
   status: active
 
 - id: TR-emitter-026
@@ -1756,9 +1756,9 @@ requirements:
 - id: TR-emitter-042
   system: emitter
   gdd: design/gdd/emitter-state-and-light-exposure-query.md
-  requirement: "`section_emission(section)` is a precomputed per-section array published in the W7 snapshot (sum of floor(output_pm * reach_px / 1000) over that section's emitters, zero-output and off-screen included, shape-blind, foot spill excluded), read in O(1) with no per-emitter iteration."
+  requirement: "`section_emission(section)` is a precomputed per-section array current at W7 (accumulated in W2, made current in W7) (sum of floor(output_pm * reach_px / 1000) over that section's emitters, zero-output and off-screen included, shape-blind, foot spill excluded), read in O(1) with no per-emitter iteration."
   created: 2026-10-28
-  revised: ""
+  revised: 2026-10-29
   status: active
 
 - id: TR-emitter-043
@@ -2340,9 +2340,9 @@ requirements:
 - id: TR-pc-026
   system: pc
   gdd: design/gdd/player-controller-input.md
-  requirement: "The Avatar Presenter writes only `frame`, `flip_h`, integer `position`, overlay `visible` and the Light2D `position`/`rotation`; never scale, rotation, skew, modulate or tweens on them; position is `floor(lerp(prev, curr, tick_alpha))` with zero fractional part; it contains no HOST/MIRROR branch."
+  requirement: "The Avatar Presenter writes only `frame`, `flip_h`, integer `position`, overlay `visible` and the Light2D `position` (the floored cell plus CELL_CENTRE, written only through Placement.put_light_origin)/`rotation`; never scale, rotation, skew, modulate or tweens on them; position is `floor(lerp(prev, curr, tick_alpha))` with zero fractional part; it contains no HOST/MIRROR branch."
   created: 2026-10-28
-  revised: ""
+  revised: 2026-10-29
   status: active
 
 - id: TR-pc-027
@@ -2412,9 +2412,9 @@ requirements:
 - id: TR-pc-035
   system: pc
   gdd: design/gdd/player-controller-input.md
-  requirement: "`controller.step` detects a change of `body_of_actor` reported by Ship Body (pod hop, section detach) and on that tick clears `channel_ref`, `channel_face` and `channel_body`, sets `pos_prev == pos_curr` and resets `sub`; a weld that leaves the actor's body id unchanged keeps the channel."
+  requirement: "`controller.step` detects a change of `body_of_actor` reported by Ship Body (pod hop, section detach) and on that tick clears `channel_ref`, `channel_face` and `channel_body`, sets `pos_prev == pos_curr`; resets `sub` on a pod hop and a section detach (a weld keeps `sub` and `last_octant`, TR-shipbody-023; ADR-0015 section 9); a weld that leaves the actor's body id unchanged keeps the channel."
   created: 2026-10-28
-  revised: ""
+  revised: 2026-10-29
   status: active
 
 - id: TR-pc-036
@@ -3572,9 +3572,9 @@ requirements:
 - id: TR-section-004
   system: section
   gdd: design/gdd/ship-section-and-layout-data-model.md
-  requirement: "`layout.state` stores instances by reference to templates (bodies table, 13-int section-instance rows, sparse non-FREE socket table, `welds[]`, counters `next_section_id`/`next_body_id`/`next_room_id`); derived caches (broadphase grid, leaf rects, version counters, `opening_leaves`, `graph_ref` maps) are never persisted."
+  requirement: "`layout.state` stores instances by reference to templates (bodies table, 14-column section-instance rows (13 GDD fields plus `structure_hash`), sparse non-FREE socket table, `welds[]`, counters `next_section_id`/`next_body_id`/`next_room_id`); derived caches (broadphase grid, leaf rects, version counters, `opening_leaves`, `graph_ref` maps) are never persisted."
   created: 2026-10-28
-  revised: ""
+  revised: 2026-10-29
   status: active
 
 - id: TR-section-005
@@ -4060,9 +4060,9 @@ requirements:
 - id: TR-shipbody-020
   system: shipbody
   gdd: design/gdd/ship-body-and-interior-physics.md
-  requirement: "Every mutator BM1-BM7 is Class A, called only from Assembly's or Transit's single `apply` after the Layout mutator, check-then-write (a faulting call writes nothing), returns OK or a negative FAULT_CODE (BM1 returns actor_id >= 1 or a negative code), uses no `assert()`, and reports defects through an injectable `plan_mismatch_sink` counting BDY_PLAN_MISMATCH."
+  requirement: "Every mutator BM1-BM8 is Class A, called only from Assembly's or Transit's single `apply` after the Layout mutator, check-then-write (a faulting call writes nothing), returns OK or a negative FAULT_CODE (BM1 returns the status (OK, REFUSED or a negative FAULT_CODE) and writes actor_id >= 1 into a caller-owned PlaceResult, ADR-0015 section 9), uses no `assert()`, and reports defects through an injectable `PlanMismatchSink` port counting BDY_PLAN_MISMATCH."
   created: 2026-10-28
-  revised: ""
+  revised: 2026-10-29
   status: active
 
 - id: TR-shipbody-021
@@ -4116,9 +4116,9 @@ requirements:
 - id: TR-shipbody-027
   system: shipbody
   gdd: design/gdd/ship-body-and-interior-physics.md
-  requirement: "Ship motion applies no force, push, tilt, knockback or drift to any actor; docking and separation are published only as P5 events `BODY_DOCK_CONTACT`, `BODY_HULL_SEPARATION` and `BODY_TRANSFER{weld | detach | pod}` (payload `{tick, actor_id, seat, old_body, new_body, frame_delta_px}`) carrying no simulation state."
+  requirement: "Ship motion applies no force, push, tilt, knockback or drift to any actor; docking and separation are published only as P5 events `BODY_DOCK_CONTACT`, `BODY_HULL_SEPARATION` and `BODY_TRANSFER{weld | detach | pod}` (payload `{actor_id, old_body, new_body, frame_delta_x, frame_delta_y, cause}`; tick from the batch, seat from seat_of_actor; ADR-0015 section 11.5) carrying no simulation state."
   created: 2026-10-28
-  revised: ""
+  revised: 2026-10-29
   status: active
 
 - id: TR-shipbody-028
@@ -4196,9 +4196,9 @@ requirements:
 - id: TR-shipbody-037
   system: shipbody
   gdd: design/gdd/ship-body-and-interior-physics.md
-  requirement: "The coupling `BROADPHASE_CELL_PX >= FOOT_BOX_W + 3` is a boot-checked constraint so that a swept foot box touches at most 4 broadphase cells (2 per axis); a configuration violating it must fail the bound test."
+  requirement: "The coupling `BROADPHASE_CELL_PX >= max(FOOT_BOX_W, FOOT_BOX_H) + V_RUN` (V_RUN is the 3 of the original wording), checked once as ADR-0014 BROADPHASE_CELL_COUPLING (BroadphaseCoupling.holds), is a boot-checked constraint so that a swept foot box touches at most 4 broadphase cells (2 per axis); a configuration violating it must fail the bound test."
   created: 2026-10-28
-  revised: ""
+  revised: 2026-10-29
   status: active
 
 - id: TR-shipbody-038
@@ -4980,9 +4980,9 @@ requirements:
 - id: TR-derelict-037
   system: derelict
   gdd: design/gdd/derelict-authoring-handmade-kits.md
-  requirement: "Authored closed-valve staging relies on the Graph gating leak wear on `intensity_pm` > 0 (hp held constant at 0 intensity, falling only as flowing time), so a change to that Graph rule must fail the dependent tests."
+  requirement: "Authored closed-valve staging relies on the Graph gating leak wear on the persisted `isolated_at` stamp (ADR-0012 8.1; non-zero behind a closed valve, so hp is held while the descriptor `intensity_pm` is 0 and falls only as flowing time), so a change to that Graph rule must fail the dependent tests. The dependent tests are the closed-valve fixture (`d_cryo_exposed` behind `v_o2_cryo`) and the seeded-stamp fixture: `pb_leak` (derelict B, no isolating valve) is seeded `mode_key` 11, `mode_since_step` -14400, `isolated_at_step` 1, holds hp 2900 while dry, the seeded triple survives phase 9 of run 1, and the stamp is cleared on the first run its `intensity_pm` rises above 0 (ADR-0012 8.4 clear rule), after which wear runs from V12 (D.14, D.21, AC-DA-21, AC-DA-75)."
   created: 2026-10-28
-  revised: ""
+  revised: 2026-10-29
   status: active
 
 - id: TR-derelict-038

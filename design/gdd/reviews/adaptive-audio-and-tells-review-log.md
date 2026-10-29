@@ -129,3 +129,30 @@ Findings:
   - No E-AA entry covers hal_envelope_invalid.
 Reviewed-Content-Hash: design/gdd/adaptive-audio-and-tells.md 775ae97fd730465f0f8f5c27bc70ecad94e9ade2
 Reviewed-Content-Hash: design/registry/entities.yaml 259f2c28b21a009ca35000d94fe3ef5b4d3ef301
+
+
+## Review — 2026-10-29 — Core ADR sync (lean confirming)
+
+**Verdict: APPROVED** (no blockers, 3 advisories). Prior verdict was APPROVED; this pass is a lean confirm of the day's diff only.
+
+**Scope.** `git diff` shows one changed row: the Ship Body & Interior Physics row of the Dependencies table (l.556). It is the ADR-0015 sync:
+- `BODY_DOCK_CONTACT{tick, surviving_body, absorbed_body}` becomes `{surviving_body, absorbed_body}`.
+- `BODY_HULL_SEPARATION{tick, old_body, new_body}` becomes `{old_body, new_body}`.
+- The tick now comes from the P5 batch.
+- The row carries the amendment note "*(Amended 2026-10-29 — ADR-0015 sync)*".
+
+**Checked.**
+- The new payloads match ADR-0015 section 11.5. `BODY_DOCK_CONTACT (2)` carries surviving_body and absorbed_body. `BODY_HULL_SEPARATION (3)` carries old_body and new_body. The Body GDD's own row (l.312) was amended the same way.
+- Knock-on inside this GDD: lines 247, 265, 400, 1693 and AC-AA-53 name the events without payloads. The GDD does not use an event-carried `tick` for BODY events, so the rules, formulas, edge cases, ACs and tuning knobs are unaffected.
+- Intent preserved: a hull thud is a sound, not an Attention stimulus (AA-33). The `body` family stays wired at MVP with assets at Vertical Slice.
+- `BODY_TRANSFER{weld,detach,pod}` is unchanged and still matches ADR-0015's `cause` argument (WELD 1, DETACH 2, POD 3). `tick` and `seat` were dropped from it, and Audio reads neither.
+- References resolve: ADR-0015 and ADR-0034 exist in `docs/architecture/`. No dangling rule, constant or ADR references were introduced.
+
+**Advisories.**
+1. The `BDY:301` citation is stale (the Body row is now at l.312; `BDY:849-851` is likely shifted too, not verified), and the quote is no longer verbatim. Refresh the line refs when Body settles.
+2. The `BODY_TRANSFER{weld,detach,pod}` shorthand could say it is the `cause` argument.
+3. No other section needed an amendment.
+
+Reviewed-Content-Hash not recomputed (no edit made in this pass).
+Reviewed-Content-Hash: design/gdd/adaptive-audio-and-tells.md b25dcf3a5307c9d2566504439d5983c34f4ee1ea
+Reviewed-Content-Hash: design/registry/entities.yaml 423447f14cd1ef7c387109f2b366b17ebdca9dd3

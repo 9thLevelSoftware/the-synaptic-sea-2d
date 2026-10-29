@@ -157,3 +157,29 @@ Reviewed-Content-Hash: design/registry/entities.yaml 259f2c28b21a009ca35000d94fe
 Log hash line to be re-stamped by the caller.
 Reviewed-Content-Hash: design/gdd/failure-and-trail-system.md dea2d23bce6845a21aee47277528ed464ce7debd
 Reviewed-Content-Hash: design/registry/entities.yaml 4d9d9f7a469ff3c3aeb97b06fa6fa82c1b2dec16
+
+
+## Review — 2026-10-29 — Core ADR sync (lean confirming)
+
+**Verdict:** APPROVED (no blockers; prior APPROVED verdict stands)
+
+**Scope:** Diff-only review of the ADR-0011 sync (3 hunks, one theme). The Graph's dirty-key families are now named by kind: `F/` is the DESC kind (one key per subject) and `N/` is the NODE and EDGE kinds. Sections touched: FT-15 step (2), and the F/ and N/ rows of the Key family -> reaction table (§ 7). Cross-checked against ADR-0011 § 10 (key-kind table, lines 404-418) and against the other `F/`/`N/` mentions in this GDD (Interactions row 1, Dependencies row, the FT-15 edge case).
+
+**Checks passed:**
+- The amendments match ADR-0011 § 10 exactly: DESC is kind 5 (`F/<subject_ref>`, one key per subject), NODE is kind 3 and EDGE is kind 4 (both `N/<id>`).
+- Rules, reaction table and edge cases agree. The "F/ fires each step" edge case, the "(no key)" row (a `sev` change dirties `N/`) and the Interactions rows use the same families, with no contradiction.
+- No new constants, ADR numbers or references were introduced. The Amended-note convention is followed.
+- ACs are unaffected and still testable. No formula, tuning knob or number changed.
+- Design intent is preserved: keys wake discrete presentation, the per-step poll is the truth (FT-15, LS-20), and `ALL` reconciles in one frame (FT-16).
+
+**Blockers:** none.
+
+**Advisories (4):**
+1. The F/ row and FT-15 still read "a descriptor's intensity bucket" although the key is per subject (up to 3 descriptors). Say the reaction re-reads all of the subject's descriptors.
+2. D.6 `subject_id` is bounded '< 2^20 ... the Graph asserts the bound'. ADR-0011 `ID_MAX` is 2^24, and that is all the Graph asserts. Update the range and the attribution; the hash is unaffected.
+3. FT-15 prose omits `S/` (SEAM, kind 7), though the Interactions and Dependencies rows and the reaction table list it. Pre-existing, so optional.
+4. `N/<id>` is shared by node and edge ids, but no AC or fixture names the kind. Test fixtures should carry it.
+
+Log hash line to be re-stamped by the caller.
+Reviewed-Content-Hash: design/gdd/failure-and-trail-system.md aea85ff833e6d9b3167120c39c13931a48577a2c
+Reviewed-Content-Hash: design/registry/entities.yaml 423447f14cd1ef7c387109f2b366b17ebdca9dd3

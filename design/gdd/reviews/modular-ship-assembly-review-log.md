@@ -205,3 +205,54 @@ Advisories:
 Prior carry-over recommendations from the 2026-10-28 review are unchanged by this sync.
 Reviewed-Content-Hash: design/gdd/modular-ship-assembly.md 4b70bff46eb6b02dc83f4ffabd6cbca8a5ea93d7
 Reviewed-Content-Hash: design/registry/entities.yaml 4d9d9f7a469ff3c3aeb97b06fa6fa82c1b2dec16
+
+
+## Review — 2026-10-29 — Core ADR sync (lean confirming)
+
+Verdict: NEEDS REVISION (1 blocker, 6 advisories)
+
+Scope: the diff only (8 hunks), tagged "ADR-0015 sync" or "ADR-0012 sync", plus knock-on effects inside the GDD.
+- ADR-0015 sync: BM3 `rebase_on_attach` and BM4 `rebase_on_detach` take `scope` first and two-int `shift_x/_y`. BM4 takes `cap_rects` and BM3 takes `moved_sections`. `can_rebase_attach` and `can_rebase_detach` take `views`. The absorbed body is DISSOLVED by LM2 before BM3. V4 also returns `BDY_REBASE_ACTOR_IN_CAP`. Body events lose their `tick` field. Touched: MSA-14, MSA-20, MSA-21, T3 V5/A4, T4 V4/A4, the Body dependency row, FB-5, AC-MSA-77.
+- ADR-0012 sync: the Graph's `graph.fail` key is now `(step_no << 26) | rng_subject(kind, id)`, in MSA-14 and the dependency row.
+
+Checks: the signatures, the "absorbed DISSOLVED at A4" phase split and the RNG key match ADR-0015 section 9 and ADR-0012 section 8.2. No dangling constants. Weld and cut ordering, the MSA-31 fault contract and the integer-only apply are preserved.
+
+Blocker:
+1. V4's new `BDY_REBASE_ACTOR_IN_CAP` collides with V5, `CUT_BLOCKED`, the MSA-7 order, MSA-21's "V4 and the reason order unchanged" and AC-MSA-151. V4 runs first, so a cut with an actor in the hatch is rejected with a Body reason before V5 can give `CUT_BLOCKED` or defer a CASCADE cut. AC-MSA-151 (V5 bypassed) now stops at V4 and never reaches A4. Needs a ruling on how the two map, and the AC must bypass both V4 and V5.
+
+Advisories:
+1. L1043 still says "fifth argument `rects[]`"; the BM4 arity is now seven.
+2. `docked(a, b, frame_shift_px)` and `actors_overlapping(body_id, rects[])` keep their old arity against ADR-0015 `docked(a, b, shift_x, shift_y)` and `actors_overlapping_into`.
+3. The scalar `frame_shift_px` and `rects[]` names persist beside the new `frame_shift_x/_y` and `cap_rects`; state the equivalence once.
+4. `BDY_ARG_RANGE`, SAME_BODY and SHIFT_OFF_GRID are absent from the MSA-7 order, and V4 omits ARG_RANGE.
+5. L1541 lacks the ADR-0012 amendment tag.
+6. Confirm the "section 11.5" citation for the event tick.
+
+Prior carry-over advisories from 2026-10-28 and the Foundation sync are unchanged.
+
+## Review — 2026-10-29 — Core ADR sync (lean confirming, round 2)
+
+**Verdict: APPROVED.**
+
+**Scope:** `design/gdd/modular-ship-assembly.md`. I checked the diff of the knock-on fix round (MSA-7 L174, T4 V4/V5/A4 rows L272-278, MSA-21 L282, FB-3 L1611, AC-MSA-151 L1708, new AC-MSA-152 L1709). I checked it against ADR-0015 (can_rebase_detach, BM4 step 1, section 9) and MSA-22.
+
+**Blockers resolved (1 of 1):**
+- b04 (V4 `BDY_REBASE_ACTOR_IN_CAP` vs V5 `CUT_BLOCKED`) is resolved. Alternative (a) is stated once, in MSA-21, and echoed in the T4 V4 and V5 rows, MSA-7 and FB-3.
+  - V4's ACTOR_IN_CAP is the same question as V5 over the same `cap_rects`/LY-15 rectangles, so the two cannot disagree.
+  - Assembly translates it to `MSA.CUT_BLOCKED` for a CHANNEL cut (all three sites) or to the MSA-22 deferral for a CASCADE cut. It is never surfaced as `body.BDY_REBASE_ACTOR_IN_CAP`.
+  - It keeps the `CUT_BLOCKED` slot in the reason order. ADR-0015 BM4 step 1 confirms it is last in Body's predicate, so Body's own reasons win.
+  - ADR-0015's "PLAYER refused, SYSTEM deferred" is read as `cause`, with the origin caveat.
+  - The stale "V4 and the reason order are unchanged" wording is superseded.
+  - BM4's net is unreachable once V4 and V5 both pass.
+  - AC-MSA-151 now bypasses both V4 and V5. AC-MSA-152 covers the CHANNEL translation at three sites, the CASCADE deferral, pose-reason precedence and V4/V5 agreement.
+
+**Remaining blockers:** none.
+
+**Advisories:**
+- BDY_ARG_RANGE and BDY_REBASE_SHIFT_OFF_GRID (ADR-0015 E3/section 9) are not in the can_rebase_detach reason list in MSA-7, FB-3 or T4. They are unreachable with Layout-derived arguments. Add a one-line note.
+- AC-MSA-151 says V4 "rejects" the case. Change this to "reports (translated)" to match MSA-21.
+- Optional: AC-MSA-152 could add a fixture where `cap_rects` differs from the LY-15 pair, and name the site(s) where the CASCADE deferral is observed.
+
+No dangling references or rule/formula/AC/knob contradictions found in the changed lines.
+Reviewed-Content-Hash: design/gdd/modular-ship-assembly.md 0655ee59aec3e5b959d3f326d2b5719bc1a40235
+Reviewed-Content-Hash: design/registry/entities.yaml 423447f14cd1ef7c387109f2b366b17ebdca9dd3

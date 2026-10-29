@@ -224,3 +224,69 @@ Reviewed-Content-Hash: design/registry/entities.yaml c7c42b1a48216686518b8b47b2a
 **Advisories:** the SL-4 clause that still treats BERTHED as an event; 901 / 11 399 'advisory only' wording versus I3/I9; four stale AC-SL-38 phrasings; SL-2 provenance and canonical_bytes clauses; 'packed arrays' unqualified in SL-15; re-read AC covers one load path only; ADR-0004 L487 naming and the kernel H7 narrowing remain open outside this file.
 Reviewed-Content-Hash: design/gdd/save-load-and-versioned-format.md 416398a21d0c7e5e434b3b882e024949bc7a5067
 Reviewed-Content-Hash: design/registry/entities.yaml 4d9d9f7a469ff3c3aeb97b06fa6fa82c1b2dec16
+
+
+## Review — 2026-10-29 — Core ADR sync (lean confirming)
+**Verdict:** NEEDS REVISION (1 blocker, 5 advisories)
+**Scope:** design/gdd/save-load-and-versioned-format.md, git diff against the reviewed blob 416398a (5 hunks, all one ADR-0016 section 9 sync). Hunks: SL-12 tail, SL-15 item 10, the REBASE_BLOCKS variable-table row, the REBASE_BLOCKS knob row and AC-SL-67. Cross-read against ADR-0016 section 9, ADR-0006 L181, TR-assembly-012 and MSA open item 44. The earlier round-3 hunks (Web Map counters) were not re-opened; they are unchanged by this diff.
+**What the sync did, and it is consistent:**
+- `REBASE_BLOCKS` is now a committed array with one row per member {block_id, owner_adr, reason, exit}.
+- CI fails a stale or missing entry, and a non-empty list in an outside-release build.
+- Every persisted block supplies a `FixtureFactory` that returns a fresh payload per call.
+- The five hunks use the same wording, and each carries the ADR-0016 amendment note.
+- The Save/Load rules, Formulas, Tuning Knobs and AC-SL-67 agree with each other on the new CI rule.
+**Blocker:**
+- The default list is still `[interaction.state, assembly.state]` (knob row, variable table, SL-15 item 10, OQ-39, AC-SL-66).
+  - ADR-0016 section 9.3 and ADR-0006 L181 name `interaction.state` as the only interim MVP member. `assembly.state` is idempotent (TR-assembly-012: `pending` is written NONE in `snapshot()`), and MSA item 44 asks Save/Load to drop it.
+  - With the new stale-entry CI rule the GDD default would fail its own gate, and it contradicts AC-SL-67, which treats `assembly.state` as an EXACT merge-gate block.
+  - Fix: default `[interaction.state]`; reword the exit to ADR-0016 section 9.3 / ADR-0020; amend each site.
+**Advisories:**
+- No AC covers the CI stale/missing check, the rebase_blocks.json row shape or `FixtureFactory` freshness (KRN-RST-09).
+- AC-SL-67 says "dated debt entry naming the owner", but the rows have no date field.
+- "outside-release build" and "first outside build" coexist, and the SHIPPED / build-tag flip is not stated in the GDD.
+- The SL-12 sentence ends with "(SL-14)", which is now the wrong anchor for the list gate.
+- The AC-SL-138 trigger and the Formula example should be re-read once the list has one member.
+- Earlier advisories (901 / 11 399 wording, AC-SL-38 phrasings, SL-2 clauses, "packed arrays") remain open and are untouched by this diff.
+**Intent check:** reproduction-stage safety and the "loss costs ship and body" exposure are unchanged. The only risk is the stale default.
+Reviewed-Content-Hash: design/gdd/save-load-and-versioned-format.md 0910313
+
+## Review — 2026-10-29 — Core ADR sync (lean confirming, round 2)
+
+**Verdict:** NEEDS REVISION (one small residual blocker; b06 itself is resolved).
+**Scope:** design/gdd/save-load-and-versioned-format.md, the sync knock-on fix diff against the b06 blocker. Checked the rules (SL-12, SL-15 item 10), formulas (F-4 variable table, Example), tuning knobs, ACs (65, 66, 67, 61, 138), OQ-9/39/41, and the dependency rows against ADR-0016 section 9.3 and ADR-0006 L181.
+
+**Blockers resolved (1 of 1):**
+- b06: the default is now `[interaction.state]` in SL-12, the F-4 variable table and the Tuning Knobs row. assembly.state is explained as restore-idempotent (snapshot() writes pending NONE, TR-assembly-012) and outside the list per ADR-0016 section 9.3. The exit is Interaction-only (ADR-0020). SL-15 item 10, AC-SL-66, OQ-9, OQ-39 and the mandatory-block and dependency rows are consistent. The OQ-41 (a) soft gate is correctly no longer claimed as covered by REBASE_BLOCKS.
+
+**Remaining blockers (1):**
+- Line ~1400 (AC-SL-67 'blocked on in-flight GDDs' bullet) still says \"OQ-39 stays open for Interaction and Assembly\". Change it to Interaction only.
+
+**Advisories:**
+- AC-SL-65 mentions a 'pending' characterisation fixture for listed blocks; with only interaction.state listed this is stale but harmless.
+- The Tuning Knobs Safe-range cell 'empty list … the one default' is ambiguous. Reword it.
+- Assembly open item 44 (modular-ship-assembly.md L1944) should be closed by the Assembly author, since Save/Load now drops assembly.state.
+- AC-SL-67's pending-weld fixture is trivially EXACT (NONE is written), so it does not prove the weld survives a restore. The routing to Assembly and ADR-0021 (OQ-41 (a)) is already recorded.
+
+## Review — 2026-10-29 — Core ADR sync (lean confirming, round 3)
+
+**GDD:** design/gdd/save-load-and-versioned-format.md
+**Verdict:** APPROVED (0 blockers, 5 advisories)
+
+**Round-2 blocker (AC-SL-67 "blocked on in-flight GDDs" bullet, L1400, stale "OQ-39 stays open for Interaction and Assembly"): RESOLVED.**
+- It now reads "OQ-39 stays open for Interaction only; assembly.state is restore-idempotent and outside REBASE_BLOCKS (SL-12, SL-15 item 10, OQ-9; TR-assembly-012), so the Assembly story holds for no OQ-39 debt".
+- It carries a round-3 amendment note. A grep finds no remaining "Interaction and Assembly" debt wording and no `[interaction.state, assembly.state]` default.
+
+**Consistency (rules, formulas, edge cases, ACs, knobs):**
+- The default `[interaction.state]` is identical in SL-12, the F-4 variable table, the Tuning Knobs row, AC-SL-66, OQ-9 and OQ-39.
+- The F-4 Example (empty list EXACT) and AC-SL-61/138 are unaffected.
+- The round-3 edit touched one site (L1400) and is internally consistent.
+
+**ADR-0012 section 8.4:** this GDD cites no ADR-0012 text, so nothing here can dangle. Section 8.4 exists in the ADR and holds the seeded-stamp clear rule that Derelict and Graph consume.
+
+**Advisories (non-blocking):**
+- AC-SL-65 mentions a "pending" fixture, which is stale for the one-entry list.
+- The knob row Safe-range cell "empty list ... the one default" is ambiguous.
+- Assembly open item 44 and the MSA-4 wording sit in another GDD and need closing there.
+- AC-SL-67's pending-weld fixture is trivially EXACT; OQ-41 (a) tracks it.
+Reviewed-Content-Hash: design/gdd/save-load-and-versioned-format.md 9cb4880314133a7b328d9d84fcf83e4931987e40
+Reviewed-Content-Hash: design/registry/entities.yaml 423447f14cd1ef7c387109f2b366b17ebdca9dd3

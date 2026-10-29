@@ -3,6 +3,8 @@ Last Updated: 2026-10-29 (Foundation gap adjudication: 10 clauses added, 1 alrea
 Engine: Godot 4.7.2 (GDScript)
 Source: `/architecture-review` full mode; requirement IDs registered in `docs/architecture/tr-registry.yaml`. Report: `docs/architecture/architecture-review-2026-10-28.md`.
 
+> **2026-10-29 note:** Core ADR-0011 to ADR-0019 and ADR-0034 are now written (Proposed, reviewed). Their per-requirement grading is not yet in this matrix: Core-planned rows below still show their 2026-10-28 status. The next `/architecture-review` (plan Phase 8) grades them; the authors' self-reported coverage is in each ADR's `## GDD Requirements Addressed` table.
+
 ## Coverage Summary
 - Total requirements: 1138
 - Covered (Accepted ADR): 0 (0.0%). No ADR is Accepted yet; all ten are Proposed.

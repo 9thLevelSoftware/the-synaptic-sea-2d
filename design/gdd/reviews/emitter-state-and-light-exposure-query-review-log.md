@@ -164,3 +164,33 @@ Advisories:
 Prior recommended items (2026-10-28) are unaffected by this sync and remain open as logged.
 Reviewed-Content-Hash: design/gdd/emitter-state-and-light-exposure-query.md 68dfeddac372f72b8413402d509c9087bd74d8b9
 Reviewed-Content-Hash: design/registry/entities.yaml 4d9d9f7a469ff3c3aeb97b06fa6fa82c1b2dec16
+
+
+## Review — 2026-10-29 — Core ADR sync (lean confirming)
+Verdict: NEEDS REVISION (prior verdict APPROVED 2026-10-29 Foundation sync; this sync introduces 1 blocker)
+Scope: lean confirming review of the Core-sync diff (about 91 changed lines against the Foundation-sync hash 68dfedd). The changes follow ADR-0011/0012 (Graph restore), ADR-0014 (OccluderSource seam), ADR-0016 (restore order, A3 resolved), ADR-0017 (Emitter, the main source) and ADR-0018 (shadow origin). They cover: (a) mutators return void and report in EmitterOutcome `out.code`; (b) the OccluderSource signature takes `body_id` and a QueryBuffer; (c) `chest_sim` becomes the ControllerView chest point; (d) D.2 `arm_tick = T_a + posmod(power_offset - T_a, GRAPH_STEP_TICKS)` with INIT-scope T_a being the first RUNNING tick; (e) no read-view snapshot copy, so `W_SNAP` retires and `W_CELL` is added; (f) restore copies the `lit` bit verbatim, and `lux` and the other derived reads may differ for one run; (g) the DirTable is generated and `COS2_Q28` is derived; (h) Open Questions 11, 24 and 26 resolved.
+Checks: every ADR-0017 D-reference cited (D1.2-D1.4, D2.3/2.5, D3.1/3.2a/3.4/3.5, D4.2, D5.2/5.3, D9.5, D10.2/10.4, D11.1/11.4/11.5, D12.6, D13.1, D14.2/14.4) and CT-28/36/38/43/45/46/47 exists and says what the GDD claims. ADR-0016 s1.1/4.1, ADR-0011 s6.1 and ADR-0018 exist. D.2 worked example (T_a 1, arm_tick 6, L 5), the posmod formula and the new-game AC-103 agree. No residual `chest_sim`, 're-register', 'returns false' or 'EM_WORK_COUNTER' wording remains outside deliberate history text. Design intent preserved: save-equivalence on canonical state, never-stale static layer, no physics backend, no dwell on `lit`.
+Blocking items: 1 | Advisories: 7
+Blocker: `W_CELL` is added and `W_SNAP` retired, but D.14 has no CELL term. AC-64 (auto) still expects T_snap 408, T_mand 9,989 and the other pre-retirement totals, and AC-64b requires counter == formula exactly. Neither AC can be satisfied as written. Fix: add T_cell to T_mand and AC-64b, and either recompute the AC-64 totals or re-label them as reference values.
+Advisories: (1) the mutator table has half-synced signatures (E6 has no `out`; E9 still returns `beam_id`; E1/E2/E4/E5/E7/E8/E10 unchanged); (2) the `NO_DOCK_GLOW` code is missing from the L7 code list; (3) EM-28 'no accepted exception' vs the EM-22 one-run derived-read lag, with the EMT-09 rule (D14.4 c) not stated and AC-41 not narrowed to post-first-run; (4) `power_offset` should be `hook_offset_power` (ADR-0012); (5) L1075 still says 'ADR candidate 5' (now ADR-0018); (6) OQ 5 and the AC-57 outcome depend on a pending ADR-0018 spike; (7) the AC-103 'first RUNNING tick with T mod offset' clause needs 'at or after T_a'.
+Earlier open items (2026-10-28 and Foundation advisories) are unaffected and remain open as logged.
+
+## Review — 2026-10-29 — Core ADR sync (lean confirming, round 2)
+
+**Verdict:** APPROVED
+**Scope:** design/gdd/emitter-state-and-light-exposure-query.md, git diff since the Core ADR sync. Focus: D.14 (T_mand, T_cell, Output Range, scenario table, calibration table), AC-64, AC-64b, AC-53, OQ 10 and 27, changelog line 14, and a scan of the other sync hunks (ADR-0017 signatures, outcome codes, snapshot retirement) for stale text.
+
+**Blockers resolved (1 of 1):**
+- Prior blocker 1, W_CELL unused and AC-64/64b expecting retired T_snap totals. D.14 now defines T_cell = N_cells x W_CELL inside T_mand, with N_cells as a fixture-pinned counted input. The cell-free bases are re-derived and reconcile exactly (9,581; 12,200; 21,026; 26,954; S1 to S8 cell-free ticks; S6 151,022 / 180,096; S8b 160,603; linear scan 12,561, N <= 67). The old totals are marked pre-retirement reference values throughout (D.14, scenario table, Example, OQ 10 and 27, line 14, AC-53). AC-64 gates structure plus cell-free bases and does not assert the old totals. AC-64b counts the CELL operation against the formula with the fixture's recorded N_cells.
+
+**Remaining blockers:** none.
+
+**Advisories:**
+1. T_cold has no cell term, but AC-64 and AC-64b expect one for S6 and S8b (prose only, L715). Add it to T_cold or state the comparison form.
+2. Tuning Knobs row 49 omits W_RECTS, W_CELL and W_RLIT. The fixer's claim that the Tuning Knobs W_CELL row was updated is not borne out. EMITTER_CELL_PX has no knob or 'not a knob' entry, and its registry request is open.
+3. N_cells has no row in the D.14 Variables table.
+4. Typical-point fit now depends on N_cells <= 209 (419 units of headroom) with no design-point estimate. OQ 10 should say so.
+5. exposure_dp.json does not yet record N_cells, so AC-64 and AC-64b (auto) cannot pass until it does.
+6. The S8b Designed cell quotes 151,430 and 161,419 without an inline pre-retirement tag.
+Reviewed-Content-Hash: design/gdd/emitter-state-and-light-exposure-query.md 39bb62da9ba369c5cb5ae75f03d6f2d9704f0f81
+Reviewed-Content-Hash: design/registry/entities.yaml 423447f14cd1ef7c387109f2b366b17ebdca9dd3

@@ -167,3 +167,40 @@ Design intent preserved: no rule, formula or pillar changed; every blocker is a 
 5. D.10 Output Range says `layout_hash` travels as halves in the payload, but LY-26 a says `layout.state` holds none. This predates the round.
 Reviewed-Content-Hash: design/gdd/ship-section-and-layout-data-model.md 6ad789ac9eb7723e195a6871f057398a0f7578d9
 Reviewed-Content-Hash: design/registry/entities.yaml 4d9d9f7a469ff3c3aeb97b06fa6fa82c1b2dec16
+
+
+## Review — 2026-10-29 — Core ADR sync (lean confirming)
+Verdict: NEEDS REVISION (1 blocker, 7 advisories)
+Scope: git diff only, about 75 changed lines, the sync to ADR-0011/0012 (`GraphLimits.ID_MAX` 2^24), ADR-0013 (PackedInt64 columns, `structure_hash`, `BuildResult` out records, `LayoutVersions.invalidate` / `version_epoch`, `COORD_LIMIT`, LEAF dirty kind, `kind_ordinal`/`LAYOUT_ID_NS`), ADR-0014 (OccluderSource port, `rects_in(body_id, ...)`, D.22 model), ADR-0016 (post_restore DAG order) and ADR-0034 (PROJECTOR shape, OQ-33 closed). Checked inside this GDD only.
+Verified OK: no stale `2^20` Graph-id bound (the 2^20 left is the section-id bound of ADR-0013 section 3); no stale `aabb`, `occluder_source`, `subject_id`, `canonical_*_bytes`, `N_dyn`, `ADR-LAY-03/06` or `offset_px (two ints)` (the 14-column form and `graph_ref_base` as three columns agree); block-size formula and AC-8x numbers (356 and 29,452, 14 columns) recompute correctly; `can_attach` is the nine-code set everywhere (L261, L353, L1061, AC-70, AC-84-adjacent); AC-7 (native int64, decimal-string dump, no halves) and AC-26/AC-154 (`structure_hash` refusal vs `geometry_changed_fresh`) agree with LY-6 e and D.10; the AC-39 sweep is 19 px (FOOT_BOX_W 16 + 3); `ID_MAX` boundaries in AC-99 are right; post_restore ordering text (ADR-0016) is consistent with the 'no rule depends on order' clause and AC-19.
+Blocker:
+1. AC-111 (L1658) and the Dependencies Kernel row (L535) omit the new LEAF 4 dirty kind that LY-32 states. No AC asserts the `layout.doors` hook marks `LEAF/<section_id>` once per changed section. Amend AC-111, add one AC, extend L535.
+Advisories:
+- D.22 Output Range sums still use the old merge term (4.2) and the 8-actor aggregate 0.26-0.66 ms is stale (0.22-0.58 ms); the claim that the pessimistic end exceeds AC-164's 0.6 ms line is now false.
+- D.22 fallback rung 2 still proposes a generation-stamp de-dup and `t_merge` (renamed `t_insert`, stamp is the baseline).
+- `BODY_COORD_LIMIT` has no value, owner or Dependencies row (owned by ADR-0015 / Body, ruling CT-24); AC-70 needs a derivable value.
+- The Summary (L15) and L41 list the decided template-hash shape under 'still open'.
+- LEAF redraw trigger missing from the Presentation rows (L1330-1331).
+- Note the new content-authoring consequence that any template reorder refuses all saves.
+Carried over, unchanged: `layout_hash` 'travels as halves in the payload' versus LY-26 a (layout.state holds none).
+Design intent preserved: no rule, formula or pillar changed beyond the ADRs' decisions; the blocker is a leftover of the sync's own edit.
+
+## Review — 2026-10-29 — Core ADR sync (lean confirming, round 2)
+
+**Verdict**: APPROVED
+**Scope**: design/gdd/ship-section-and-layout-data-model.md. This was a lean check of the round-1 blocker (LEAF dirty-key kind) against the fixer's edits to AC-111, the new AC-183, the Dependencies Kernel row (L535) and LY-32 (L456). I checked these against ADR-0013 section 8 and the registry. I grepped the rest of the GDD for dirty-key and `leaf_version` statements that could contradict the LEAF rule. I did not re-review the unchanged body of the GDD.
+
+**Blockers resolved (1 of 1)**
+- LEAF dirty-key kind (round-1 blocker): AC-111 now lists KIND SEC 1, BODY 2, SEAM 3, LEAF 4, asserts `(4 << 32) | 3` for `LEAF/3`, and requires the KeySpaceDescriptor kinds `[1, 2, 3, 4]` named `[SEC, BODY, SEAM, LEAF]` with `quiet_writes_allowed` false.
+- AC-183 is new and testable. Two doors in section 3 and one in section 5 mark exactly `LEAF/3` and `LEAF/5`, once each, with one `open_for`. A no-change pass marks nothing and does not open the block. A rejected close marks nothing and bumps no `leaf_version`. `static_version` is never touched, and there is no `MISSED_DIRTY_MARK`. All of this matches ADR-0013 section 8, steps 1 to 5.
+- The Kernel dependency row (L535) lists `LEAF/` and the 1-to-4 kinds with an amendment marker. LY-32 already carried LEAF.
+- The registry request is moot: `entities.yaml` `layout_dirty_key_encoding` (L235) already lists LEAF 4, marked by `layout.doors`.
+
+**Remaining blockers**: none. I found no contradiction with the other `leaf_version` and `static_version` statements (L1031, L1047, AC-50, AC-54, AC-139, AC-156). The LEAF edits introduce no dangling references.
+
+**Advisories**
+1. LY-10 (L229) does not mention the `open_for` and `LEAF/` mark. Add a cross-reference to LY-32.
+2. LY-32 has no 2026-10-29 amendment marker, and the position of its "first three" parenthetical is now awkward.
+3. The hash-cache side effect (`touch_serial`) of the LEAF mark is untested in this GDD. It belongs to the kernel and ADR-0005 suites.
+Reviewed-Content-Hash: design/gdd/ship-section-and-layout-data-model.md c13ac34307afe0f6d70086077a0278d14499b943
+Reviewed-Content-Hash: design/registry/entities.yaml 423447f14cd1ef7c387109f2b366b17ebdca9dd3

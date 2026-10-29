@@ -149,3 +149,23 @@ Findings:
 - [RECOMMENDED] D.1b variables / systems-index: [main review] The h range is declared as 4000..6000, but the clamp covers h < LEAK_HP. The systems-index row is stale.
 Reviewed-Content-Hash: design/gdd/interaction-system.md a4a1665f48a32b46527de86ca982d27fbada4281
 Reviewed-Content-Hash: design/registry/entities.yaml cafe6d1169a1fe5dd043eae35c2c07a90c93b4c6
+
+
+## Review — 2026-10-29 — Core ADR sync (lean confirming)
+Scope signal: S (17 changed lines, 15 hunks, no new rules)
+Specialists: none (lean confirming re-review of the diff plus knock-on inside this GDD)
+Verdict: APPROVED
+Blocking items: 0 | Recommended: 6 | Carried over: 1
+Summary: The diff syncs the GDD to ADR-0016 (restore verbatim, drift detection), ADR-0017 (E3/E6/E7 void with out.code, verb_precondition) and ADR-0019 (Controller mutators Class A with check_* twins). I checked every changed line against the ADR text, and each one matches it, including the amendment stamps. Design intent holds: an unregistered subject still answers as unlit, a spent glowstick stays spent, and the lit gate is unchanged. The leftovers below do not mislead an implementer about what to build.
+Prior verdict resolved: Yes (2026-10-28 confirming review). The ADR-0016 re-registration rule is withdrawn cleanly. IA-36, IA-37, the restore edge case, AC-IA-57 and AC-IA-144 now agree with one another.
+Findings:
+- [RECOMMENDED] IA-10 / AC-IA-9 / L136 / L895: verb_precondition returns OUT_OF_REACH and NOT_ACTIONABLE, but IA-10 and AC-IA-9 name OUT_OF_RANGE and list neither reason. The predicate has no IA rule or AC of its own. ADR-0020 owns the vocabulary.
+- [RECOMMENDED] L306 (D.10): 'E6 returns false' survives the void-return sweep.
+- [RECOMMENDED] AC-IA-130: the diagnostics list omits IA_RESTORE_SUBJECT_DRIFT.
+- [RECOMMENDED] IA-36 / IA-37 / AC-IA-57 / AC-IA-144: the drift-repair trigger is unspecified (W is rebuilt in post_restore, so a delta-driven hook would see no change), and no AC covers a drifted save. The repair timing is ADR-0020's.
+- [RECOMMENDED] L106 legend vs L476 / L304 / L1422: 'Class A' and 'Class B' now carry the Graph meaning and the ADR-0003 meaning. Apply-side handling of a non-OK Controller status is unstated.
+- [RECOMMENDED] L477 Emitter row: the set_switch reason list and the EM refs are stale against ADR-0017 D3.3.
+- [CARRIED] AC-IA-110 byte-identical vs 'restore clears last_result', and the dangling OQ-39. The new REBASE_BLOCKS exit wording enables a one-edit fix.
+Reviewed-Content-Hash: not computed (git restricted to a single diff in this pass)
+Reviewed-Content-Hash: design/gdd/interaction-system.md 358f76728cc2b9240a4ca1a0a138b633f1816a76
+Reviewed-Content-Hash: design/registry/entities.yaml 423447f14cd1ef7c387109f2b366b17ebdca9dd3

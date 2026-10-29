@@ -157,3 +157,58 @@ I grepped the other post_restore and `previous := current` mentions (BDY-14, BDY
 5. AC-BDY-60 duplicates the token list that BDY-3 now assigns to ADR-0010 SIM-02.
 Reviewed-Content-Hash: design/gdd/ship-body-and-interior-physics.md 402fe1c2c94b57d283c918461d96b7a9b1aebed4
 Reviewed-Content-Hash: design/registry/entities.yaml 4d9d9f7a469ff3c3aeb97b06fa6fa82c1b2dec16
+
+
+## Review — 2026-10-29 — Core ADR sync (lean confirming)
+
+**Verdict: NEEDS REVISION**
+
+**Scope.** I read the full `git diff` of ship-body-and-interior-physics.md (34 hunks, 410 lines). I checked it against ADR-0014, 0015, 0016 and 0034, and grepped the whole file for stale forms. I covered BDY-4, 5, 7, 9, 10, 15, 20, 21, 24, 26, 28 and 33; the 3.5 and 3.7 tables; D.12; Tuning Knobs; Edge Cases; and AC-BDY-1, 6, 34, 75, 76, 92b, 117, 125, 132 and 139.
+
+**Consistent with the ADRs.**
+- BDY-5 is registered `gameplay true` and `interpolated true`, with a no-op commit_baseline and snap_baseline setting prev := curr (ADR-0015 section 8).
+- Collision goes through `solid_in` and `CollideSource.query_into`, with inclusive spans decoded once (ADR-0014/0015 section 5.1).
+- BROADPHASE_CELL_COUPLING, `>= max(FOOT_BOX_W, FOOT_BOX_H) + V_RUN`, agrees across D.12, the Tuning Knobs and AC-BDY-75 (minimum cell 19).
+- The event payloads drop `tick` and `seat` and split the delta into two ints (section 11.5).
+- `seat_bindings` is a flat `PackedInt64Array` (ADR-0016).
+- The BM8 row matches ADR-0015 section 9.
+- The probed canvas precision matches section 10.
+- Every `solid_in_into` is now `solid_in`.
+
+**Blockers (2).**
+1. `can_rebase_detach` is stale in about eight places. The amendment gives the five-argument form that returns BDY_REBASE_ACTOR_IN_CAP. BDY-21, BDY-24's tail, the 3.5 checks cell, D.5, Edge Cases, AC-BDY-128, the 8.3 Assembly row and OQ 34 still say 'takes no cap_rects' or 'unchanged', or call the one-shift form. ADR-0015 section 9 makes the cap check part of every cut `validate`.
+2. AC-BDY-132 still says a successful BM1 returns `actor_id` 1, 2, 3. The amended contract returns OK and writes the id into `PlaceResult`.
+
+**Advisories (8).**
+- No AC covers BM8 or the new reasons and faults.
+- BDY-31 and AC-BDY-120 omit BDY_RESTORE_COLUMN_RANGE.
+- 'Seven mutators' and 'BM1-BM7' remain in several places.
+- `seat_of_actor` is not in the 3.6 read table.
+- BODY_COORD_LIMIT has no knob row and its stated '2^24' ceiling is unclear.
+- BDY-33 still marks reparent semantics [UNV] and gives no camera-limits channel.
+- OQ 32 and 46 are marked OPEN though answered.
+- The header amendment list lacks the 2026-10-29 Core sync.
+
+Reviewed-Content-Hash: design/gdd/ship-body-and-interior-physics.md 1310ef4c69360c6d41c3987730ae6719ecb66fa6
+
+## Review — 2026-10-29 — Core ADR sync (lean confirming, round 2)
+
+**Verdict: APPROVED**
+**Scope:** design/gdd/ship-body-and-interior-physics.md, the full diff against HEAD, with a targeted check of the fixer's 'sync knock-on fix' edits against ADR-0015 section 9 and the round-1 blockers in b07.json.
+
+**Blockers resolved (2 of 2)**
+1. `can_rebase_detach` signature. Every listed place now uses the five-argument form (views, old_body_id, shift_x, shift_y, cap_rects), which returns BDY_REBASE_ACTOR_IN_CAP. The places are: BDY-21 class (i) and the can_* paragraph, BDY-24 (iii), the 3.5 BM4 checks cell, the pure-read paragraph (~L593), D.5, the Edge Cases bullet, AC-BDY-35, AC-BDY-128 and its integration twin, 8.2 items (1) and (15), the 8.3 Assembly rows and Open Question 34.
+   - The old sentences ('takes no cap_rects', 'V4 and MSA-7 untouched') survive only as struck, quoted history, each marked 'Amended 2026-10-29 — sync knock-on fix'.
+   - AC-BDY-140 has a Read half. The read returns the reason before any mutator, opens no WriteScope, leaves the tables, next_actor_id, dirty set and event queue byte-identical, and the sink records nothing. It also covers the OK case and the PLAYER and SYSTEM origins. The reason order is stated as this GDD's choice.
+2. AC-BDY-132 final clause. A successful BM1 returns OK (0) and writes actor_id 1, 2, 3 in call order into the caller-owned PlaceResult, and the id is never the return value. The closed-scope REFUSED (1) path is added: no scope.fault, no row, no id written, next_actor_id unchanged. This matches BDY-20, BDY-21, the 3.5 BM1 row and ADR-0015 section 9. The stale registry text (8.2 item 7) is marked superseded.
+
+**Remaining blockers:** none.
+
+**Advisories (5)**
+- AC-BDY-35, the 3.5 BM3 row and 8.2 item (1) still show the three-argument can_rebase_attach. ADR-0015 section 9 has five arguments (views, surviving, absorbed, shift_x, shift_y).
+- AC-BDY-35 says BDY_REBASE_ACTOR_IN_CAP is a BM4 'apply time only' reason, then lists it as a can_rebase_detach read reason. Drop the 'only'.
+- The Count paragraph (138 criteria and the tag mix) was not re-tallied after the AC-BDY-132 and AC-BDY-140 extensions. The id count is unaffected.
+- Out of scope and routed (Assembly's pass): modular-ship-assembly.md V4 (~L272), the MSA-7 order and AC-MSA-77 (~L1679) still show the one-argument can_rebase_detach. Open Question 43 and the 8.3 rows are OPEN. ADR-0021 is not on disk.
+- No AC pins the can_rebase_detach reason order; add a multi-defect fixture if Assembly relies on it.
+Reviewed-Content-Hash: design/gdd/ship-body-and-interior-physics.md 8063a844e2c1dacf30400097054897c0fc2be4c7
+Reviewed-Content-Hash: design/registry/entities.yaml 423447f14cd1ef7c387109f2b366b17ebdca9dd3

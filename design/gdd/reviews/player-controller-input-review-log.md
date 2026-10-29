@@ -179,3 +179,51 @@ Reviewed-Content-Hash: not computed (read-only review).
 **Other sync hunks:** the ADR-0006 in-place restore, ADR-0009 pose/value split and per-tick replay samples, and ADR-0010 injected Clock / no `Time.*` are consistent across rules, D.11, the Output Range, ACs 082/166 and the lint AC. No dangling references found.
 Reviewed-Content-Hash: design/gdd/player-controller-input.md ede4381bbd699ac3e4e85f68a05daee3b5fd14b5
 Reviewed-Content-Hash: design/registry/entities.yaml 4d9d9f7a469ff3c3aeb97b06fa6fa82c1b2dec16
+
+
+## Review — 2026-10-29 — Core ADR sync (lean confirming)
+**Verdict:** NEEDS REVISION
+**Scope:** design/gdd/player-controller-input.md, the 17-hunk diff of the Core ADR sync (ADR-0017 chest point, ADR-0018 light origin, ADR-0019 mutators, input, idle). Checked for knock-on effects across rules, formulas, edge cases, ACs and tuning knobs. Checked ADR section references against ADR-0003, ADR-0017, ADR-0018 and ADR-0019.
+**Confirmed clean:**
+- PC-1 (b) / ACs 006, 105d, the Interactions rows: 'Class B' is now 'Class A status-returning', with ADR-0019 § 2.5 citation, and no stale 'Class B' remains.
+- AC-PCI-084/088/154: `chest_sim` replaced by the read-time getters; oracles unchanged.
+- AC-PCI-210 reads `locomotion_cap` and `stowed_heavy` only (TR-suit-033).
+- AC-PCI-208: the beam `Light2D` exception matches ADR-0018 § 3.
+- PC-2 and PC-2a: markers closed per ADR-0019 § 3.2/3.3. The echo marker names PC-INPUT-SPIKE-1 (d), as in the ADR.
+- The cross-GDD lint-collision gap is resolved per ADR-0019 § 6.4/8.1.
+- D.11 idle formula matches ADR-0019 § 7.1.
+**Blockers (1):**
+- B1: the sync removed the stored `chest_sim` but kept a stored `hand_sim`, 'recomputed in `post_restore`' and written in step 7. ADR-0019 § 2.2 (CT-28) says neither is stored; both are `ControllerView` getters, and `post_restore` recomputes `cap_seen` only. Vocabulary (L60), PC-14 (L196) and the D.12 header ('controller.step for the published sim value') still say the block owns or publishes stored points. Fix: delete the `hand_sim` row and step-7 item, and state that both points are read-time. Correct L60, L196 and the D.12 header, and add the amendment note.
+**Advisories (5):**
+1. Gaps row 32 cites 'spike (e)'; it should be PC-INPUT-SPIKE-1 (d).
+2. D.11 `T_enter` is never defined; ADR-0019 § 7.1 anchors are channel start, `stagger_end_tick - STAGGER_TICKS`, `t_downed`.
+3. D.12 'light and sprite share one floor' needs a cross-reference to the ADR-0018 `CELL_CENTRE` offset.
+4. D.12 sim formula uses an undefined `mirror` term.
+5. ADR-0019 lists only one `check_*` twin in Key Interfaces; the GDD says each of the four has one.
+Reviewed-Content-Hash: design/gdd/player-controller-input.md 6910b0cfc997eb3c6c4cd3de8dba31a6d68eef79 (computed with sha1 of the git blob form; the file was not edited)
+
+## Review — 2026-10-29 — Core ADR sync (lean confirming, round 2)
+
+**Verdict:** APPROVED
+**Scope:** `design/gdd/player-controller-input.md`, the `git diff` against HEAD (26 hunks). I checked the previous blocker (`hand_sim` against ADR-0019 § 2.2 / CT-28) and the ADR-0017, ADR-0018 and ADR-0019 sync edits for internal consistency. I also grepped the whole file for leftovers.
+
+**Blockers resolved (1 of 1):**
+- `hand_sim` stored-field conflict with ADR-0019 CT-28 is fixed.
+  - The `hand_sim` / `chest_sim` row is deleted from the PC-17 field table. It is replaced by a note that no such field exists and that the points are read-time `ControllerView.get_chest_x/_y` and `get_hand_x/_y` getters.
+  - `post_restore` is stated to recompute `cap_seen` only (ADR-0016 V8). This matches ADR-0019 § 2.2 and § 2.7.
+  - Step 7 now lists `ramp_ticks`, `walk_ticks`, `last_octant` and `decel_k`.
+  - Vocabulary, PC-1(b)/(c), PC-14 and the D.12 header no longer make the Controller Sim own or store the points.
+  - The D.12 header explains that `controller.step` runs before `body.integrate`, so a stored value would be one tick stale.
+  - AC-PCI-084, AC-PCI-088 and AC-PCI-154 assert the read-time getters.
+  - A grep finds `hand_sim` and `chest_sim` only in the negating notes. The two ACs are the only other mentions.
+
+**Remaining blockers:** none.
+
+**Advisories (non-blocking):**
+- PC-5 (L178) still says the Sim 'publishes both points in its read view'. This is compatible with the getters, but the wording could be tightened.
+- ADR section cites mix § 2.2 and § 2.6. Each is correct for its own claim.
+- No AC asserts that the schema has no chest or hand column and that `post_restore` writes only `cap_seen`. AC-PCI-134 and AC-PCI-136 plus ADR-0019 § 8.4 cover most of it. Optional hardening.
+- The idle-breath phase is now free-running from `T` (ADR-0019 § 7.1). No stale `T_enter` reference remains.
+- The Class A rename, the AC-PCI-208/210 updates, the PC-2 'Decided in ADR-0019' text and the lint-collision resolution are internally consistent. I found no dangling references.
+Reviewed-Content-Hash: design/gdd/player-controller-input.md a61be7f18aac5a46dada249886568ee03f66f17b
+Reviewed-Content-Hash: design/registry/entities.yaml 423447f14cd1ef7c387109f2b366b17ebdca9dd3

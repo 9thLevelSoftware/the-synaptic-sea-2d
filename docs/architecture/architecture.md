@@ -175,9 +175,9 @@ Ownership tables give, per module: what it **owns** (sole writer), what it **exp
 |---|---|---|---|---|
 | Life-Support Graph (`src/sim/graph/`) | `graph.state` (SoA packed arrays), three propagate hooks, `GraphTuning` | Class A mutators M1-M13, M19 with paired `check_*`; Class B M14-M18; `can_join`, `can_join_static`; read view (`compartment`, `node`, `edge`, `failures(filter)`, `served_pm`, `opening`, `seam_view`, `alarm_sections`, `true_value`, `power_use`, …); dirty keys `C/ B/ N/ F/ L/ S/ T/ SEC/` | Kernel WriteScope, hooks, `rng_derive`; Layout room identity, `V`, `exposed_tiles`; Item DB defs | `RefCounted`, `PackedInt64Array`/`PackedInt32Array`/`PackedByteArray` (HIGH: 4.7 element writes), (`HashingContext` is allowed only in `src/save`, `src/data`, `src/shared/det/hash64.gd` and `src/kernel/state_hasher.gd`; ADR-0010 IO-01) |
 | Ship Section & Layout (`src/sim/layout/`) | `layout.state` (bodies, section instances, sockets, welds, counters), templates, broadphase caches, hook `layout.doors` | LM1 `build_section`, LM2 `attach_section`, LM3 `detach_section`, LM4 `discard_section_geometry` + `can_*`; `rects_in`, `solid_in`, `OccluderSource`, `version/static_version/leaf_version`, `room_at`, `section_at`, `socket_plan`, `detach_preview`, `leaf_would_overlap` | Graph `instantiate_section`, `opening`, `seam_view`; Item DB `compatible_defs` | none in the data module; the PROJECTOR uses `TileMapLayer` (MEDIUM), `Node2D` y-sort |
-| Ship Body (`src/sim/body/`) | `body.state` (body poses/velocities, actor rows), hook `body.integrate`, `LocomotionStep` | BM1-BM7 + `can_*`; `pos_curr/pos_prev`, `foot_box(es)`, `actor_section`, `actors_overlapping`, `docked`, `seat_bindings()`; P5 events `BODY_TRANSFER`, `BODY_DOCK_CONTACT`, `BODY_HULL_SEPARATION` | `controller.state` octant and `v_eff`; Layout `solid_in(_into)`, `section_at`, `section_offset` | none in the sim module (no physics server, lint-enforced); `body.projector` uses `Node2D`, `Camera2D.limit_*` |
+| Ship Body (`src/sim/body/`) | `body.state` (body poses/velocities, actor rows), hook `body.integrate`, `LocomotionStep` | BM1-BM8 + `can_*` (BM8 `release_body`) *(Amended 2026-10-29 — ADR-0015 sync)*; `pos_curr/pos_prev`, `foot_box(es)`, `actor_section`, `actors_overlapping`, `docked`, `seat_bindings()`; P5 events `BODY_TRANSFER`, `BODY_DOCK_CONTACT`, `BODY_HULL_SEPARATION` | `controller.state` octant and `v_eff`; Layout `solid_in`, `section_at`, `section_offset` | none in the sim module (no physics server, lint-enforced); `body.projector` uses `Node2D`, `Camera2D.limit_*` |
 | Emitter State (`src/sim/emitter/`) | `emitter.state`, hook `emitter.place`, pair cache, per-tick read-view columns | E1-E10 mutators; `toggle_beam`, `set_switch`, `set_beacon` commands; `lux_pm`, `act_lux_pm`, `lit(ref)`, `shapes()`, `beam_spill`, `beam_bindings()`; dirty keys `E/<id>` | Controller chest point and aim; Body pose; Layout `OccluderSource`, `anchor_geometry`; Graph `served_pm`, `run_pm`, M14, `failures()`; F&T glow table | none (scene-tree free, lint-enforced) |
-| Controller Sim (`src/sim/controller/`) | `controller.state` (PER_PLAYER intent, gait, aim, facing, loco_state, carry/channel refs, chest and hand points), hooks `controller.step`, `controller.noise` | Commands `set_move_intent`, `set_aim`, `give_up`, `stagger` (SYSTEM); Class B mutators `set/clear_channel_ref`, `set/clear_carry_ref`; read view | Suit `locomotion_cap`; Body `moved`; kernel binding table | none in the sim module |
+| Controller Sim (`src/sim/controller/`) | `controller.state` (PER_PLAYER intent, gait, aim, facing, loco_state, carry/channel refs, chest and hand points), hooks `controller.step`, `controller.noise` | Commands `set_move_intent`, `set_aim`, `give_up`, `stagger` (SYSTEM); Class A status-returning mutators `set/clear_channel_ref`, `set/clear_carry_ref` (each with a `check_*` twin; OK, REFUSED or -fault_code; ADR-0019 section 2.5) *(Amended 2026-10-29 — ADR-0019 sync)*; read view | Suit `locomotion_cap`; Body `moved`; kernel binding table | none in the sim module |
 
 ### Feature
 
@@ -411,7 +411,7 @@ Kernel request_restore(payload, restore_epoch, expected_state_hash: int = 0, has
    → RUNNING; accumulator cleared; camera CUT; Adapter resends intents; first frame passes through the Filter
 ```
 
-**restore_after order (MVP):** `layout.state` → `graph.state` → `body.state` → `controller.state` → `emitter.state`, `suit.state` → `interaction.state` → `assembly.state`, `web.state`; then Attention, Horror and Sanity (their restore_after lists are in their GDDs; the kernel topo-sorts the declared DAG).
+**restore_after order (MVP, ADR-0016 section 2.4):** `layout.state`, `graph.state`, `body.state`, `suit.state`, `controller.state`, `emitter.state`, `interaction.state`, `assembly.state`, `web.state`, `attention.state`, `horror.state`, `sanity.state`, `sanity.ledger`, then the non-persisted `sanity.perception`; the kernel topo-sorts the declared DAG with smallest registration index first among ready blocks, and `restore`, `post_restore`, `default_state` and `init_world` all follow it. *(Amended 2026-10-29 — ADR-0016 sync)*
 
 **Threading.** Exactly one thread boundary exists in the MVP: the save writer (and its read-back). Everything else, kernel, owner callables and presentation, runs on the main thread; `Thread`, `WorkerThreadPool` and `call_deferred` into kernel code are lint-forbidden (CR-1a).
 
@@ -557,8 +557,9 @@ Mutators mark their own dirty keys explicitly (4.7 packed-array element writes c
 # or caller-owned buffers and allocate nothing per call.
 func compartment_p(cid: int) -> int
 func failures(filter: FailureFilter, out: FailureSlice) -> void
-func rects_in(aabb: Rect2i, out: QueryBuffer) -> void             # Layout OccluderSource
-func solid_in(body_id: int, aabb: Rect2i, out: QueryBuffer) -> void
+func rects_in(body_id: int, ax0: int, ay0: int, ax1: int, ay1: int, out: QueryBuffer) -> int   # Layout OccluderSource (ADR-0014); spans are occupied (x0, y0, x1-1, y1-1)
+func solid_in(body_id: int, ax0: int, ay0: int, ax1: int, ay1: int, out: QueryBuffer) -> int   # Layout SolidQuery (ADR-0014); wrapped only by ADR-0015 LayoutCollide
+# *(Amended 2026-10-29 — ADR-0014 sync)*
 func lit(ref: int) -> bool                                        # Emitter, hysteresis on act_lux_pm
 ```
 
@@ -658,7 +659,7 @@ The signatures above use types that no GDD defines field by field. Each is defin
 | `ChangeBatch` (kernel-held PackedInt64Array behind key(i)/has(key)), `NotifyEvent`, `DirtyAccumulator`, `KeyBuf`, `KeySpaceDescriptor`, `SubscriptionHandle`, `NotifyFacet` (src/kernel/facets/ except KeySpaceDescriptor) | ADR-0004 (Proposed) |
 | `FAULT_CODE` table: one closed enumeration per owning system, the kernel's own codes, and who may raise which | ADR-0003 |
 | Per-command payload schemas and the payload validator | ADR-0002 (each command's owner lists its schema) |
-| `QueryBuffer`, `SolidQuery`, `OccluderSource` | ADR-0014 |
+| `QueryBuffer`, `RegionBox`, `ChangedRegion`, `SolidQuery`, `OccluderSource` | ADR-0014 (Proposed) *(Amended 2026-10-29 — ADR-0014 sync)* |
 | `JoinPlan`, `WeldResult`, `FailureFilter`, `FailureSlice` | ADR-0011, ADR-0012 |
 | `LocoState`, `LocoIntent`, `LocoResult` | ADR-0015 |
 | `PerceptionRef`, `Perceived`, `PerceptionTag` | ADR-0024 |
@@ -810,8 +811,8 @@ ADR-0009 is gated only on KRN-LAT-02's order result (host `_process` after TickD
 
 | Spike | Gates | Source |
 |---|---|---|
-| S0-a / S0-b (packed-array alias semantics; `@warning_ignore_start("integer_division")`; signed 64-bit literal; arithmetic `>>` and the masking logical shifts need; H64 and `mix64` golden vectors) | ADR-0005, ADR-0010, ADR-0011 | life-support-graph |
-| KRN-LAT-02 (cross-node `process_priority` order, `Engine.time_scale`), built as a headless kernel skeleton: `ctx.complete()` checks, hook topo-sort, WriteScope and observer-registry notify cost under gdUnit4 (also answers OQ-4); also records the adapter → driver → `SaveHost` (HOST_SERVICE) → presentation host call order on a dev build and a release export | ADR-0001, ADR-0003, ADR-0004, ADR-0009 (order half only) | command-simulation-layer |
+| S0-a / S0-b (packed-array alias semantics; signed 64-bit literal; arithmetic `>>` and the masking logical shifts need; H64 and `mix64` golden vectors; S0-b no longer verifies an `integer_division` ignore, no Graph file carries one and division goes through `IntMath`, ADR-0011 section 2.3) *(Amended 2026-10-29 — ADR-0011 sync)* | ADR-0005, ADR-0010, ADR-0011 | life-support-graph |
+| KRN-LAT-02 (cross-node `process_priority` order, `Engine.time_scale`), built as a headless kernel skeleton: `ctx.complete()` checks, hook topo-sort, WriteScope and observer-registry notify cost under gdUnit4 (also answers OQ-4); also records the adapter → driver → `SaveHost` (HOST_SERVICE) → presentation host call order on a dev build and a release export | ADR-0001, ADR-0003, ADR-0004, ADR-0009 (order half only), ADR-0016 (stub-level KRN-RST-05: recorded stub blocks under four linear extensions) *(Amended 2026-10-29 — ADR-0016 sync)* | command-simulation-layer |
 | SP-YSORT-1 (Y-sort tie under reparent; per-body vs per-section TileMapLayer) | ADR-0034 | ship-section-and-layout-data-model |
 | Pipeline spike steps 11 and 12 (SubViewport wiring, RENDER_MODE A/B, `RenderingServer.frame_pre_draw` writing only the two canvas writes from values CAMERA_SOLVE solved in `PipelineRoot._process`; probed 2026-10-28 on 4.7.2 editor, release-export re-run pending; no `process_priority` ordering) | ADR-0008 | pixel-perfect-render-pipeline-camera |
 | Lighting spike steps 1-10 (art bible 8.12; LO-10 shadow origin). **Its renderer method and driver result gates Foundation ADR-0008, so it runs before Foundation coding**, not with the Feature tier | ADR-0008, ADR-0018, ADR-0028 | 2d-lighting-and-occlusion |

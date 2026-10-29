@@ -173,3 +173,28 @@ Checked and consistent: the Vulkan pin text and its reversibility (L29, L39, L10
 **Consistency check:** rules, edge cases, state table and ACs (LO-1/2/3/11, S.5, AC-LO-1/2/5/17) agree; tuning knobs OCCLUDER_NODE_POOL and OCCLUDER_SYNC_BUDGET_US are unchanged and still consistent. AC-LO-15 needed no change.
 Reviewed-Content-Hash: design/gdd/2d-lighting-and-occlusion.md f3540a3e926f3ccb6aaaf6b3a4126279d75e3d6b
 Reviewed-Content-Hash: design/registry/entities.yaml 4d9d9f7a469ff3c3aeb97b06fa6fa82c1b2dec16
+
+
+## Review — 2026-10-29 — Core ADR sync (lean confirming)
+**Verdict: APPROVED** (prior verdict: APPROVED, Foundation round 2; 0 blockers, 9 advisories)
+**Scope:** `git diff` of design/gdd/2d-lighting-and-occlusion.md against HEAD. The base is the content reviewed at the last log entry. 10 hunks, all marked amended 2026-10-29: ADR-0018 (shadow origin and half-cell lattice) and ADR-0014 (`OccluderSource` seam). I checked each edit against the ADR text (ADR-0018 §§ 2-5, 8 and SHO-03; ADR-0014 §§ 4-6 and the `section_rects_into` and `version_epoch` signatures). I then checked the knock-on effects on LO-1, LO-2, LO-10, LO-11, D.5, the Tuning Knobs, the Dependencies rows, AC-LO-3 and AC-LO-15, and Open Questions row 8.
+**Blockers:** none.
+**What is consistent:**
+- The beam node is the floored foot plus `CELL_CENTRE`, written through `Placement.put_light_origin`, and the apex is the chest point plus the same constant. This agrees across LO-2, LO-10, D.5 Output Range and the Controller/Presenter row. `put_light_origin` exists in ADR-0009.
+- `OFFSET_FRAME` is LOCAL and unscaled, per ADR-0018 SO-P2 and § 4.2. The knob row and LO-10 agree.
+- The reach set is measured from the apex, and `OCC_MARGIN_PX` is unchanged, per ADR-0018 § 4.4. The SO-P10 pass condition and the B-pad fallback in LO-10 match ADR-0018 § 5.
+- ADR-0014: the single port with explicit `body_id`, `rects_in(body_id, ...)`, `section_rects_into`, occupied spans, polygon corners at `(x0, y0)` and `(x1_occ + 1, y1_occ + 1)` with no shift, the `(version_epoch, version)` cache, and `changed_region` never read. LO-11, the Dependencies rows and the Interactions row all agree. No stale `occluder_source`, `rects_in(aabb)` or half-open-return text remains.
+- Design intent is untouched: the foot-sourced shadow with the chest-sourced cone, and the single-source occluder rule.
+**Advisories (9):**
+- AC-LO-3 needs parentheses: apex minus (floored chest point plus `CELL_CENTRE`), as in D.5.
+- LO-2 and the outcome A text do not say that non-beam shadow lights also use `put_light_origin` (ADR-0018 SO-3).
+- LO-32 spike row 3 omits B-pad, SO-P10 and the A control arm.
+- There is no `SHADOW_ORIGIN_MODE` knob row (ADR-0018 § 6).
+- SHO-07 (a light inside an `OCCLUDES_LIGHT` box) is not in the Edge Cases or ACs.
+- D.5 still presents the WORLD branch as live.
+- LO-11 restore wording should say the epoch is authoritative.
+- LO-2 still has the stale 'ADR candidate: presentation frame order' tail.
+- The ADR-0018 closure should name OQ-A.
+Reviewed-Content-Hash: design/gdd/2d-lighting-and-occlusion.md (working copy after 2026-10-29 Core sync; compute at commit)
+Reviewed-Content-Hash: design/gdd/2d-lighting-and-occlusion.md 5e0ab5e70654525823155f22fd0cc01c830a7820
+Reviewed-Content-Hash: design/registry/entities.yaml 423447f14cd1ef7c387109f2b366b17ebdca9dd3

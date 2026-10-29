@@ -40,7 +40,7 @@
 #   unsupported layout, with its number.
 
 version: 1
-last_updated: "2026-10-28"
+last_updated: "2026-10-29"
 
 # ─── STATE OWNERSHIP ─────────────────────────────────────────────────────────
 # Who is the authoritative owner of each piece of shared game state.
@@ -84,21 +84,24 @@ state_ownership:
     write_access: kernel-only
     referenced_by:
       - docs/architecture/adr-0002-authority-model-and-command-pipeline.md
+      - docs/architecture/adr-0016-restore-ordering-and-cross-block-verification.md
     added: 2026-10-28
     revised: ""
   - state: fault_domain_table
     status: active           # ADR-0003 is Proposed
     owner_system: command-simulation-layer (kernel)
     adr: docs/architecture/adr-0003-state-block-registry-and-owner-contract.md
-    interface: "static domain ids (0 kernel, 1 save_load, 2 content data, 3 graph, 4 layout, 5 body, 6 emitter, 7 controller, 8 interaction, 9 suit, 10 assembly, 11 web_transit, 12 attention, 13 horror, 14 sanity, 15-31 presentation and tooling); codes pre-packed (DOMAIN_ID << 16) | local in each owner's *_faults.gd; registered by register_fault_domain"
+    interface: "static domain ids (0 kernel, 1 save_load, 2 content data, 3 graph, 4 layout, 5 body, 6 emitter, 7 controller, 8 interaction, 9 suit, 10 assembly, 11 web_transit, 12 attention, 13 horror, 14 sanity, 15-31 presentation and tooling); codes pre-packed (DOMAIN_ID << 16) | local in each owner's *_faults.gd; registered by register_fault_domain; kernel domain 0 codes 1-17 as before and, appended 2026-10-29 (ADR-0003 section 6, ADR-0016) and never renumbered, 18 RESTORE_CYCLE (boot: cycle or self edge in restore_after), 19 BLOCK_LIMIT (boot: more than MAX_BLOCKS blocks), 20 RESTORE_VERSION_UNSUPPORTED (pre-check: stored schema_version not in supported_versions), 21 DEFAULT_STATE_NO_PAYLOAD (default_state returned without ctx.put); boot warning RESTORE_AFTER_DUPLICATE (duplicate entry in one restore_after list, dropped; the warning list is empty at the end of every CI run)"
     write_access: kernel-only
     referenced_by:
       - docs/architecture/adr-0003-state-block-registry-and-owner-contract.md
       - docs/architecture/adr-0007-static-content-data-pipeline-and-stable-type-ids.md   # all content boot codes are domain 2
       - docs/architecture/adr-0005-determinism-keyed-rng-canonical-encoding-and-hashing.md
       - docs/architecture/adr-0006-save-container-generations-versioning-and-restore-epoch.md
+      - docs/architecture/adr-0011-life-support-graph-data-model.md
+      - docs/architecture/adr-0013-ship-layout-block-geometry-and-id-allocation.md
     added: 2026-10-28
-    revised: ""
+    revised: 2026-10-29
   - state: static_content_catalogs
     status: active           # ADR-0007 is Proposed
     owner_system: content-data (ContentLoader, run once by the composition root)
@@ -108,6 +111,7 @@ state_ownership:
     referenced_by:
       - docs/architecture/adr-0007-static-content-data-pipeline-and-stable-type-ids.md
       - docs/architecture/adr-0006-save-container-generations-versioning-and-restore-epoch.md
+      - docs/architecture/adr-0013-ship-layout-block-geometry-and-id-allocation.md
     added: 2026-10-28
     revised: ""
   - state: id_ledgers
@@ -118,6 +122,8 @@ state_ownership:
     write_access: append-only by content authors; SHIPPED transition one-way
     referenced_by:
       - docs/architecture/adr-0007-static-content-data-pipeline-and-stable-type-ids.md
+      - docs/architecture/adr-0011-life-support-graph-data-model.md
+      - docs/architecture/adr-0013-ship-layout-block-geometry-and-id-allocation.md
     added: 2026-10-28
     revised: ""
   - state: touch_serial
@@ -228,6 +234,142 @@ state_ownership:
       - docs/architecture/adr-0006-save-container-generations-versioning-and-restore-epoch.md
     added: 2026-10-28
     revised: ""
+  - state: graph_state_block
+    status: active           # ADR-0011 is Proposed
+    owner_system: life-support-graph
+    adr: docs/architecture/adr-0011-life-support-graph-data-model.md
+    interface: "graph.state: GraphState (persisted SoA: hdr + nodes ports edges comps seams sections queues defs, PackedInt64/Int32/ByteArray columns, dense append-only ascending-id rows, tombstones kept, plus the persisted hook products n_served, n_draw, CABLE e0 and power_use_w0..w4 written by ADR-0012 phase 2 only) with companions GraphCaches (derived), GraphScratch, GraphDiag; reads through the pure GraphView (typed getters, failures(filter, out)); writes only through the Graph's own mutators inside a WriteScope"
+    write_access: "writer matrix of ADR-0011 section 12.1: GraphState propagate/**, graph_mutators.gd, graph_restore.gd; GraphCaches graph_derived.gd, plus propagate/** for the intensive values, descriptor store and alarm_sections, plus propagate/** and graph_mutators.gd for the last-emitted buckets; GraphScratch contents propagate/** (and graph_derived.gd for the stack and queue buffers), sizing graph_derived.gd; GraphDiag any Graph file"
+    referenced_by:
+      - docs/architecture/adr-0011-life-support-graph-data-model.md
+    added: 2026-10-29
+    revised: ""
+  - state: graph_entity_ids
+    status: active
+    owner_system: life-support-graph
+    adr: docs/architecture/adr-0011-life-support-graph-data-model.md
+    interface: "node, edge, seam and section ids from the persisted counters next_node_id, next_edge_id, next_seam_id, next_section_id (below GraphLimits.ID_MAX 2^24); cid is the COMPARTMENT node id; section_id 0 is the world EXTERIOR; M1 (called only by Layout LM1 through LayoutGraphPort) fills ADR-0013's SectionBases {node_base, edge_base, comp_base}; stale ids no-op and read as the section 9.1 sentinels"
+    write_access: append-only, Graph allocator only
+    referenced_by:
+      - docs/architecture/adr-0011-life-support-graph-data-model.md
+    added: 2026-10-29
+    revised: ""
+  - state: graph_type_ids
+    status: active
+    owner_system: life-support-graph
+    adr: docs/architecture/adr-0011-life-support-graph-data-model.md
+    interface: "src/shared/graph/graph_ids.gd constants (loops, node kinds, port types, edge kinds, modes, states, bands, seam states, boundary, section kind, load tier/subtype, trace kind, subject kind (NODE 1, EDGE 2, COMPARTMENT 3, SEAM 4, OPENING 5), cause, medium, acoustic; ALARM_CAPABLE_MASK, STATE_NONE) plus assets/data/graph/ids.lock.json in the ADR-0007 ledger format"
+    write_access: append-only by reviewed code change
+    referenced_by:
+      - docs/architecture/adr-0011-life-support-graph-data-model.md
+      - docs/architecture/adr-0007-static-content-data-pipeline-and-stable-type-ids.md
+    added: 2026-10-29
+    revised: ""
+  - state: layout_state_block
+    status: active           # ADR-0013 is Proposed
+    owner_system: ship-section-and-layout (src/sim/layout/)
+    adr: docs/architecture/adr-0013-ship-layout-block-geometry-and-id-allocation.md
+    interface: "block layout.state (SIM, WORLD, SHARED, restore_after []): closed payload of parallel columns - counters{next_section_id,next_body_id,next_room_id}, bodies{body_id,origin_section_id,state}, instances (14 columns incl. template_id Array[String] and geometry/visual/structure hash int32), sockets (sparse non-FREE), welds (int64 times); derived caches (lookups, leaf cache, versions, grid) in LayoutDerived, never persisted or hashed; restore() is byte-identical and never rewrites a stored hash (diagnostics only; hashes refreshed in LM2 when an instance first gets history)"
+    write_access: layout-mutators-only (LM1-LM4 and restore); socket state only inside LM2/LM3; stored hash refresh only inside LM2
+    referenced_by:
+      - docs/architecture/adr-0013-ship-layout-block-geometry-and-id-allocation.md
+    added: 2026-10-29
+    revised: 2026-10-29
+  - state: layout_id_counters
+    status: active
+    owner_system: ship-section-and-layout
+    adr: docs/architecture/adr-0013-ship-layout-block-geometry-and-id-allocation.md
+    interface: "section_id, body_id, room_id allocated by Layout from persisted counters (first id 1, dense: section_id == row+1, body_id == row+1, room_id contiguous per instance), never reused or renumbered, tombstones keep ids; caps section 2^20-1, body/room 2^31-1 checked in can_build/can_detach before any id is consumed; Graph owns node/edge/compartment (COMPARTMENT node ids, comp_base == node_base)/seam ids and returns SectionBases {node_base, edge_base, comp_base} stored per instance; the bsearch reverse lookup covers template-range ids only (stubs resolve via GraphView.section_of)"
+    write_access: LM1 (section, body, room) and LM3 (body) only
+    referenced_by:
+      - docs/architecture/adr-0013-ship-layout-block-geometry-and-id-allocation.md
+    added: 2026-10-29
+    revised: 2026-10-29
+  - state: controller_state_block
+    status: active           # ADR-0019 is Proposed
+    owner_system: player-controller-input (Controller Sim)
+    adr: docs/architecture/adr-0019-player-controller-split-and-input-contexts.md
+    interface: "block controller.state (SIM, persist WORLD, PER_PLAYER keyed by PlayerId, repl_hint SHARED_SUMMARY, gameplay true, not interpolated); one ControllerRow per seat, created by default_state (MVP: one host row); ControllerSchema.fields() is the single field list for the typed row, the ControllerView getters and the column-per-field snapshot payload; owns intent, gait, committed aim, facing, loco_state, carry_ref (id from Interaction's instance counter, held as Suit's carried instance), channel_ref/face/body, cap_seen and timers; owns NO position (Ship Body owns pos, sub, odometer, PC-14); the chest and hand points are NOT stored: they are read-time scalar getters over BodyView.pos_x/pos_y plus the frozen ControllerCatalog table"
+    write_access: controller-own-callables-and-four-published-mutators
+    referenced_by:
+      - docs/architecture/adr-0019-player-controller-split-and-input-contexts.md
+    added: 2026-10-29
+    revised: "2026-10-29 (review: chest_sim/hand_sim removed, CT-28)"
+  - state: input_adapter_local_state
+    status: active           # ADR-0019 is Proposed
+    owner_system: input-adapter (INPUT_SURFACE)
+    adr: docs/architecture/adr-0019-player-controller-split-and-input-contexts.md
+    interface: "Adapter-local, never persisted, never hashed, never in controller.state: EdgeRing, held-set and held ledger, last_acked per intent kind, hold and tap timers, run latch, device latch, input context, pre-play ledger keyed by correlation, menu latch and last NAV direction, pending_tool, cursor_off and the virtual cursor (virtual-cursor mode when warp is a no-op); published only through the pulled AdapterViews with sequence counters. The Adapter is the last child of its parent so its _input runs first"
+    write_access: input-adapter-only
+    referenced_by:
+      - docs/architecture/adr-0019-player-controller-split-and-input-contexts.md
+    added: 2026-10-29
+    revised: "2026-10-29 (review: held-set, virtual cursor, last-child placement)"
+  - state: graph_hook_products
+    status: active  # ADR-0012 is Proposed; ADR-0011 adopts the columns by ruling CT-04
+    owner_system: life-support-graph
+    adr: docs/architecture/adr-0012-graph-propagation-scheme.md
+    interface: "n_served (permille) and n_draw (dJ per step) per power consumer node, the net load of a CABLE edge (edge column e0) and the five-int header window power_use_w5, written only by propagate phase 2, canonical zero elsewhere; persisted so a restore on any tick equals the uninterrupted run"
+    read_by: [emitter-state, suit, interaction, in-world-instruments, attention, failure-and-trail]
+    added: 2026-10-29
+    referenced_by:
+      - docs/architecture/adr-0012-graph-propagation-scheme.md
+  - state: rect_index_and_layout_versions
+    status: active           # ADR-0014 is Proposed
+    owner_system: "ship-section-and-layout-data-model (LayoutDerived: RectIndex, LayoutVersions)"
+    adr: docs/architecture/adr-0014-geometry-broadphase-and-occluder-source-seam.md
+    interface: "derived per-body row table + dense CSR grid; per-section int64 version/static_version/leaf_version held in private columns (_version_col/_static_col/_leaf_col) read through bounds-guarded version_of/static_version_of/leaf_version_of getters (0 = no live section); version_epoch, tick-stamped changed_region (new_epoch resets stamp_tick to -1); read only through the SolidQuery and OccluderSource ports; never persisted, hashed or snapshotted"
+    write_access: layout-only (rebuild_body/release_body/rebuild_all/set_extent/set_empty; LayoutVersions bump_static/bump_leaf/invalidate/stamp_*/new_epoch)
+    referenced_by:
+      - docs/architecture/adr-0014-geometry-broadphase-and-occluder-source-seam.md
+    added: 2026-10-29
+    revised: ""
+  - state: body_state
+    status: active           # ADR-0015 is Proposed
+    owner_system: ship-body-and-interior-physics (BodyModule)
+    adr: docs/architecture/adr-0015-integer-kinematics-and-the-ship-body.md
+    interface: "block body.state (SIM, WORLD, SHARED, gameplay, interpolated, restore_after [layout.state], fault domain 5); persisted: next_actor_id, per-actor {actor_id, kind SEAT=1/AGENT=2, seat, body_id, pos_curr, sub, last_octant, odometer}, sparse per-body {body_id, world_x, world_y, vel_x, vel_y, heading_q}; every int32 column value range-checked before write (body_id 1..2^31-1, seat 0..MAX_SEAT, pos within BODY_COORD_LIMIT, else restore reason BDY_RESTORE_COLUMN_RANGE (fault domain 5, local 33)); interpolated true with commit_baseline a no-op and snap_baseline setting prev := curr (the Body rolls its own pair in the hook); callables snapshot, restore, default_state, post_restore, read_view, empty_view, commit_baseline, snap_baseline, binding_source (seat_bindings as [(player_id, actor_id)], SEAT rows, ascending); derived and never persisted or hashed: pos_prev, blocked, world_prev; read only through BodyView"
+    write_access: body.integrate hook and mutators BM1-BM8 only (called from Assembly, Transit or Web Map apply after the Layout mutator; BM8 release_body after LM4)
+    referenced_by:
+      - docs/architecture/adr-0015-integer-kinematics-and-the-ship-body.md
+    added: 2026-10-29
+    revised: 2026-10-29
+    # was: no revised stamp; ADR-0015 GDD-sync items applied 2026-10-29 (callables, restore reason, event tick and seat)
+  - state: restore_plan
+    status: active           # ADR-0016 is Proposed; entries become binding when it is Accepted
+    owner_system: command-simulation-layer (kernel)
+    adr: docs/architecture/adr-0016-restore-ordering-and-cross-block-verification.md
+    interface: "RestorePlan (RefCounted, src/kernel/restore_plan.gd): private _order, _rank, _world_order, _post_order, _bind_order as PackedInt32Arrays read through order_at/rank_of/size and world_*/post_*/bind_* accessors; compiled once at the registry freeze from BlockDescriptor.restore_after by Kahn with smallest-registration-index tie-break (bind_order via CanonicalEncoder.sorted_string_keys); immutable by convention (hash of describe() checked); tests install alternatives through RestorePlan.from_order, which validates a linear extension; H1 allow-list name in the registries group (ADR-0003 section 10 ask)"
+    write_access: kernel-only
+    pattern: direct_call
+    producer: every-block-owner (via restore_after)
+    consumers:
+      - command-simulation-layer
+      - save-load
+      - debug-overlay
+    referenced_by:
+      - docs/architecture/adr-0016-restore-ordering-and-cross-block-verification.md
+    added: 2026-10-29
+    revised: 2026-10-29
+  - state: emitter_state
+    status: active           # ADR-0017 is Proposed
+    owner_system: emitter-state-and-light-exposure-query
+    adr: docs/architecture/adr-0017-emitter-state-and-integer-light-exposure-query.md
+    interface: "emitter.state: one SIM block (persist true, WORLD, SHARED, schema 1, restore_after layout/graph/body/controller); canonical = hdr {next_emitter_id, last_place_tick, fault_step_seen} + emitters (25 columns) + subjects (11 columns incl. the lit bit and the pending intents); everything else (body_id, origin, reach, output, pair rows, grids, sums, read-view columns) is EmitterDerived, never saved, never hashed; EmitterView is the only read path"
+    write_access: "E1..E10 mutators inside a WriteScope by their declared callers, the emitter.place hook, and the commands toggle_beam, set_switch, set_beacon"
+    referenced_by:
+      - docs/architecture/adr-0017-emitter-state-and-integer-light-exposure-query.md
+    added: 2026-10-29
+    revised: ""
+  - state: projector_scene_tree
+    status: active           # ADR-0034 is Proposed
+    owner_system: layout projector and body.projector (src/presentation/projector/)
+    adr: docs/architecture/adr-0034-projector-scene-shape-and-y-sort.md
+    interface: "BodyScenes mutation facade (attach, attach_presenter, attach_light, detach, rebind; no getter) and SectionScene handles; the Layout projector creates nodes only in Staging or through SectionScene methods and all parenting and SortedLayer insertion under a body root is body.projector's; ProjectorRoot, Staging, World, BodyRoot and band-group nodes are engine-side derived objects, never persisted, hashed or replicated"
+    referenced_by:
+      - docs/architecture/adr-0034-projector-scene-shape-and-y-sort.md
+    added: 2026-10-29
+    revised: ""
 
 # Example:
 #
@@ -267,6 +409,7 @@ interfaces:
     referenced_by:
       - docs/architecture/adr-0002-authority-model-and-command-pipeline.md
       - docs/architecture/adr-0001-kernel-tick-driver-and-frame-order.md
+      - docs/architecture/adr-0019-player-controller-split-and-input-contexts.md
     added: 2026-10-28
     revised: ""
   - contract: system_command_submission
@@ -330,6 +473,8 @@ interfaces:
       - docs/architecture/adr-0004-change-notification-and-dirty-keys.md
       - docs/architecture/adr-0009-presentation-subscriber-contract.md
       - docs/architecture/adr-0006-save-container-generations-versioning-and-restore-epoch.md
+      - docs/architecture/adr-0019-player-controller-split-and-input-contexts.md
+      - docs/architecture/adr-0016-restore-ordering-and-cross-block-verification.md
     added: 2026-10-28
     revised: 2026-10-28
   - contract: block_registration
@@ -356,13 +501,17 @@ interfaces:
       - cross-block-apply-and-hook-callers
     adr: docs/architecture/adr-0003-state-block-registry-and-owner-contract.md
     # was: "Class A check_x(views, args) -> StringName and x(scope, args, out) -> int (OK 0, REFUSED 1, -fault_code); Class B x(scope, args) -> void; every mutator begins scope.open_for(block) and marks scope.mark_dirty"
-    signal_signature: "Class A check_x(views, args) -> StringName and x(scope, args, out) -> int (OK 0, REFUSED 1, -fault_code); Class B x(scope, args) -> void; every mutator begins scope.open_for(block) and marks scope.mark_dirty(block, key) (key layout ADR-0004 section 3) or scope.emit_event(block, kind, a0..a5); WriteScope.has_opened(block_index) -> bool is a pure read for the hash path"
+    # was: "Class A check_x(views, args) -> StringName and x(scope, args, out) -> int (OK 0, REFUSED 1, -fault_code); Class B x(scope, args) -> void; every mutator begins scope.open_for(block) and marks scope.mark_dirty(block, key) (key layout ADR-0004 section 3) or scope.emit_event(block, kind, a0..a5); WriteScope.has_opened(block_index) -> bool is a pure read for the hash path"
+    signal_signature: "Class A pure check (conventionally check_x(views, args) -> StringName, &\"\" = OK; an owner may keep a GDD-published can_x name with the same shape and return contract, e.g. Layout can_build/can_attach/can_detach/can_discard, Body) and x(scope, args, out) -> int (OK 0, REFUSED 1, -fault_code); the out object exists only when the mutator produces data, so a status-only Class A is x(scope, args) -> int with no out (the Controller four); Class B x(scope, args) -> void that clamps and never rejects, with an optional trailing caller-owned out outcome object for a non-error answer (duplicate, overflow, cap reached) and still no status and no scope.fault; every mutator begins scope.open_for(block) and marks scope.mark_dirty(block, key) (key layout ADR-0004 section 3) or scope.emit_event(block, kind, a0..a5); WriteScope.has_opened(block_index) -> bool is a pure read for the hash path"
     referenced_by:
       - docs/architecture/adr-0003-state-block-registry-and-owner-contract.md
       - docs/architecture/adr-0004-change-notification-and-dirty-keys.md
       - docs/architecture/adr-0005-determinism-keyed-rng-canonical-encoding-and-hashing.md
+      - docs/architecture/adr-0013-ship-layout-block-geometry-and-id-allocation.md
+      - docs/architecture/adr-0019-player-controller-split-and-input-contexts.md
+      - docs/architecture/adr-0015-integer-kinematics-and-the-ship-body.md
     added: 2026-10-28
-    revised: 2026-10-28
+    revised: 2026-10-29
   - contract: content_loading
     status: active           # ADR-0007 is Proposed
     pattern: direct_call
@@ -403,6 +552,8 @@ interfaces:
     referenced_by:
       - docs/architecture/adr-0004-change-notification-and-dirty-keys.md
       - docs/architecture/adr-0003-state-block-registry-and-owner-contract.md
+      - docs/architecture/adr-0013-ship-layout-block-geometry-and-id-allocation.md
+      - docs/architecture/adr-0015-integer-kinematics-and-the-ship-body.md
     added: 2026-10-28
     revised: ""
   - contract: canonical_encode_and_hash
@@ -419,6 +570,7 @@ interfaces:
     signal_signature: "block_hash(block_id: StringName, uncached: bool = true) -> BlockHashResult {ok, h64, reason: BLOCK_HASH_IN_WRITE | BLOCK_HASH_UNKNOWN | BLOCK_HASH_ENCODE_ERROR}; state_hash(scope: PERSIST | ALL_SIM, T: int, uncached: bool = true) -> int; canonical_encode(value: Variant) -> PackedByteArray; Hash64.of_value(value) -> int; Hex64.encode(x) -> String / Hex64.decode(s) -> Hex64Result {ok, value}; internal block_hash_any(block_index: int) -> int (SIM_WRITE_TRIPWIRE profiles; tripwire and ADR-0004 audit only); no H64 value is reserved as a sentinel (0 is legal); hash_algo 2 names the whole definition (TLV tags, key order, normalisation, fold framing, SHA-256 first 8 bytes LE)"
     referenced_by:
       - docs/architecture/adr-0005-determinism-keyed-rng-canonical-encoding-and-hashing.md
+      - docs/architecture/adr-0013-ship-layout-block-geometry-and-id-allocation.md
     added: 2026-10-28
     revised: ""
   - contract: keyed_rng
@@ -477,6 +629,9 @@ interfaces:
     referenced_by:
       - docs/architecture/adr-0006-save-container-generations-versioning-and-restore-epoch.md
       - docs/architecture/adr-0003-state-block-registry-and-owner-contract.md
+      - docs/architecture/adr-0011-life-support-graph-data-model.md
+      - docs/architecture/adr-0013-ship-layout-block-geometry-and-id-allocation.md
+      - docs/architecture/adr-0015-integer-kinematics-and-the-ship-body.md
     added: 2026-10-28
     revised: ""
   - contract: save_observation_set
@@ -505,6 +660,7 @@ interfaces:
     signal_signature: "RenderLayout.derive(window_px: Vector2i, settings: DisplaySettings, zoom_k: int, tuning: RenderTuning, offered_h: Array[int]) -> RenderLayout (static, pure; offered_h duplicated on entry); world_to_hud(body_pos: Vector2i, pose_q: Vector2i) -> Vector2i (the only form); mouse_to_world_aim(cursor_px: Vector2i, f_q: Vector2i) -> Vector2 (open loop, D.14b); mouse_to_world_view(cursor_px: Vector2i, pose_q: Vector2i) -> Vector2 (never for beam aim); PipelineRoot.layout (read-only), PipelineRoot.layout_version (read-only)"
     referenced_by:
       - docs/architecture/adr-0008-render-pipeline-wiring-and-integer-scaling.md
+      - docs/architecture/adr-0019-player-controller-split-and-input-contexts.md
     added: 2026-10-28
     revised: ""
   - contract: filter_hook_slot
@@ -529,6 +685,7 @@ interfaces:
     signal_signature: "PipelineRoot.request_zoom_step(direction: int) -> void (+1 in, -1 out; edge-triggered; one accepted step per frame and >= 0.15 s apart on the _process delta divided by Engine.time_scale; surplus discarded); PipelineRoot.apply_display_settings(settings: DisplaySettings) -> void (marks dirty only; DisplaySettings is persisted host-locally by the Chart Table SettingsStore, CT-19, ADR-0030)"
     referenced_by:
       - docs/architecture/adr-0008-render-pipeline-wiring-and-integer-scaling.md
+      - docs/architecture/adr-0019-player-controller-split-and-input-contexts.md
     added: 2026-10-28
     revised: ""
   - contract: presentation_facet
@@ -541,6 +698,7 @@ interfaces:
     signal_signature: "PresentationFacet {views: PresentationViews, clock: PresentationClock, key_capacity: int, perception_access: bool (read-only; true only on the Perception Filter's facet and DIAGNOSTIC facets), subscribe(block_id: StringName, handler: Callable, subscriber_name: StringName) -> SubscriptionHandle}; class-bound wrapper around NotifyFacet (bound by the composition root at issue), lives in src/kernel/facets/; subscription is per block (ADR-0004); handler is a 2-argument method Callable (batch: ChangeBatch, ctx: NotifyContext) -> CompletionToken ending in return ctx.complete(); a PERCEPTION_OUT subscription without perception_access is refused with SUBSCRIBE_REFUSED (ADR-0004 check 6)"
     referenced_by:
       - docs/architecture/adr-0009-presentation-subscriber-contract.md
+      - docs/architecture/adr-0019-player-controller-split-and-input-contexts.md
     added: 2026-10-28
     revised: ""
   - contract: presentation_stage_order
@@ -553,6 +711,9 @@ interfaces:
     signal_signature: "PresentationStage PROJECT 0, CAMERA_SOLVE 1, AVATAR 2, FILTER 3, INSTRUMENTS 4, HUD 5, LIGHTING 6, TRAIL 7, AUDIO 8, DEBUG 9; PresentationDiscontinuity RESTORE 0, CAMERA_CUT 1; PresenterDescriptor {name, stage, reads: Array[int] (each strictly earlier), after: Array[StringName] (same-stage predecessors), present: Callable(frame: PresentFrame) -> void, on_discontinuity: Callable(kind: int) -> void; both standard method Callables of exactly one argument}; PresentationDriver.register / freeze (packed stage*1024+registration_index keys, Array.sort) / frame(host_delta, present_time) / notify_camera_cut; files in src/presentation/pipeline/"
     referenced_by:
       - docs/architecture/adr-0009-presentation-subscriber-contract.md
+      - docs/architecture/adr-0019-player-controller-split-and-input-contexts.md
+      - docs/architecture/adr-0018-shadow-origin-and-beam-occlusion-consistency.md
+      - docs/architecture/adr-0034-projector-scene-shape-and-y-sort.md
     added: 2026-10-28
     revised: ""
   - contract: wall_clock
@@ -582,6 +743,465 @@ interfaces:
       - docs/architecture/adr-0004-change-notification-and-dirty-keys.md
       - docs/architecture/adr-0009-presentation-subscriber-contract.md
     added: 2026-10-28
+    revised: ""
+  - contract: graph_read_view
+    status: active           # ADR-0011 is Proposed
+    pattern: direct_call
+    producer: life-support-graph
+    consumers:
+      - failure-and-trail-system
+      - emitter-state-and-light-exposure-query
+      - suit-and-equipment
+      - in-world-instruments-and-inspect-view
+      - adaptive-audio-and-tells
+      - perception-filter
+      - interaction-system
+      - save-load-and-versioned-format
+    adr: docs/architecture/adr-0011-life-support-graph-data-model.md
+    signal_signature: "GraphView (getter-only facade from read_view): step_no() = floor_div(clock.tick(), GRAPH_STEP_TICKS); typed scalar getters with documented not-live sentinels and the guards node_live/edge_live/compartment_live (compartment_p/p_o2/t/bands, node_state (STATE_NONE -1 when not live)/hp/load_subtype/served_pm (the persisted n_served)/run_pm/stock_pm, edge_state/hp, opening_area, section_of, section_dormant); last_step_no() = the last step whose failure hook completed; compartments_in_section(section_id, out: PackedInt32Array) -> int; desc_* row getters and descriptors_of; alarm_sections(out: PackedInt32Array) -> int; failures(filter: FailureFilter, out: FailureSlice) -> void (store row indices, no allocation); true_value(kind, id) with kinds P, P_O2, T, STOCK_PM, SUPPLY, DEMAND, LOAD_PM, HP; pure, true values only"
+    referenced_by:
+      - docs/architecture/adr-0011-life-support-graph-data-model.md
+    added: 2026-10-29
+    revised: ""
+  - contract: graph_mutator_value_types
+    status: active
+    pattern: direct_call
+    producer: life-support-graph
+    consumers:
+      - modular-ship-assembly
+      - ship-section-and-layout-data-model
+      - interaction-system
+      - web-map-and-transit
+    adr: docs/architecture/adr-0011-life-support-graph-data-model.md
+    signal_signature: "caller-owned reusable RefCounted out/in objects with preallocated packed buffers: JoinPlan (inputs section_a, section_b, q, l_seam, pair_*, open_*; outputs res_*), WeldResult {seam_id, opening_count, opening_ids}, SectionBases {node_base, edge_base, comp_base} (ADR-0013's record in src/sim/layout/views/; InstantiateResult is deleted), SalvageRecord {def_id, hp, state, hp_cap, patched_at_step}, FailureFilter, FailureSlice {idx, count}; ADR-0012 owns can_join semantics"
+    referenced_by:
+      - docs/architecture/adr-0011-life-support-graph-data-model.md
+    added: 2026-10-29
+    revised: ""
+  - contract: graph_room_source_port
+    status: active
+    pattern: direct_call
+    producer: ship-section-and-layout-data-model
+    consumers:
+      - life-support-graph
+    adr: docs/architecture/adr-0011-life-support-graph-data-model.md
+    signal_signature: "@abstract RoomSource {room_volume_tiles(room_ref) -> int (-1 unknown), room_exposed_tiles(room_ref) -> int}; implemented by Layout's LayoutRoomSource (layout.room_source() is passed to GraphModule.setup); overrides write the explicit -> int and return on all paths; test fakes are hand-written extends RoomSource classes in tests/support (ADR-0010 3.5), not gdUnit4 mock(); read in post_restore and ensure_derived only"
+    referenced_by:
+      - docs/architecture/adr-0011-life-support-graph-data-model.md
+    added: 2026-10-29
+    revised: ""
+  - contract: graph_layout_port_adapter
+    status: active           # ADR-0011 and ADR-0013 are co-accepted (mutual ports)
+    pattern: direct_call
+    producer: life-support-graph
+    consumers:
+      - ship-section-and-layout-data-model
+    adr: docs/architecture/adr-0011-life-support-graph-data-model.md
+    signal_signature: "GraphLayoutAdapter extends LayoutGraphPort (src/sim/graph/graph_layout_adapter.gd, outside ports/ because ARCH-05 requires every file under ports/ to be @abstract), exposed as graph.layout_port() and passed to LayoutModule.bind_graph by the composition root: check_instantiate_section(views, section_id, template_id, kind) -> StringName; instantiate_section(scope, section_id, template_id, kind, out: SectionBases) -> int (M1; its only caller is Layout LM1); opening_into(edge_id, out: OpeningRead) -> bool (door_state derived from area); seam_openings_into(seam_id, out: SeamOpenings) -> bool (socket_plan.openings order, valid after restore); section_counts_into(section_id, out: SectionCounts) -> bool (template-range counts, stub_count, tombstoned; persisted columns only); allocation-free, caller-owned outs"
+    referenced_by:
+      - docs/architecture/adr-0011-life-support-graph-data-model.md
+    added: 2026-10-29
+    revised: ""
+  - contract: layout_mutators
+    status: active
+    pattern: direct_call
+    producer: ship-section-and-layout
+    consumers:
+      - web-map-and-transit
+      - modular-ship-assembly
+    adr: docs/architecture/adr-0013-ship-layout-block-geometry-and-id-allocation.md
+    signal_signature: "Four Class A mutators, no Class B: build_section(scope, template_id, kind, out: BuildResult)->int (Web Map init_world, INIT scope), attach_section(scope, socket_ref_a, socket_ref_b, seam_id, welded_at_T, out: AttachResult)->int (Assembly weld apply after Graph weld_join), detach_section(scope, seam_id, boundary_mode, out: DetachResult)->int (after Graph cut_detach), discard_section_geometry(scope, section_id)->int (Web Map only; invalidates versions; BM8 release_body follows in the same apply); pure checks can_build/can_attach/can_detach/can_discard(views, ...)->StringName (&\"\" = OK; reasons closed sets; can_attach has nine incl. COORD_LIMIT; can_build passes Graph reasons as GRAPH_<REASON>); preview_attach(a, b, out: AttachPreview) for {reason, hatch_one_sided, openings_count}; socket_plan canonicalised survivor-first; result records are caller-owned plain-var records with reset(), arrays filled in place with a count, valid until the next Layout call; socket_ref = (section_id << 4) | socket_index with SOCKET_INDEX_BITS declared in SocketRef"
+    referenced_by:
+      - docs/architecture/adr-0013-ship-layout-block-geometry-and-id-allocation.md
+    added: 2026-10-29
+  - contract: layout_graph_port
+    status: active
+    pattern: direct_call
+    producer: life-support-graph (GraphLayoutAdapter extends the port; src/sim/graph/graph_layout_adapter.gd, exposed as graph.layout_port(); bound via LayoutModule.bind_graph after GraphModule.setup and before the registry freeze)
+    consumers:
+      - ship-section-and-layout
+    adr: docs/architecture/adr-0013-ship-layout-block-geometry-and-id-allocation.md
+    signal_signature: "@abstract LayoutGraphPort (src/sim/layout/ports/): check_instantiate_section(views, section_id, template_id, kind)->StringName; instantiate_section(scope, section_id, template_id, kind, out: SectionBases)->int; opening_into(edge_id, out: OpeningRead)->bool (false = unknown); seam_openings_into(seam_id, out: SeamOpenings)->bool; section_counts_into(section_id, out: SectionCounts)->bool (template-range counts, stub_count, tombstoned; persisted columns only); reads valid in APPLY, INIT, HOOK, post_restore; writer in APPLY and INIT; all reads allocation-free, caller-owned out; a call before bind_graph is an asserted defect; co-accepted with ADR-0011"
+    referenced_by:
+      - docs/architecture/adr-0013-ship-layout-block-geometry-and-id-allocation.md
+    added: 2026-10-29
+  - contract: layout_room_source
+    status: active
+    pattern: direct_call
+    producer: ship-section-and-layout (LayoutRoomSource extends RoomSource, src/sim/layout/layout_room_source.gd, exposed as layout.room_source())
+    consumers:
+      - life-support-graph
+    adr: docs/architecture/adr-0013-ship-layout-block-geometry-and-id-allocation.md
+    signal_signature: "room_volume_tiles(room_id)->int (wraps V) and room_exposed_tiles(room_id)->int (wraps exposed_tiles); -1 for an unknown room; allocation-free ## @hot; passed by the composition root to GraphModule.setup; mutual port with LayoutGraphPort (co-acceptance with ADR-0011)"
+    referenced_by:
+      - docs/architecture/adr-0013-ship-layout-block-geometry-and-id-allocation.md
+    added: 2026-10-29
+  - contract: layout_read_views
+    status: active
+    pattern: direct_call
+    producer: ship-section-and-layout (LayoutViews facade, extends RefCounted only, built inside LayoutModule.setup; port adapters LayoutRoomSource, LayoutSolidQuery, LayoutOccluderSource)
+    consumers:
+      - ship-body-and-interior-physics
+      - emitter-state-and-light-exposure-query
+      - horror-entities
+      - interaction-system
+      - failure-and-trail-system
+      - pixel-perfect-render-pipeline-camera
+    adr: docs/architecture/adr-0013-ship-layout-block-geometry-and-id-allocation.md
+    signal_signature: "Hot tier (allocation-free, ## @hot, the Layout HOT-01 tag list): room_at, floor_tile_at, section_at, section_offset_x/_y, body_of, body_is_live, body_state, section_contains, node_base/edge_base/comp_base, version/static_version/leaf_version, changed_region, door_passage_into, leaf_would_overlap, leaf_obstruction_into, V, exposed_tiles, room_volume_tiles, room_exposed_tiles, SlotFeed; cold tier returns records (AnchorGeometry, RoomSurface, DoorPassage, RoomAdjacencyRow, SubjectAnchor with console_role iff kind_hint CONSOLE) set in _init; out records are plain typed vars written only by Layout (LAY-REC-01); section-local frame except body-frame reads (rects_in, solid_in, section_rects_into, ...); fixed orders; no perceived variant; emitter-placement accessors on SectionTemplates; RectFlags in src/sim/layout/rect_flags.gd"
+    referenced_by:
+      - docs/architecture/adr-0013-ship-layout-block-geometry-and-id-allocation.md
+    added: 2026-10-29
+  - contract: controller_view
+    status: active           # ADR-0019 is Proposed
+    pattern: direct_call
+    producer: player-controller-input (Controller Sim)
+    consumers:
+      - ship-body-and-interior-physics
+      - interaction-system
+      - modular-ship-assembly
+      - attention-system
+      - horror-entities
+      - hud-and-suit-layer
+      - adaptive-audio-and-tells
+      - emitter-and-light-exposure
+      - input-adapter
+    adr: docs/architecture/adr-0019-player-controller-split-and-input-contexts.md
+    signal_signature: "ControllerView (src/sim/controller/views/controller_view.gd), long-lived getter-only facade registered via read_view at the freeze, keyed by PlayerId, one style get_<noun>(player_id): get_loco_state, get_octant, get_gait_effective, get_facing, get_aim_angle, get_aim_live, get_intent_octant, get_intent_run, get_carry_ref, get_salvage_carry, get_channel_ref(player_id, out), get_channel_face, get_stagger_end_tick, get_t_downed; read-time scalar points get_chest_x/get_chest_y/get_hand_x/get_hand_y -> int (absolute body-frame integers, O(1), allocation-free, never stored, no Vector2i); non-field accessors has_row(player_id) -> bool, row_count(), is_empty(). Body reads octant and gait_effective only; Interaction and Assembly read intent_octant; Attention and Horror may name only get_loco_state (lint CTL-05)"
+    referenced_by:
+      - docs/architecture/adr-0019-player-controller-split-and-input-contexts.md
+    added: 2026-10-29
+    revised: "2026-10-29 (review: scalar chest/hand getters, has_row, full getter list)"
+  - contract: controller_mutators
+    status: active           # ADR-0019 is Proposed
+    pattern: direct_call
+    producer: player-controller-input (Controller Sim)
+    consumers:
+      - interaction-system
+      - modular-ship-assembly
+    adr: docs/architecture/adr-0019-player-controller-split-and-input-contexts.md
+    signal_signature: "Class A status-returning mutators on ControllerMutators: set_channel_ref(scope, actor, owner_system, channel_id, face_octant) -> int, clear_channel_ref(scope, actor) -> int, set_carry_ref(scope, actor, item_id) -> int, clear_carry_ref(scope, actor) -> int; status OK 0, REFUSED 1, -fault_code (PC_FACE_OCTANT_RANGE, PC_CHANNEL_OWNER_UNKNOWN, PC_CARRY_REF_INVALID, PC_NO_SUCH_ROW); face_octant 0..8 with 8 = NONE; callers stop at the first non-OK status and return ctx.complete(); the only cross-block write path into controller.state (AST lint CTL-04: assignments on a ControllerRow-typed receiver or access through the controller.state block object outside src/sim/controller/)"
+    referenced_by:
+      - docs/architecture/adr-0019-player-controller-split-and-input-contexts.md
+    added: 2026-10-29
+    revised: "2026-10-29 (review: CTL-04 restated as AST rule)"
+  - contract: adapter_views
+    status: active           # ADR-0019 is Proposed
+    pattern: direct_call     # presentation-local pulled view with monotonic sequence counters; never a command, never a sim read; an INPUT_ADAPTER-phase product readable by any stage
+    producer: input-adapter
+    consumers:
+      - avatar-presenter
+      - hud-and-suit-layer
+      - in-world-instruments-and-inspect-view
+      - adaptive-audio-and-tells
+      - chart-table-web-map-and-menus
+      - interaction-system
+    adr: docs/architecture/adr-0019-player-controller-split-and-input-contexts.md
+    signal_signature: "AdapterViews: get_context/get_context_seq, get_inspect_ref (the inspect_card_context_signal), get_device_latch/get_device_seq, get_glyph_token(action, device) -> KeycapToken (UNKNOWN is a member), get_confirm_view(out) with give_up_live, get_focus_ref, get_self_target, get_raw_aim, get_aim_source, get_cursor_px, get_preplay_count and get_preplay_entry(i, out) (body and sound only, never effect or beam light); set_cursor_hint written by the Chart Table layer"
+    referenced_by:
+      - docs/architecture/adr-0019-player-controller-split-and-input-contexts.md
+    added: 2026-10-29
+    revised: "2026-10-29 (review: complete signatures)"
+  - contract: input_source_port
+    status: active           # ADR-0019 is Proposed
+    pattern: direct_call
+    producer: engine-input-source (src/presentation/controller/input/engine_input_source.gd)
+    consumers:
+      - input-adapter
+    adr: docs/architecture/adr-0019-player-controller-split-and-input-contexts.md
+    signal_signature: "@abstract InputSource with exactly ten abstract methods, all implemented by EngineInputSource and FakeInputSource (a partial implementation is a parse error), each override restating its return type and returning on every path (lint CTL-13): begin_frame, get_action_milli(action) -> int (ANALOG_UNITS), is_action_down, drain_edges(out: EdgeRing), cursor_px() -> Vector2i, wheel_net, focus_flags, pad_flags, apply_cursor_mode (on change, re-asserted on FOCUS_IN and PAUSED->RUNNING), warp_cursor (Input.warp_mouse, window pixels); every analogue crosses as an int and every position as Vector2i so a recorded InputTrace reproduces the Adapter; FakeInputSource lives in tests/support/"
+    referenced_by:
+      - docs/architecture/adr-0019-player-controller-split-and-input-contexts.md
+    added: 2026-10-29
+    revised: "2026-10-29 (review: ten methods, typed returns, cursor re-assert)"
+  - contract: graph_propagation_hooks
+    status: active  # ADR-0012 is Proposed
+    pattern: kernel_hook_chain
+    producer: life-support-graph
+    consumers: [suit, attention, emitter-state, sanity]
+    signal_signature: "three HookDescriptors graph.propagate.power/.atmo/.failure, divisor GRAPH_STEP_TICKS, offsets from GraphTuning (0,2,4) each <= divisor-2, after chain with tolerates_stale true on both edges; step_no = floor_div(clock.tick(), graph_step_ticks); cursors last_step_power/_atmo/_failure and last_step_no (the failure hook's step; trails step_no by up to one step); stored schedule hdr.sched compared at the first run after a load"
+    adr: docs/architecture/adr-0012-graph-propagation-scheme.md
+    not: "a fourth Graph hook; a before: edge; catching up a missed step"
+    added: 2026-10-29
+    referenced_by:
+      - docs/architecture/adr-0012-graph-propagation-scheme.md
+  - contract: graph_input_queue_drain
+    status: active  # ADR-0012 is Proposed
+    pattern: queued_unconditional_channel
+    producer: life-support-graph
+    consumers: [emitter-state, interaction, suit, horror, attention]
+    signal_signature: "M14/M15/M17 enqueue into persisted bounded queues and drain only in phase 0 of the first graph.propagate.power execution that follows the deposit in kernel order (INIT, then tick, P2 before P3, compiled schedule position); an INIT deposit drains at the first power-hook tick after LOADING to RUNNING; grant returned only through the persisted draw_grant table"
+    adr: docs/architecture/adr-0012-graph-propagation-scheme.md
+    not: "synchronous apply of M14/M15/M17; a synchronous grant; a drain outside phase 0"
+    added: 2026-10-29
+    referenced_by:
+      - docs/architecture/adr-0012-graph-propagation-scheme.md
+  - contract: solid_query
+    status: active           # ADR-0014 is Proposed
+    pattern: direct_call     # injected @abstract port
+    producer: ship-section-and-layout-data-model (LayoutSolidQuery)
+    consumers:
+      - ship-body-and-interior-physics (via LayoutCollide, the ADR-0015 CollideSource adapter that holds a SolidQuery; the only permitted wrapper)
+      - horror-entities (assumed to use the same CollideSource, ADR-0023)
+    adr: docs/architecture/adr-0014-geometry-broadphase-and-occluder-source-seam.md
+    signal_signature: "SolidQuery.solid_in(body_id: int, ax0: int, ay0: int, ax1: int, ay1: int, out: QueryBuffer) -> int (count = out.count); canonical name (solid_in_into is synced to it); half-open input box, SOLID mask, current leaf state, body frame, OCCUPIED-span output (x0, y0, x1-1, y1-1); half-open consumers convert once inline: x1 = spans[4k+2] + 1, y1 = spans[4k+3] + 1; ascending rect_key, each once; overwrites out; empty box or unknown body returns 0 with out.status"
+    referenced_by:
+      - docs/architecture/adr-0014-geometry-broadphase-and-occluder-source-seam.md
+    added: 2026-10-29
+    revised: ""
+  - contract: occluder_source
+    status: active           # ADR-0014 is Proposed
+    pattern: direct_call     # injected @abstract port; one instance for the world
+    producer: ship-section-and-layout-data-model (LayoutOccluderSource)
+    consumers:
+      - emitter-state-and-light-exposure-query
+      - 2d-lighting-and-occlusion (occluder builder; ADR-0018 and ADR-0028 read spans as occupied spans)
+      - layout PROJECTOR (ADR-0034)
+    adr: docs/architecture/adr-0014-geometry-broadphase-and-occluder-source-seam.md
+    signal_signature: "OccluderSource.rects_in(body_id, ax0, ay0, ax1, ay1, out: QueryBuffer) -> int (OCCLUDES_LIGHT mask, occupied spans); section_rects_into(section_id, mask, out: QueryBuffer) -> int (body frame, occupied spans, ascending key, empty-extent rows omitted; section-scene consumers subtract section_offset_x/_y); version/static_version/leaf_version(section_id) -> int (0 = no live section); version_epoch() -> int; changed_region_kind(section_id) -> int (ChangedRegion NONE/ALL/REGION/FRAME, simulation-side, current tick only, advisory after a restore); changed_region_box_into(section_id, out: RegionBox) -> bool; section_of_key(key) -> int; idx_of_key(key) -> int (IntMath against the stride). Polygon corners are (x0, y0) and (x1_occ+1, y1_occ+1); Layout applies no shift"
+    referenced_by:
+      - docs/architecture/adr-0014-geometry-broadphase-and-occluder-source-seam.md
+    added: 2026-10-29
+    revised: ""
+  - contract: query_buffer
+    status: active           # ADR-0014 is Proposed
+    pattern: direct_call     # caller-owned out record
+    producer: ship-section-and-layout-data-model (src/sim/layout/views/query_buffer.gd)
+    consumers:
+      - ship-body-and-interior-physics
+      - emitter-state-and-light-exposure-query
+      - 2d-lighting-and-occlusion
+      - horror-entities
+    adr: docs/architecture/adr-0014-geometry-broadphase-and-occluder-source-seam.md
+    signal_signature: "QueryBuffer(initial_capacity): count (only valid length), status (OK/EMPTY_BOX/UNKNOWN_BODY/UNKNOWN_SECTION), keys PackedInt64Array, spans PackedInt32Array (4 per record x0,y0,x1-1,y1-1, occupied), flags PackedByteArray, cells_touched, candidates_tested, grew; public columns, no set( accessor; grow(min_capacity) is cold and geometric (maxi(min_capacity, capacity()*2)); a query overwrites"
+    referenced_by:
+      - docs/architecture/adr-0014-geometry-broadphase-and-occluder-source-seam.md
+    added: 2026-10-29
+    revised: ""
+  - contract: body_mutators
+    status: active           # ADR-0015 is Proposed
+    pattern: direct_call
+    producer: ship-body-and-interior-physics
+    consumers: [modular-ship-assembly, web-map-and-transit, derelict-authoring]
+    adr: docs/architecture/adr-0015-integer-kinematics-and-the-ship-body.md
+    signal_signature: "Class A: can_x(views, args) -> StringName (&\"\" = OK, BodyReasons) and x(scope, args, [out]) -> int (OK 0, REFUSED 1, -BodyFaults code, domain 5); place_actor(scope, body_id, x, y, kind, seat, out: PlaceResult), remove_actor, rebase_on_attach(scope, surviving, absorbed, shift_x, shift_y, moved_sections: PackedInt32Array) with can_rebase_attach (both LIVE, before LM2) and apply-time absorbed DISSOLVED (after LM2), rebase_on_detach(scope, old, new, moved_sections, shift_x, shift_y, cap_rects: PackedInt32Array) with can_rebase_detach(views, old, shift_x, shift_y, cap_rects) returning BDY_REBASE_ACTOR_IN_CAP, transfer_actor(scope, actor_id, to_body_id, x, y, cause), set_body_velocity, set_body_pose, release_body(scope, body_id) / can_release_body (BM8: deletes the pose row of a DISSOLVED body after LM4, refuses while actors remain); check-then-write; defects call PlanMismatchSink.report then scope.fault; BM4 pose or velocity saturation returns OK and does not fault; BM4 inserts the new pose row only if not canonical-empty"
+    added: 2026-10-29
+    referenced_by:
+      - docs/architecture/adr-0015-integer-kinematics-and-the-ship-body.md
+  - contract: locomotion_step
+    status: active           # ADR-0015 is Proposed
+    pattern: direct_call
+    producer: ship-body-and-interior-physics (src/sim/body/locomotion/)
+    consumers: [ship-body-and-interior-physics, horror-entities]
+    adr: docs/architecture/adr-0015-integer-kinematics-and-the-ship-body.md
+    signal_signature: "LocomotionStep(v_eff_max, decel_ladder_enabled).step(state: LocoState, intent: LocoIntent, collide: CollideSource) -> LocoResult and step_into(state, intent, collide, out: LocoResult) -> void with identical results; LocoState carries body_id (the frame, never written by step); pure RefCounted; trunc_div for the residue, floor_div only px-to-tile; octant NONE returns before any table index; CollideSource (@abstract, Body-side port wrapping ADR-0014 SolidQuery via LayoutCollide) query_into(body_id, ax0, ay0, ax1, ay1, out: QueryBuffer) -> int and origin_in_body(body_id, x, y) -> bool, no bind; QueryBuffer spans are inclusive and decoded only by RectSpans"
+    added: 2026-10-29
+    referenced_by:
+      - docs/architecture/adr-0015-integer-kinematics-and-the-ship-body.md
+  - contract: body_read_view
+    status: active           # ADR-0015 is Proposed
+    pattern: direct_call
+    producer: ship-body-and-interior-physics
+    consumers: [suit, interaction, emitter, lighting, controller.noise, controller, assembly, web-map-and-transit, body.projector, presentation]
+    adr: docs/architecture/adr-0015-integer-kinematics-and-the-ship-body.md
+    signal_signature: "BodyView (long-lived getter-only facade plus empty twin; neutral values for unknown actor or body via _find_actor_row == -1): pos_x/_y, prev_x/_y (scalars; a Vector2i only at an adapter boundary), body_of_actor, seat_of_actor, actor_of_seat, foot_boxes_into (ascending, unfiltered), actor_section/actor_local_x/_y (derived on demand, never cached), actors_overlapping_into, actors_on_into, world_*/vel_*/world_prev_*, docked, body_count, odometer, trapped_into, moved_x/_y (SIM only from a hook after body.integrate), blocked (a_blocked != 0; presentation and diagnostic only)"
+    added: 2026-10-29
+    referenced_by:
+      - docs/architecture/adr-0015-integer-kinematics-and-the-ship-body.md
+      - docs/architecture/adr-0019-player-controller-split-and-input-contexts.md
+  - contract: body_events
+    status: active           # ADR-0015 is Proposed
+    pattern: observer
+    producer: ship-body-and-interior-physics
+    consumers: [pipeline, body.projector, adaptive-audio, controller-diagnostics]
+    adr: docs/architecture/adr-0015-integer-kinematics-and-the-ship-body.md
+    signal_signature: "scope.emit_event(&body.state, kind, a0..a5): BODY_TRANSFER=1 (actor_id, old_body, new_body, frame_delta_x, frame_delta_y, cause WELD 1/DETACH 2/POD 3), BODY_DOCK_CONTACT=2 (surviving, absorbed), BODY_HULL_SEPARATION=3 (old, new); tick comes from the batch and seat from seat_of_actor (ADR-0015 section 11.5); dirty-key kinds BODY=2, ACT=4; quiet_writes_allowed=false"
+    added: 2026-10-29
+    referenced_by:
+      - docs/architecture/adr-0015-integer-kinematics-and-the-ship-body.md
+    revised: 2026-10-29
+    # was: no revised stamp; ADR-0015 GDD-sync items applied 2026-10-29 (callables, restore reason, event tick and seat)
+  - contract: restore_pass_stages
+    status: active           # ADR-0016 is Proposed
+    pattern: direct_call
+    producer: kernel
+    consumers:
+      - save-load
+      - every-persisted-block-owner
+    adr: docs/architecture/adr-0016-restore-ordering-and-cross-block-verification.md
+    signal_signature: "LOADING restore pass: R0 flush Dropped(RELOAD); R1 whole-payload pre-check in a fixed order (a payload keys as String ascending with kernel.clock known: RESTORE_UNKNOWN_BLOCK; b TICK_RATE_MISMATCH; c RESTORE_EPOCH_RANGE; d world_order schema_version: RESTORE_VERSION_UNSUPPORTED) with every block, clock and half (b) intact; R2 clock install (ClockView.tick() = recorded T during R3/R4; first RUNNING tick T+1) and clear half (b); R3 restore(data, stored_version, ctx) or default_state-through-restore per WORLD persisted block in DAG order; R4 post_restore(ctx) per WORLD persisted and non-persisted block in the same order; R5 uncached state_hash verdict (diagnostic only); R6 binding rebuild; R7 load_seq+1, one ALL batch per block, snap_baseline, RUNNING via load_done. New game: N3 default_state for every non-PROFILE block, N4 init_world in DAG order under one INIT scope, N5 post_restore, N6 rebind, N7 load_done. First fault in R3/R4/N3-N5/R6 stops the pass: FAULTED via load_failed with LoadFailure{kind, stage, block_id, code, detail}, no tick, no command, no snapshot, no ALL batch, load_seq unchanged, half (b) empty; exits only via request_restore / request_new_game. init_world only in N4, never in a restore. changed_region after a restore is advisory; version_epoch is authoritative. Cold-open pass kind deferred to the first PROFILE block."
+    referenced_by:
+      - docs/architecture/adr-0016-restore-ordering-and-cross-block-verification.md
+    added: 2026-10-29
+    revised: 2026-10-29
+  - contract: binding_source_payload
+    status: active           # ADR-0016 is Proposed
+    pattern: direct_call
+    producer: body.state (seat_bindings), emitter.state (beam_bindings)
+    consumers:
+      - command-simulation-layer
+    adr: docs/architecture/adr-0016-restore-ordering-and-cross-block-verification.md
+    signal_signature: "BlockDescriptor.binding_source(ctx: SnapshotContext) -> CompletionToken; pure read valid at any boundary (R6/N6 after every post_restore, and ADR-0002 STRICT_DEBUG BINDING_DRIFT during RUNNING); ctx.put(a NEW PackedInt64Array [player_id, entity_id, ...] on every call, never a member) strictly ascending by (player_id, entity_id), player_id >= 1; kernel walks sources in ascending String(block_id) fixed once at the freeze by CanonicalEncoder.sorted_string_keys (the kernel compares no StringName); conflicts: BINDING_REBUILD_CONFLICT (domain 0 code 3, existing) with detail reason CONFLICT_OWNER | DUPLICATE_TRIPLE | SHAPE | ORDER | PLAYER_RANGE | SOURCE_FAULT"
+    referenced_by:
+      - docs/architecture/adr-0016-restore-ordering-and-cross-block-verification.md
+    added: 2026-10-29
+    revised: 2026-10-29
+  - contract: post_restore_write_policy
+    status: active           # ADR-0016 is Proposed
+    pattern: direct_call
+    producer: every-block-owner
+    consumers:
+      - command-simulation-layer
+      - save-load
+    adr: docs/architecture/adr-0016-restore-ordering-and-cross-block-verification.md
+    signal_signature: "restore copies by value and owns nothing in the payload (Packed*Array via duplicate(), nested containers via duplicate(true), never retain data). post_restore(ctx) rebuilds the owner's derived members only: no persisted column write (except a REBASE_BLOCKS member's documented normalisation), no write to another block (REFUSED in the RESTORE scope), no clamp, prune, repair or default, no submit (SnapshotContext has none), no re-registration with another block; a fault only for a numbered verifier check; drift (e.g. IA_RESTORE_SUBJECT_DRIFT) is detected there and repaired by the owner's ordinary hook rule, a no-op on consistent state, with no first-run-after-restore flag. Reads: Tier S (persisted-answerable, incl. kernel.clock T and world_seed from R2) of any block; Tier D (needs post_restore) only of DAG predecessors; restore reads Tier S of closure predecessors only and derives no simulation state from T (a structural stamp comparison with T is allowed)."
+    referenced_by:
+      - docs/architecture/adr-0016-restore-ordering-and-cross-block-verification.md
+    added: 2026-10-29
+    revised: 2026-10-29
+  - contract: restore_verifier_contract
+    status: active           # ADR-0016 is Proposed
+    pattern: direct_call
+    producer: every-block-owner
+    consumers:
+      - modular-ship-assembly
+      - command-simulation-layer
+    adr: docs/architecture/adr-0016-restore-ordering-and-cross-block-verification.md
+    signal_signature: "Verifiers are owner-held, never kernel-held: static func verify_restore(views: <Owner>VerifierViews, out: VerifyOut) -> int returning 0 or a packed owner fault code, called from the owner's restore or post_restore at its DAG slot; SIM views only; allocation-free; same function reused by runtime assertions (Assembly INV-1/2/4/5/7 in release after each weld or cut). Fault names <DOMAIN>_RESTORE_<REASON> (restore) and <DOMAIN>_VERIFY_<INV> (cross-block post_restore). First failure wins; the numbered list V1..V16 is in ADR-0016 section 5.3 (V3 = the thirteen steps of ADR-0011 section 7.2 incl. the hook-cursor check, local code 26 RESTORE_HOOK_CURSOR; V7 decodes with GraphView.step_no() derived from the clock; V12 quotes INV-4 as at most one Body pose row per body and every row's body is live)."
+    referenced_by:
+      - docs/architecture/adr-0016-restore-ordering-and-cross-block-verification.md
+    added: 2026-10-29
+    revised: 2026-10-29
+  - contract: rebase_blocks_list
+    status: active           # ADR-0016 is Proposed
+    pattern: direct_call
+    producer: save-load (src/save/ constant) with tests/fixtures/rebase_blocks.json
+    consumers:
+      - save-load
+      - ci
+    adr: docs/architecture/adr-0016-restore-ordering-and-cross-block-verification.md
+    signal_signature: "REBASE_BLOCKS is a committed array with one data row per member {block_id, owner_adr, reason, exit}; CI fails on a stale entry (idempotent but listed), a missing entry (non-idempotent but unlisted) and any non-empty list in an outside-release build (flipped by the same SHIPPED decision as the ADR-0007 id ledgers); MVP interim member: interaction.state (layout.state restore is byte-identical, drift is diagnostic only); every persisted block registers a FixtureFactory {empty, typical, extreme}, each method returning a fresh payload per call, and the idempotence harness enumerates the registry"
+    referenced_by:
+      - docs/architecture/adr-0016-restore-ordering-and-cross-block-verification.md
+    added: 2026-10-29
+    revised: 2026-10-29
+  - contract: emitter_mutators
+    status: active           # ADR-0017 is Proposed
+    pattern: direct_call
+    producer: emitter-state-and-light-exposure-query
+    consumers: [web-map-and-transit, interaction-system, suit-and-equipment, horror-entities, derelict-authoring]
+    adr: docs/architecture/adr-0017-emitter-state-and-integer-light-exposure-query.md
+    signal_signature: "EmitterMutators: instantiate_section_emitters/discard_section_emitters/bind_beam/create_seat_beam/set_dock_status(scope, ..., out: EmitterOutcome) -> int (Class A); spawn_deployable(scope, kind, body_id, pos_x, pos_y, owner, life_ticks, out)/force_off/register_subject/unregister_subject/set_subject_anchor(scope, ..., [out: EmitterOutcome]) -> void (Class B); every mutator begins scope.open_for(&\"emitter.state\")"
+    referenced_by:
+      - docs/architecture/adr-0017-emitter-state-and-integer-light-exposure-query.md
+    added: 2026-10-29
+    revised: ""
+  - contract: emitter_view
+    status: active           # ADR-0017 is Proposed
+    pattern: direct_call
+    producer: emitter-state-and-light-exposure-query
+    consumers: [interaction-system, horror-entities, attention-system, sanity-and-hallucination-rules, 2d-lighting-and-occlusion, adaptive-audio-and-tells]
+    adr: docs/architecture/adr-0017-emitter-state-and-integer-light-exposure-query.md
+    signal_signature: "EmitterView (getter-only, long-lived): lux(ref) -> int, lit(ref) -> bool, top_emitter(ref) -> int, section_emission(section_id) -> int, subject_headroom() -> int, emitter_count()/id_at(rank)/rank_of(id), the 17 Lighting fields as scalar getters by id, beam_of(player_id), beam_spill_into(beam_id, out: SpillRecord) -> bool, emitters_near_into(body_id, px, py, r, out: IdBuffer) -> int; never a Packed*Array, never a retained reference; lit_by/probe/lit_static not in the MVP view; after a restore lit/beam_of/subject_headroom/the registration set are G4-exact while lux, top_emitter, output_of, r_lit_of, r_off_of and section_emission (lamp kinds and subjects) may differ for one run, so no validate or earlier hook decides state on them"
+    referenced_by:
+      - docs/architecture/adr-0017-emitter-state-and-integer-light-exposure-query.md
+    added: 2026-10-29
+    revised: ""
+  - contract: emitter_commands
+    status: active           # ADR-0017 is Proposed
+    pattern: command
+    producer: input-adapter, interaction-system, attention-system
+    consumers: [emitter-state-and-light-exposure-query]
+    adr: docs/architecture/adr-0017-emitter-state-and-integer-light-exposure-query.md
+    signal_signature: "toggle_beam (PLAYER, OWNED_BY_ISSUER/emitter.state, NONE, 120; NO_SUCH_EMITTER, NOT_ACTIONABLE, TOO_SOON, CHARGE_EMPTY); set_switch (PLAYER {emitter_id} | SYSTEM {emitter_id, on}; NO_SUCH_EMITTER, NOT_SWITCHABLE, [PLAYER] InteractionView.verb_precondition(actor, subject_ref, verb) -> StringName (NOT_LIT, OUT_OF_REACH, NOT_ACTIONABLE), COOLDOWN, NOT_LIVE (SYSTEM only)); set_beacon (SYSTEM {emitter_id, on}; NO_SUCH_EMITTER, NOT_BEACON, NOT_LIVE)"
+    referenced_by:
+      - docs/architecture/adr-0017-emitter-state-and-integer-light-exposure-query.md
+    added: 2026-10-29
+    revised: ""
+  - contract: exposure_kernel
+    status: active           # ADR-0017 is Proposed
+    pattern: pure_function
+    producer: emitter-state-and-light-exposure-query (src/shared/emitter/)
+    consumers: [emitter-state-and-light-exposure-query, derelict-authoring-handmade-kits (content lint), item-and-module-database (emits validation)]
+    adr: docs/architecture/adr-0017-emitter-state-and-integer-light-exposure-query.md
+    signal_signature: "ConeMath.in_cone(rx, ry, d2, ux, uy, cos2_q28) -> bool; SegmentMath.blocked(sx, sy, px, py, spans: PackedInt32Array, count) -> bool; ConeMath.floor_root(sq, d2) = sq.bsearch(d2, false) - 1; Illumination.contribution/radius_for(output_pm, curve_class, edge_floor_pm, ...); LitHysteresis.next (live W6 only); LampMath, WaneMath, BeaconMath; all static, int-only, L0"
+    referenced_by:
+      - docs/architecture/adr-0017-emitter-state-and-integer-light-exposure-query.md
+    added: 2026-10-29
+    revised: ""
+  - contract: shadow_origin_pure_functions
+    status: active
+    producer: lighting (src/presentation/lighting/)
+    consumers:
+      - avatar-presenter
+      - lighting
+      - shadow-origin-probe-pack
+    adr: docs/architecture/adr-0018-shadow-origin-and-beam-occlusion-consistency.md
+    signal_signature: "BeamOffset.offset_for(theta: float, vx: int, vy: int, ax: float, ay: float) -> Vector2 (pure, no Node, allocation-free); ShadowOrigin.render_origin(p: Vector2i) -> Vector2 = Vector2(p) + Placement.CELL_CENTRE; ShadowOrigin.Mode {FOOT_OFFSET, CHEST_NODE} (OCC_PUBLISHED added by the outcome-D amendment)"
+    pattern: direct_call
+    referenced_by:
+      - docs/architecture/adr-0018-shadow-origin-and-beam-occlusion-consistency.md
+    added: 2026-10-29
+  - contract: projector_attach_api
+    status: active           # ADR-0034 is Proposed
+    pattern: direct_call
+    producer: body.projector
+    consumers:
+      - avatar-presenter
+      - failure-and-trail-presenter
+      - interaction-presenter
+      - horror-presenter
+      - suit-presenter
+      - lighting-presenter
+    adr: docs/architecture/adr-0034-projector-scene-shape-and-y-sort.md
+    signal_signature: "BodyScenes.attach(body_id: int, band: int, node: Node2D, class_rank: int, entity_id: int, section_id: int, on_orphaned: Callable) -> int (OK 0, ERR_UNKNOWN_BODY, ERR_DUPLICATE_ID, ERR_BAND_DENIED, ERR_NO_SECTION); detach(node: Node2D) -> void; attach_presenter(actor_id: int, node: Node2D) -> int; attach_light(actor_id: int, beam_id: int, node: Node2D) -> int (parent is the BodyRoot of body_of_actor, namespace LIGHTING); rebind(node: Node2D, body_id: int, section_id: int) -> int (caller duty: call in the frame its owner's section changes, then Placement.put in the new frame). Foreign bands: Marks, Mounted, PropsActors, Dust; Floor, Faces and Caps are projector-only; the projector sets z, owners never write z_index. Foreign attachments are parked in Staging before any root is freed and on_orphaned is called when their body or section is gone. Mutation facade only, an ADR-0009 section 1 exception requested"
+    referenced_by:
+      - docs/architecture/adr-0034-projector-scene-shape-and-y-sort.md
+    added: 2026-10-29
+    revised: ""
+  - contract: camera_limits_sink
+    status: active           # ADR-0034 is Proposed; ADR-0008 is asked to consume it and to own rect_eff and the clamp rules
+    pattern: direct_call
+    producer: body.projector (stage PROJECT)
+    consumers:
+      - pipeline-root
+      - camera-solver
+    adr: docs/architecture/adr-0034-projector-scene-shape-and-y-sort.md
+    signal_signature: "CameraLimits (RefCounted value): the RAW hull bounding box, valid: bool, min_x, min_y, max_x, max_y: int (base px, avatar body frame, half-open max, north edge grown by WALL_FACE_PX + WALL_FOOTPRINT_DEPTH), body_id: int, epoch: int; body.projector is its only writer, in stage PROJECT before CAMERA_SOLVE; rect_eff, inner-box-first order, CLAMPED and JOLT are ADR-0008's; Camera2D.limit_* never written"
+    referenced_by:
+      - docs/architecture/adr-0034-projector-scene-shape-and-y-sort.md
+    added: 2026-10-29
+    revised: ""
+  - contract: projector_readiness
+    status: active           # ADR-0034 is Proposed; ADR-0008 is asked to read it
+    pattern: direct_call
+    producer: layout projector and body.projector
+    consumers:
+      - pipeline-root
+    adr: docs/architecture/adr-0034-projector-scene-shape-and-y-sort.md
+    signal_signature: "ProjectorReadiness: scene_epoch: int, pending_units: int, late_count: int, is_ready() -> bool; read by PipelineRoot for the TRANSIT_HOLD latch and as the release condition of the load hold (held until ready, so a restore or cold load never shows a partial interior); ARRIVE_SCENE_LATE is a DIAGNOSTIC count, never a SIM notification"
+    referenced_by:
+      - docs/architecture/adr-0034-projector-scene-shape-and-y-sort.md
+    added: 2026-10-29
+    revised: ""
+  - contract: entity_id_namespaces
+    status: active           # ADR-0034 is Proposed
+    pattern: direct_call
+    producer: src/shared/entity_id.gd and entity_ns.gd (L0)
+    consumers:
+      - layout-projector
+      - body-actor-publisher
+      - interaction-publisher
+      - horror-publisher
+      - suit-publisher
+      - web-publisher
+      - failure-and-trail-presenter
+      - lighting-presenter
+    adr: docs/architecture/adr-0034-projector-scene-shape-and-y-sort.md
+    signal_signature: "EntityId.pack(ns: int, local: int) -> int = (ns << 56) | local, ns 1..127; EntityNs LAYOUT 1, BODY 2, INTERACTION 3, HORROR 4, SUIT 5, WEB 6, TRAIL 7, LIGHTING 8 (a BodyScenes registration key, never a sort key), 9..127 reserved; the table is append-only with a golden test, never renumbered, and is not an acceptance condition; layout_local(section_id, kind_ordinal, idx) = (section_id << 24) | (kind_ordinal << 16) | idx with kind_ordinal DOOR_LEAF 1, PROP 2, MACHINE 3, BEAD 4, PLATE 5, SCAR 6, JAMB 7 (numbers assigned here, vocabulary owned by ADR-0013). A presentation sort-key composite, never a block id, never persisted"
+    referenced_by:
+      - docs/architecture/adr-0034-projector-scene-shape-and-y-sort.md
+    added: 2026-10-29
     revised: ""
 
 # Example:
@@ -616,11 +1236,14 @@ performance_budgets:
     status: active
     budget_ms: 2.0
     adr: docs/architecture/adr-0003-state-block-registry-and-owner-contract.md
-    notes: "P3 target 2.0 ms P99 on a release export on RM-DESKTOP and RM-DECK; STEP_BUDGET_MS 4 ms is an alarm threshold that logs the slowest hooks, never a target (IC-4)"
+    # was: "P3 target 2.0 ms P99 on a release export on RM-DESKTOP and RM-DECK; STEP_BUDGET_MS 4 ms is an alarm threshold that logs the slowest hooks, never a target (IC-4)"
+    notes: "P3 target 2.0 ms P99 on a release export on RM-DESKTOP and RM-DECK; STEP_BUDGET_MS 4 ms is an alarm threshold that logs the slowest hooks, never a target (IC-4). P3 share ledger (ADR-0003 section 8, CT-20, provisional pending S1; worst-aligned tick, every hook due): graph.propagate.* 0.5 (ADR-0012), body.integrate including solid_in 0.4 (ADR-0015, ADR-0014), emitter.place 0.4 (ADR-0017 EXPOSURE_BUDGET_MS), controller.step 0.16 (ADR-0019), layout.doors 0.2 (ADR-0013); Core sum 1.66, unallocated 0.34 for the Feature hooks; a share is raised only from the unallocated remainder, never by taking another row (an ADR citing this row cites that table)"
     referenced_by:
       - docs/architecture/adr-0003-state-block-registry-and-owner-contract.md
+      - docs/architecture/adr-0012-graph-propagation-scheme.md
+      - docs/architecture/adr-0017-emitter-state-and-integer-light-exposure-query.md
     added: 2026-10-28
-    revised: ""
+    revised: 2026-10-29
   - system: kernel_p5_notify
     status: active           # ADR-0004 is Proposed
     budget_ms: 0.25
@@ -677,6 +1300,115 @@ performance_budgets:
     referenced_by:
       - docs/architecture/adr-0008-render-pipeline-wiring-and-integer-scaling.md
     added: 2026-10-28
+    revised: ""
+  - system: graph_state_snapshot_size
+    status: active           # ADR-0011 is Proposed; synthetic-fixture estimate, release measurement pending (S3)
+    budget_ms: 0
+    adr: docs/architecture/adr-0011-life-support-graph-data-model.md
+    notes: "Column set of ADR-0011 section 3 measured 29.7 KB canonical bytes (29,674) at 105 nodes, 150 edges, 270 ports, 14 compartments (probed 2026-10-29, value-independent, synthetic defs of 60 offsets and 1,500 utf8 bytes); the persisted hook products (n_served, n_draw, 8 bytes per node row, plus the power-use window) bring the loaded roster to about 30.5 KB (about 30.7 KB with sched), about 4.6 percent headroom against the 32,000-byte ceiling of TR-lsg-036 (ADR-0012); reached near 111 nodes and 159 edges; a lifetime-worst fixture (every socket welded and cut RAGGED once) is a Validation item and lever 1 (fluid-stamp side table) is pre-committed; levers in section 3.11. budget_ms is not applicable (size budget)."
+    referenced_by:
+      - docs/architecture/adr-0011-life-support-graph-data-model.md
+    added: 2026-10-29
+    revised: ""
+  - system: layout_doors_hook
+    status: active
+    budget: "<= 0.2 ms at MAX_DOORS_LOADED animating doors on a release export (5 percent of STEP_BUDGET_MS); a row in the ADR-0003 P3 share ledger; pending spike S1 on RM-DESKTOP and RM-DECK (baseline: ~19 us per 48 doors in a debug editor probe, dominated by the per-door port call)"
+    adr: docs/architecture/adr-0013-ship-layout-block-geometry-and-id-allocation.md
+    referenced_by:
+      - docs/architecture/adr-0013-ship-layout-block-geometry-and-id-allocation.md
+    added: 2026-10-29
+  - system: can_attach_uncached
+    status: active
+    budget: "<= 2 ms uncached, both legs (ADR-0014 footprint_overlaps then Layout's tile-cell leg) at the largest MVP body pair, memoised on (socket_ref_a, socket_ref_b, static_version_a, static_version_b); pending spike S1 with ADR-0014"
+    adr: docs/architecture/adr-0013-ship-layout-block-geometry-and-id-allocation.md
+    referenced_by:
+      - docs/architecture/adr-0013-ship-layout-block-geometry-and-id-allocation.md
+    added: 2026-10-29
+  - system: controller_input_adapter
+    status: active           # ADR-0019 is Proposed; advisory, pending measurement on RM-DESKTOP and RM-DECK
+    budget_ms: 0.1
+    adr: docs/architecture/adr-0019-player-controller-split-and-input-contexts.md
+    notes: "Adapter per rendered frame (sampling, quantising, focus scoring over 32 candidates, submitting) P99 on a release export; sibling advisory sub-budgets: controller.step 0.02 ms per actor per tick (ADR-0003 P3 share-ledger row: 0.16 ms for eight, pending S1; controller.noise has no separate figure, reported by S1 as a sub-counter), Avatar Presenter 0.1 ms per avatar per frame, PC_* diagnostics 0.01 ms per tick (dev only), the read-time chest/hand getters are charged inside the caller's budget, LocomotionStep 0.05 ms per actor per tick at 2,000 rects (ADR-0015); a miss logs and never fails a logic test (TR-pc-029)"
+    referenced_by:
+      - docs/architecture/adr-0019-player-controller-split-and-input-contexts.md
+    added: 2026-10-29
+    revised: "2026-10-29 (review: CT-20 ledger row)"
+  - system: graph_hooks
+    status: active  # ADR-0012 is Proposed
+    budget_ms: 0.5
+    adr: docs/architecture/adr-0012-graph-propagation-scheme.md
+    notes: "GRAPH_HOOK_BUDGET_MS spike share: P99 0.5 and max 1.0 on a release export on RM-DESKTOP and RM-DECK; pass/fail on the maximum over the three hook ids (power, atmo, failure) reported separately, not the step divided by three; the Graph's row in the ADR-0003 P3 share ledger; pending S1/S0-f; if missed the number moves (TD), not the design"
+    added: 2026-10-29
+    referenced_by:
+      - docs/architecture/adr-0012-graph-propagation-scheme.md
+  - system: graph_snapshot_restore
+    status: active  # ADR-0012 is Proposed
+    budget_ms: 0.5
+    adr: docs/architecture/adr-0012-graph-propagation-scheme.md
+    notes: "snapshot(ctx) payload build at most 0.5 ms and at most 32 KB for the MVP ship (about 30.5 KB plus 40 bytes with the hook products); restore plus post_restore at most 2 ms; kernel integration world 3 ms/10 ms is the kernel's; pending S3"
+    added: 2026-10-29
+    referenced_by:
+      - docs/architecture/adr-0012-graph-propagation-scheme.md
+  - system: layout_solid_in_per_actor
+    status: active           # pending S1 / SP-ENG-1 on a release export on RM-DESKTOP and RM-DECK
+    budget_ms: 0.05
+    adr: docs/architecture/adr-0014-geometry-broadphase-and-occluder-source-seam.md
+    notes: "not a separate ledger line: a share of ADR-0015's whole-hook body.integrate entry (0.05 ms per actor P99, 0.4 ms for eight), which includes solid_in, the clamp, the row copy and the dirty marks; S1 reports solid_in as a sub-counter (TR-section-016, 2,000-rect body); probed margin on the editor binary only (3.1 us), not a pass; per-commit gates are the deterministic cells_touched/candidates_tested counts"
+    referenced_by:
+      - docs/architecture/adr-0014-geometry-broadphase-and-occluder-source-seam.md
+    added: 2026-10-29
+    revised: ""
+  - system: layout_rects_in_emitter_box
+    status: active           # pending S1
+    budget_ms: 0.3
+    adr: docs/architecture/adr-0014-geometry-broadphase-and-occluder-source-seam.md
+    notes: "one rects_in over a 288x288 px box on a static_version change (TR-section-016); charged inside ADR-0017's EXPOSURE_BUDGET_MS, not added to the hook ledger; probed 34 us on the editor binary, not a pass"
+    referenced_by:
+      - docs/architecture/adr-0014-geometry-broadphase-and-occluder-source-seam.md
+    added: 2026-10-29
+    revised: ""
+  - system: layout_geom_overlap_uncached
+    status: active           # pending S1 (V4)
+    budget_ms: 2.0
+    adr: docs/architecture/adr-0014-geometry-broadphase-and-occluder-source-seam.md
+    notes: "target owned by ADR-0013 can_attach (2 ms or less, uncached); ADR-0014 contributes the footprint_overlaps rect leg and S1 measures both legs (rect leg here, tile-cell leg is ADR-0013's floor_tile_at check) at the largest MVP body pair; worst-case rect-leg estimate about 6 ms for 2,000 probes at about 3 us on the editor binary, UNVERIFIED"
+    referenced_by:
+      - docs/architecture/adr-0014-geometry-broadphase-and-occluder-source-seam.md
+    added: 2026-10-29
+    revised: ""
+  - system: body_integrate_hook
+    status: active           # ADR-0015 is Proposed; figure pending spike S1
+    budget_ms: 0.4
+    adr: docs/architecture/adr-0015-integer-kinematics-and-the-ship-body.md
+    notes: "whole body.integrate hook for eight actors (0.05 ms per actor P99), including ADR-0014 solid_in calls, the clamp, the row copy and the dirty marks; S1 reports it with solid_in as a sub-counter; Body's row in the ADR-0003 kernel_p3_step_hooks share ledger (2.0 ms target); not additive with ADR-0014's solid_in figure"
+    referenced_by:
+      - docs/architecture/adr-0015-integer-kinematics-and-the-ship-body.md
+    added: 2026-10-29
+  - system: restore_pass_loading_ms
+    status: active           # ADR-0016 is Proposed; all figures UNVERIFIED until SAVE-WRK-1-SLICE and S1 on a release export
+    adr: docs/architecture/adr-0016-restore-ordering-and-cross-block-verification.md
+    description: "loading_ms = SUM over blocks of t_restore + t_post, plus t_verdict and t_rebind, recorded per block into LoadTiming through the injected Clock port (logged, never branched on); owner figures: Graph restore plus post_restore at most 2 ms; MVP world at most 3 ms with a 10 ms ceiling (TR-lsg-036); overall against LOADING_TARGET_MS; a pass above its figure is a diagnostic, not a cut-off. RestorePlan compile is a one-time O(n^2) at the freeze over at most MAX_BLOCKS blocks."
+    referenced_by:
+      - docs/architecture/adr-0016-restore-ordering-and-cross-block-verification.md
+    added: 2026-10-29
+    revised: ""
+  - system: emitter_place_exposure
+    status: active           # ADR-0017 is Proposed
+    budget_ms: 0.4
+    adr: docs/architecture/adr-0017-emitter-state-and-integer-light-exposure-query.md
+    notes: "steady-state P99 for emitter.place plus all exposure evaluation on a release export on RM-DESKTOP and RM-DECK (EXPOSURE_BUDGET_MS); rare scenarios at EXPOSURE_TICK_CEILING_MS, cold rebuild at COLD_REBUILD_CEILING_MS; the per-commit gate is the deterministic work-unit count (CNT-04), wall-clock is a nightly release-lane measurement; every figure UNVERIFIED until EM-SPIKE-1 / S1; EM-SPIKE-1-ACCEPT (S1 stub harness) gates Acceptance, EM-SPIKE-1-SLICE (real hook scenario maxima) gates the Vertical Slice; the whole hook figure is the ADR-0003 P3 share-ledger row"
+    referenced_by:
+      - docs/architecture/adr-0017-emitter-state-and-integer-light-exposure-query.md
+    added: 2026-10-29
+    revised: ""
+  - system: projector_weld_frame
+    status: active           # ADR-0034 is Proposed; UNVERIFIED on release export
+    budget_ms: 8.0
+    adr: docs/architecture/adr-0034-projector-scene-shape-and-y-sort.md
+    notes: "Working threshold 8 ms P99 over 100 repeated welds on RM-DESKTOP and RM-DECK release exports (AC-BDY-69, TR-shipbody-045), measured as R_weld = reparent plus the engine's deferred rebuild of every moved layer (reparent plus the following frame or update_internals(), real cell counts, windowed), with R_mount and R_flip reported; no frame above the machine ceiling; tree-walk node count after = before minus one root; arrival is ceil(U / BUILD_TILES_PER_FRAME) + S frames with U in tiles plus sprites and S one-per-present mounts; gated by SP-YSORT-1"
+    referenced_by:
+      - docs/architecture/adr-0034-projector-scene-shape-and-y-sort.md
+    added: 2026-10-29
     revised: ""
 
 # Example:
@@ -739,6 +1471,7 @@ api_decisions:
       - docs/architecture/adr-0008-render-pipeline-wiring-and-integer-scaling.md
       - docs/architecture/adr-0009-presentation-subscriber-contract.md
       - docs/architecture/adr-0010-source-layout-static-typing-and-lint-enforcement.md
+      - docs/architecture/adr-0019-player-controller-split-and-input-contexts.md
     added: 2026-10-28
     revised: 2026-10-28
   - purpose: payload_size_check
@@ -793,6 +1526,9 @@ api_decisions:
     reason: "Every owner GDD already writes (KIND << 32) | id; 47 bits need 64-bit storage; a native has() scan on a preallocated array dedupes without allocating (probed 2026-10-28: 160-230 ns per mark, 52 us for 256 distinct keys, OBJECT_COUNT flat)"
     referenced_by:
       - docs/architecture/adr-0004-change-notification-and-dirty-keys.md
+      - docs/architecture/adr-0011-life-support-graph-data-model.md
+      - docs/architecture/adr-0012-graph-propagation-scheme.md
+      - docs/architecture/adr-0017-emitter-state-and-integer-light-exposure-query.md
     added: 2026-10-28
     revised: 2026-10-29
   - purpose: state_hash_function
@@ -824,6 +1560,10 @@ api_decisions:
     reason: "GDScript / and % truncate toward zero (probed -7/2 = -3); >> is arithmetic; the integer_division warning covers the binary / only (c /= b loads, probed) and no warning covers % or %=; a hex literal above int64 logs an error and saturates while the script still loads; a decimal literal just above int64 wraps silently; int wraps silently"
     referenced_by:
       - docs/architecture/adr-0005-determinism-keyed-rng-canonical-encoding-and-hashing.md
+      - docs/architecture/adr-0011-life-support-graph-data-model.md
+      - docs/architecture/adr-0014-geometry-broadphase-and-occluder-source-seam.md
+      - docs/architecture/adr-0015-integer-kinematics-and-the-ship-body.md
+      - docs/architecture/adr-0017-emitter-state-and-integer-light-exposure-query.md
     added: 2026-10-28
     revised: ""
   - purpose: keyed_rng_derivation
@@ -944,6 +1684,7 @@ api_decisions:
     reason: "Probed: frame_pre_draw fires after every _process and before the draw, so a solve in it is invisible to the HUD stage; a write in the handler or in _process is drawn the same frame"
     referenced_by:
       - docs/architecture/adr-0008-render-pipeline-wiring-and-integer-scaling.md
+      - docs/architecture/adr-0034-projector-scene-shape-and-y-sort.md
     added: 2026-10-28
     revised: ""
   - purpose: nearest_filter_three_places
@@ -958,24 +1699,26 @@ api_decisions:
     revised: ""
   - purpose: canvas_coordinate_exactness
     status: active           # ADR-0008 is Proposed
-    api: "Presentation coordinates are integer-valued float32, exact for |v| <= 2^24 base px; Vector2i is converted to Vector2 only at Placement.put and at the canvas_transform write; pose_q is Vector2i quantised from the solver's float64 scalars before that conversion; world and body-frame extents stay below 2^24 base px (ADR-0015 owns the bound if body-frame extents could exceed it; the rebase mechanism keeps coordinates inside it); unit test at 2^24 - 1, 2^24 and 2^24 + 1"
+    api: "Presentation coordinates are integer-valued float32, exact for |v| <= 2^24 base px; Vector2i is converted to Vector2 only at Placement.put, Placement.put_control, Placement.put_light_origin and at the canvas_transform write; pose_q is Vector2i quantised from the solver's float64 scalars before that conversion; world and body-frame extents stay below 2^24 base px (ADR-0015 owns the bound if body-frame extents could exceed it; the rebase mechanism keeps coordinates inside it); unit test at 2^24 - 1, 2^24 and 2^24 + 1"
     not: "a non-integer-valued presentation coordinate; silent float32 rounding of a canvas origin"
     adr: docs/architecture/adr-0008-render-pipeline-wiring-and-integer-scaling.md
     reason: "Transform2D, Node2D.position and Control.position are float32 in the standard build; closes the float32 canvas exactness reference of ADR-0005 TR-shipbody-038 and ADR-0010"
     referenced_by:
       - docs/architecture/adr-0008-render-pipeline-wiring-and-integer-scaling.md
+      - docs/architecture/adr-0015-integer-kinematics-and-the-ship-body.md
     added: 2026-10-28
-    revised: ""
+    revised: 2026-10-29
   - purpose: sim_motion_interpolation
     status: active           # ADR-0009 is Proposed
-    api: "Placement.at(prev: Vector2i, curr: Vector2i, alpha: float) = per-axis floori(prev + (curr - prev) * alpha), written only through Placement.put (Node2D) or Placement.put_control (Control), with Placement.floor_v for derived integer offsets (parallax); alpha from PresentFrame; physics/common/physics_interpolation absent or false (asserted by effective value), SceneTree.physics_interpolation false, presentation roots Node.PHYSICS_INTERPOLATION_MODE_OFF, snap_2d_* flags as a safety net"
-    not: "int(), round, roundi or truncation on a placement path; engine 2D physics interpolation; Tween or AnimationPlayer position/offset/transform tracks on sim-owned nodes; presenter-side previous/current caches; writing position, global_position, offset or transform by assignment, setter or relative-move method outside placement.gd and the named allow-list (viewport_wiring.gd, the camera host's frame_pre_draw handler)"
+    api: "Placement.at(prev: Vector2i, curr: Vector2i, alpha: float) = per-axis floori(prev + (curr - prev) * alpha), written only through Placement.put (Node2D) or Placement.put_control (Control), with Placement.floor_v for derived integer offsets (parallax) and Placement.put_light_origin for a Light2D position (Placement.at plus Placement.CELL_CENTRE, the one lattice exception; ADR-0018 F1); alpha from PresentFrame; physics/common/physics_interpolation absent or false (asserted by effective value), SceneTree.physics_interpolation false, presentation roots Node.PHYSICS_INTERPOLATION_MODE_OFF, snap_2d_* flags as a safety net"
+    not: "int(), round, roundi or truncation on a placement path; engine 2D physics interpolation; Tween or AnimationPlayer position/offset/transform tracks on sim-owned nodes; presenter-side previous/current caches; writing position, global_position, offset or transform by assignment, setter or relative-move method outside placement.gd and the named allow-list (viewport_wiring.gd, the camera host's frame_pre_draw handler, placement.gd put_light_origin for a Light2D position, lighting/beam_offset_writer.gd for a PointLight2D offset)"
     adr: docs/architecture/adr-0009-presentation-subscriber-contract.md
     reason: "One interpolator on one clock; Node2D has no get_global_transform_interpolated (probed 4.7.2) so an engine-interpolated pose is unreadable; floori is correct for negative coordinates; the kernel's prev/curr pair with snap_baseline survives restore and body transfer"
     referenced_by:
       - docs/architecture/adr-0009-presentation-subscriber-contract.md
+      - docs/architecture/adr-0018-shadow-origin-and-beam-occlusion-consistency.md
     added: 2026-10-28
-    revised: ""
+    revised: 2026-10-29
   - purpose: presentation_render_callback
     status: active           # ADR-0009 is Proposed; KRN-LAT-02 confirms the host order on a release export
     api: "PipelineRoot is the single PresentationHost: its one _process at ProcessPriority.PRESENTATION advances present_time, the zoom cooldown and the RESCALING re-derive, then calls PresentationDriver.frame(); presenters register Callables and define no _process; CameraSolver.solve runs in stage CAMERA_SOLVE; RenderingServer.frame_pre_draw only writes canvas_transform and the parallax offsets from the solved pose"
@@ -994,6 +1737,8 @@ api_decisions:
     reason: "Makes simulation-never-reads-presentation, tree-freedom and warning scope directory tests, and resolves IC-10"
     referenced_by:
       - docs/architecture/adr-0010-source-layout-static-typing-and-lint-enforcement.md
+      - docs/architecture/adr-0019-player-controller-split-and-input-contexts.md
+      - docs/architecture/adr-0034-projector-scene-shape-and-y-sort.md
     added: 2026-10-28
     revised: ""
   - purpose: presentation_visible_kernel_api
@@ -1014,6 +1759,7 @@ api_decisions:
     reason: "Probed 2026-10-28 on 4.7.2: a subclass missing an abstract method and a direct PortBase.new() are parse errors"
     referenced_by:
       - docs/architecture/adr-0010-source-layout-static-typing-and-lint-enforcement.md
+      - docs/architecture/adr-0014-geometry-broadphase-and-occluder-source-seam.md
     added: 2026-10-28
     revised: ""
   - purpose: gdscript_warning_policy
@@ -1044,6 +1790,7 @@ api_decisions:
     reason: "Unions ADR-0005 section 1.7 and ADR-0001 entries so the lint has one owner"
     referenced_by:
       - docs/architecture/adr-0010-source-layout-static-typing-and-lint-enforcement.md
+      - docs/architecture/adr-0019-player-controller-split-and-input-contexts.md
     added: 2026-10-28
     revised: ""
   - purpose: lint_tool_and_tiers
@@ -1064,6 +1811,8 @@ api_decisions:
     reason: "Probed 2026-10-28: OBJECT_COUNT blind to arrays; MEMORY_STATIC sees retained (1.7 MB) but not transient (208 B for 100k) allocation; packed arrays have no read-only marker"
     referenced_by:
       - docs/architecture/adr-0010-source-layout-static-typing-and-lint-enforcement.md
+      - docs/architecture/adr-0014-geometry-broadphase-and-occluder-source-seam.md
+      - docs/architecture/adr-0017-emitter-state-and-integer-light-exposure-query.md
     added: 2026-10-28
     revised: ""
   - purpose: test_framework_pin
@@ -1084,6 +1833,8 @@ api_decisions:
     reason: "A GDExtension class can extend only a native class, so the adapter is the only way to keep one seam and unchanged call sites"
     referenced_by:
       - docs/architecture/adr-0010-source-layout-static-typing-and-lint-enforcement.md
+      - docs/architecture/adr-0012-graph-propagation-scheme.md
+      - docs/architecture/adr-0014-geometry-broadphase-and-occluder-source-seam.md
     added: 2026-10-28
     revised: ""
   - purpose: wall_clock_port
@@ -1096,6 +1847,449 @@ api_decisions:
       - docs/architecture/adr-0010-source-layout-static-typing-and-lint-enforcement.md
     added: 2026-10-28
     revised: ""
+  - purpose: graph_payload_shape
+    status: active           # ADR-0011 is Proposed
+    api: "snapshot payload is one String-keyed Dictionary: hdr (Dictionary of 17 ints built from the _h_* members of GraphState) plus one nested Dictionary per table (nodes, ports, edges, comps, seams, sections, queues, defs) mapping column name to a duplicate() of the packed column; any table/column/header rename or re-type is a schema_version bump with a committed GraphSchema fingerprint"
+    not: "StringName payload keys; live column references; derived caches or diagnostics counters in the payload; flat dotted keys"
+    adr: docs/architecture/adr-0011-life-support-graph-data-model.md
+    reason: "ADR-0006 type walk rejects StringName; the hash is over sorted keys; one persisted-field check per class"
+    referenced_by:
+      - docs/architecture/adr-0011-life-support-graph-data-model.md
+    added: 2026-10-29
+    revised: ""
+  - purpose: graph_unit_system
+    status: active
+    api: "int64 for conserved/extensive quantities and counters, int32 for ids, step stamps, bp, permille, W and short physical quantities (range-checked before store), uint8 for enums and flags; all time stamps in Graph steps (step_no = floor_div(T, GRAPH_STEP_TICKS)); every product below 2^62 by the D.13 boot assertion; division only through IntMath; typed mini/maxi/clampi/absi/signi"
+    not: "floats, Vector2i, bare / or %, a file-level integer_division ignore, kernel ticks in stored stamps"
+    adr: docs/architecture/adr-0011-life-support-graph-data-model.md
+    reason: "Determinism, cross-platform hashes and silent 32-bit truncation (ADR-0005 P9, P17)"
+    referenced_by:
+      - docs/architecture/adr-0011-life-support-graph-data-model.md
+    added: 2026-10-29
+    revised: ""
+  - purpose: graph_dirty_key_kinds
+    status: active
+    api: "KIND COMP 1, BAND 2, NODE 3, EDGE 4, DESC 5, LOOP 6, SEAM 7, TOPO 8, SECTION 9; L/ key id = (loop << 24) | anchor; F/ key id = (subject_kind << 28) | subject_id (one per subject); quanta from GraphTuning; last-emitted buckets derived and seeded in post_restore; quiet_writes_allowed true"
+    not: "per-field or per-step continuous keys; per-descriptor F keys; String keys"
+    adr: docs/architecture/adr-0011-life-support-graph-data-model.md
+    reason: "Keeps the design cascade at 38 keys and the packing inside the 32-bit key id"
+    referenced_by:
+      - docs/architecture/adr-0011-life-support-graph-data-model.md
+      - docs/architecture/adr-0004-change-notification-and-dirty-keys.md
+    added: 2026-10-29
+    revised: ""
+  - purpose: graph_fault_domain_codes
+    status: active
+    api: "domain 3 local codes 1..26 append-only (NOT_IN_SCOPE, RESTORE_* x14 with first-failure-wins precedence including 26 RESTORE_HOOK_CURSOR, STRUCT_* x6, ID_SPACE_EXHAUSTED, DESC_STORE_OVERFLOW, STEP_RANGE, SATURATION, and 25 HOOK_CURSOR, the runtime guard raised by ADR-0012); GRAPH_BOOT_* are domain-2 names in ContentFaults"
+    not: "reuse or renumbering; restore failure by return value or clamp"
+    adr: docs/architecture/adr-0011-life-support-graph-data-model.md
+    reason: "ADR-0003 section 6 delegates the owner code list to the system ADR"
+    referenced_by:
+      - docs/architecture/adr-0011-life-support-graph-data-model.md
+    added: 2026-10-29
+    revised: ""
+  - purpose: graph_owned_constants_rule
+    status: active
+    api: "Graph tunables are lowercase accessors of the frozen GraphTuning equal to registry LOCKED rows; MAX_DIRTY_KEYS, TICK_RATE, HYPOXIA_PP, DECOMP_P, COLD_DMG_ONSET_MC, HEAT_DMG_ONSET_MC never appear as symbols in src/sim/graph or src/sim/suit (READ-03 token list forbidden_symbols/graph.json)"
+    not: "redeclaring a registry constant as a literal or const in Graph or Suit"
+    adr: docs/architecture/adr-0011-life-support-graph-data-model.md
+    reason: "One source of truth for tunables (TR-lsg-043)"
+    referenced_by:
+      - docs/architecture/adr-0011-life-support-graph-data-model.md
+    added: 2026-10-29
+    revised: ""
+  - purpose: graph_hook_products_persisted
+    status: active
+    api: "n_served (permille), n_draw (dJ per step), CABLE e0 (net load, W, non-negative magnitude), power_use_w0..w4 (collectively power_use_w5) and the schedule in force sched_div/sched_off_* (collectively sched) are persisted and written by ADR-0012 phase 2 only; served_pm(id) reads n_served; post_restore re-derives P, p_o2, o2_pm and trend and never served, draw or a cable's net load; hdr.last_step_no is the last step whose failure hook completed; restore step 13 checks the hook cursors against the stored sched and the clock"
+    not: "deriving served, draw or cable load in post_restore; persisting the intensive atmosphere values; reading served_pm from a cache"
+    adr: docs/architecture/adr-0011-life-support-graph-data-model.md
+    reason: "A restore between the power hook and the atmo or failure hook cannot rebuild the hook products from post-phase state (ADR-0012 section 11)"
+    referenced_by:
+      - docs/architecture/adr-0011-life-support-graph-data-model.md
+    added: 2026-10-29
+    revised: ""
+  - purpose: graph_stale_id_sentinels
+    status: active
+    api: "a non-live id (negative, unknown, at or above its counter, tombstoned) is not a fault: Class B mutators no-op, Class A checks return UNKNOWN/NOT_*, GraphView getters return the documented sentinel (node_state/edge_state GraphIds.STATE_NONE -1, node_kind/section_of -1, compartment_t GraphLimits.TEMP_NONE, magnitudes 0) and node_live/edge_live/compartment_live are the guards; every slot and index is validated before the first column write because an out-of-bounds packed write is a SCRIPT ERROR that aborts the function"
+    not: "a blanket neutral 0 (node_state 0 is OK); indexing an array with an unchecked id"
+    adr: docs/architecture/adr-0011-life-support-graph-data-model.md
+    reason: "A dead or never-allocated lamp must not read as healthy; a script error gives no fault and no rollback in release"
+    referenced_by:
+      - docs/architecture/adr-0011-life-support-graph-data-model.md
+    added: 2026-10-29
+    revised: ""
+  - purpose: layout_snapshot_shape
+    status: active
+    api: "Instances by reference to templates; dense parallel packed columns in ascending id order; no int-keyed Dictionary, no PackedStringArray, no Vector2i/Rect2i; template_id as typed Array[String] restored via per-element typeof==TYPE_STRING then Array[String].assign (type preservation not relied on); welded_at_T/cut_at_T as native PackedInt64Array; hashes stored int32 and compared with & 0xFFFFFFFF; rot_q byte column must be 0; byte columns range-checked on the decoded value before narrowing writes; restore uses has() and typeof() before any typed assignment; section_id == row+1, body_id == row+1"
+    adr: docs/architecture/adr-0013-ship-layout-block-geometry-and-id-allocation.md
+    referenced_by:
+      - docs/architecture/adr-0013-ship-layout-block-geometry-and-id-allocation.md
+    added: 2026-10-29
+  - purpose: section_id_allocation_split
+    status: active
+    api: "Layout allocates section_id, body_id, room_id (persisted counters, first id 1); Graph allocates node/edge/compartment/seam ids and returns bases via M1 as SectionBases (M1's only caller is Layout LM1 through LayoutGraphPort); LM1 reads counters, calls Graph M1, appends rows and advances counters only on OK; Graph next_section_id follows Layout (max+1); setup order Layout.setup, GraphModule.setup(layout.room_source()), LayoutModule.bind_graph, registry freeze"
+    adr: docs/architecture/adr-0013-ship-layout-block-geometry-and-id-allocation.md
+    referenced_by:
+      - docs/architecture/adr-0013-ship-layout-block-geometry-and-id-allocation.md
+    added: 2026-10-29
+  - purpose: weld_survivor_lower_body_id
+    status: active
+    api: "offset_b = offset_a + pos_a - pos_b with a the survivor-side socket; survivor = body with lower body_id regardless of argument order; welds[] canonicalised (section_a/socket_a = survivor side) and socket_plan/JoinPlan canonicalised survivor-first so graph.state seam rows are argument-order independent; reversed calls give byte-identical layout.state and equal whole-world state_hash; every built section starts on its own body so the weld relation is a forest; detach components enumerated in ascending section_id, new body origin = min section_id; one DetachPlanner shared by detach_preview and LM3; can_attach also refuses COORD_LIMIT (BODY_COORD_LIMIT) before GEOM_OVERLAP"
+    adr: docs/architecture/adr-0013-ship-layout-block-geometry-and-id-allocation.md
+    referenced_by:
+      - docs/architecture/adr-0013-ship-layout-block-geometry-and-id-allocation.md
+    added: 2026-10-29
+  - purpose: template_hash_payloads
+    status: active
+    api: "geometry_hash, visual_hash, structure_hash = Hash64.low32(Hash64.of_value(sub-payload)) computed once at catalog freeze; sub-payloads are Dictionaries of flat PackedInt32Array families in LY-4 field order (CSR for variable-length), structure_hash covers ordered key sequences and tile sets; all three persisted per instance; structure mismatch = LAYOUT_RESTORE_TEMPLATE_CHANGED always, geometry mismatch only with history; restore never rewrites a stored hash (geometry_changed_fresh and visual_changed are re-raised diagnostics); stored hashes are refreshed from the current template in LM2 when an instance first gets history"
+    adr: docs/architecture/adr-0013-ship-layout-block-geometry-and-id-allocation.md
+    referenced_by:
+      - docs/architecture/adr-0013-ship-layout-block-geometry-and-id-allocation.md
+    added: 2026-10-29
+  - purpose: section_ledger_flat_compound_keys
+    status: active
+    api: "assets/data/sections/ids.lock.json is one section_templates space with a flat pairs[]; template pair key <template_id>, room pair key <template_id>/<room_key>; class split by key shape and id boundary checked by SectionLedgerCheck in src/data/sections/; integers not persisted in layout.state"
+    adr: docs/architecture/adr-0013-ship-layout-block-geometry-and-id-allocation.md
+    referenced_by:
+      - docs/architecture/adr-0013-ship-layout-block-geometry-and-id-allocation.md
+    added: 2026-10-29
+  - purpose: layout_doors_leaf_key
+    status: active
+    api: "layout.doors (divisor 1, offset 0, after []) derives leaf_w = width_px - floor_div(width_px*area, area_max) from Graph opening_into, clamps area (area_clamped diagnostic; in post_restore an area above area_max is LAYOUT_RESTORE_DANGLING, no clamp), bumps leaf_version/version at most once per section per tick (never static_version), opens layout.state once and marks LEAF/<section_id> (kind 4); LM2 seeds new LEAF closed without reading area; unknown opening leaves leaf closed; discard invalidates versions and restore calls new_epoch (version_epoch is the restore signal)"
+    adr: docs/architecture/adr-0013-ship-layout-block-geometry-and-id-allocation.md
+    referenced_by:
+      - docs/architecture/adr-0013-ship-layout-block-geometry-and-id-allocation.md
+    added: 2026-10-29
+  - purpose: input_sampling_and_edges
+    status: active           # ADR-0019 is Proposed
+    api: "InputAdapter._input (added as the LAST child of its parent so it runs first; _input order is reverse tree order, process_priority does not affect it) latches ordered press/release records for key, mouse-button and pad-button events, wheel presses (pressed==true WHEEL_UP/DOWN only) and pointer events into a preallocated EdgeRing de-duplicated against a held-set, and submits nothing; InputEventJoypadMotion is continuous-only (no edge record); InputAdapter._process (INPUT_ADAPTER -100) drains the ring, polls Input.get_action_raw_strength for continuous families, derives stick and trigger edges once per frame with hysteresis, and is the only place submit() is called, in the order set_move_intent, set_aim, commands; the Adapter uses _input (not _unhandled_input) and is the only caller of get_viewport().set_input_as_handled() for action-bound events"
+    not: "polling just_pressed/just_released alone (a same-frame press and release cannot be ordered, probed 2026-10-29); _unhandled_input latching; recording pad-axis motion as edges; calling set_input_as_handled as a Node method (it is Viewport's); _input or set_input_as_handled in any layer, HUD or debug overlay; submit from _input, a signal handler or _physics_process; input buffering (ACTION_BUFFER_TICKS 0)"
+    adr: docs/architecture/adr-0019-player-controller-split-and-input-contexts.md
+    reason: "Ordered edges are needed by latch-until-released, fresh-press and hold-cancel rules; a focused Control would otherwise consume a press before _unhandled_input; a later node handling an event first would starve the ring; pad-axis motion reports pressed on every event; one tick of latency"
+    referenced_by:
+      - docs/architecture/adr-0019-player-controller-split-and-input-contexts.md
+    added: 2026-10-29
+    revised: "2026-10-29 (review: E2, E3, E4, E7)"
+  - purpose: input_device_identity
+    status: active           # ADR-0019 is Proposed
+    api: "Devices are identified by event type (RawEvent.classify: InputEventKey, InputEventMouse*, InputEventJoypad*); every InputMap binding built in code, including a user-captured one (BindingFactory.from_capture duplicates the event, sets device = BINDING_ANY_DEVICE (-1) and clears pressed/echo), uses the any-device wildcard, and keyboard bindings use physical_keycode; the only numeric use of InputEvent.device is comparing a pad event with the stored active_pad variable"
+    not: "event.device == 0 or any integer literal; comparison with DEVICE_ID_* constants; a binding left at its constructor device or stored from a captured event directly (a pad binding defaults to device 0 and matches only pad 0, probed 2026-10-29 on 4.7.2)"
+    adr: docs/architecture/adr-0019-player-controller-split-and-input-contexts.md
+    reason: "4.7 changed the keyboard and mouse device numbers and pads are numbered by enumeration; bindings keep their constructor or captured device"
+    referenced_by:
+      - docs/architecture/adr-0019-player-controller-split-and-input-contexts.md
+    added: 2026-10-29
+    revised: "2026-10-29 (review: E8 capture path)"
+  - purpose: input_action_deadzone_nonzero
+    status: active           # ADR-0019 is Proposed
+    api: "BindingFactory registers every catalogue action with InputMap.add_action(name, ENGINE_ACTION_DEADZONE) where the constant is non-zero (engine default 0.5 or 0.2); MOVE_DEADZONE and AIM_DEADZONE are Adapter-level scalings over get_action_raw_strength, which ignores the engine deadzone; a boot lint fails when InputMap.action_get_deadzone is 0.0 for any catalogue action"
+    not: "add_action(name, 0.0); reading Input.is_action_pressed for a gameplay decision on an analogue family"
+    adr: docs/architecture/adr-0019-player-controller-split-and-input-contexts.md
+    reason: "Probed on 4.7.2: with a 0.0 deadzone a centred stick (axis_value 0.0) and a trigger at rest report their action pressed in both directions (abs(0.0) >= 0.0)"
+    referenced_by:
+      - docs/architecture/adr-0019-player-controller-split-and-input-contexts.md
+    added: 2026-10-29
+  - purpose: chest_hand_point_read_time_getters
+    status: active           # ADR-0019 is Proposed
+    api: "ControllerView.get_chest_x/get_chest_y/get_hand_x/get_hand_y(player_id) -> int return an absolute body-frame integer: BodyView.pos_x/pos_y(actor) plus CHEST_POINT[sheet][row] (or HAND_POINT) from the frozen ADR-0007 ControllerCatalog table injected through ControllerTuning, mirrored by facing, row from loco_state; computed on every read, O(1), allocation-free; ADR-0017 reads exactly get_chest_x/get_chest_y, get_aim_angle and get_loco_state"
+    not: "a stored chest_sim/hand_sim written in controller.step (one tick stale against the foot origin); a Vector2i on the per-tick Emitter path; a second source of the offsets in the presentation sidecar"
+    adr: docs/architecture/adr-0019-player-controller-split-and-input-contexts.md
+    reason: "controller.step runs before body.integrate, ADR-0017 reads the apex after it; a read-time getter cannot lag, and the apex and occlusion origin agree by construction (ADR-0018)"
+    referenced_by:
+      - docs/architecture/adr-0019-player-controller-split-and-input-contexts.md
+    added: 2026-10-29
+  - purpose: aim_quantisation_and_mapping
+    status: active           # ADR-0019 is Proposed
+    api: "Mouse aim is computed once per frame as RenderLayout.mouse_to_world_aim(cursor_px, f_q) minus the fixed aim origin (BodyView.pos_x/pos_y(actor) + AIM_ORIGIN_Y), aim_q = posmod(roundi(theta * AIM_UNITS / TAU), AIM_UNITS) (round first, then posmod), sent as an int; the Adapter forms no picture-origin subtraction itself; the OS cursor is warped with Input.warp_mouse (window pixels) on a zoom edge using the stored cursor_off and on a source handover, with a virtual-cursor fallback (accumulated InputEventMouseMotion.relative) when the warp is a no-op"
+    not: "mouse_to_world_view or pose_q in the aim path; a second picture-origin subtraction; a float reaching submit(); wrapping before rounding; Viewport.warp_mouse"
+    adr: docs/architecture/adr-0019-player-controller-split-and-input-contexts.md
+    reason: "pose_q contains the look-ahead, which is a function of aim; the open-loop f_q form cannot feed back"
+    referenced_by:
+      - docs/architecture/adr-0019-player-controller-split-and-input-contexts.md
+    added: 2026-10-29
+    revised: "2026-10-29 (review: scalar position, Input.warp_mouse, virtual cursor)"
+  - purpose: intent_resync_rule
+    status: active           # ADR-0019 is Proposed
+    api: "The Adapter keeps last_acked per intent kind and sets it UNKNOWN (one change-filter bypass, rate-limited to one per AIM_SEND_INTERVAL ticks) on five labelled triggers: not-ok intent result (STALE), kernel leaves PAUSED, LOADING to RUNNING (load_seq change), focus or pad return, body_of_actor change; the first RUNNING frame after any non-RUNNING frame resyncs at -100 so it lands in P2 of the first tick; the Adapter is silent while the kernel is not RUNNING; equivalence-harness fixtures that include controller.state snapshot from a rest intent or replay the resync submission"
+    not: "per-tick held-state commands; resync from a kernel hook; a persisted last_acked; submitting while PAUSED"
+    adr: docs/architecture/adr-0019-player-controller-split-and-input-contexts.md
+    reason: "The simulation's intent must equal the player's hands within one tick of RUNNING at a fraction of the traffic"
+    referenced_by:
+      - docs/architecture/adr-0019-player-controller-split-and-input-contexts.md
+    added: 2026-10-29
+    revised: "2026-10-29 (review: harness input model, CT-49)"
+  - purpose: input_context_machine
+    status: active           # ADR-0019 is Proposed
+    api: "Adapter-local InputContextMachine holds exactly one of GAMEPLAY, CHART_TABLE, INSPECT_CARD, CHAT (CHAT is VS-B: enum value and matrix column reserved, transitions not implemented at MVP); the context x action matrix is data (assets/data/input/context_matrix.json, completeness check skips reserved columns) and the return table is code with one test per row; STAGGERED, DOWNED, DEAD and IN_POD force GAMEPLAY; CursorPolicy maps GAMEPLAY and INSPECT_CARD to MOUSE_MODE_CONFINED_HIDDEN and CHART_TABLE and CHAT to MOUSE_MODE_VISIBLE, applied on change and re-asserted on FOCUS_IN and PAUSED->RUNNING; the Adapter holds no ControlHandle and the Chart Table layer's PauseGate issues request_pause"
+    not: "a context persisted in a snapshot; a custom cursor image in gameplay; the Adapter calling the control plane"
+    adr: docs/architecture/adr-0019-player-controller-split-and-input-contexts.md
+    reason: "Contexts are presentation; the simulation only sees the zero intent and cancel the Adapter submits on entry"
+    referenced_by:
+      - docs/architecture/adr-0019-player-controller-split-and-input-contexts.md
+    added: 2026-10-29
+    revised: "2026-10-29 (review: VS-B reservation, cursor re-assert)"
+  - purpose: graph_write_disciplines
+    status: active  # ADR-0012 is Proposed
+    api: "Every Graph phase declares per written column JAC (read start-of-phase values, write a GraphScratch accumulator, apply in one ascending loop that re-zeroes it), ALLOC (ascending-id allocation against a running balance) or OWN (own row only); phases iterate derived active lists and alias columns in locals; accumulators all-zero at hook exit; phase 0 closes out the intensive caches it touched"
+    not: "next-column copy and swap for pairwise fluxes; iterating to convergence; recursion; catch-up; iterating a table or Dictionary in a phase; a total-amount accessor on GraphState"
+    adr: docs/architecture/adr-0012-graph-propagation-scheme.md
+    added: 2026-10-29
+    referenced_by:
+      - docs/architecture/adr-0012-graph-propagation-scheme.md
+  - purpose: graph_fairness_gate_function
+    status: active  # ADR-0012 is Proposed
+    api: "graph_rules.gate_floor(hp_before, hull_or_seam, gate_open, hp_fail, breach_hp) and apply_loss(hp_before, loss, floor_hp): a floor applied at the moment of damage that limits the reduction and never raises hp; EXOGENOUS causes pass floor 0; the node/edge EXOGENOUS flag is the descriptor cause of the current episode"
+    not: "a post-pass that rewrites hp; rate_pm or stress_pm read outside the damage phase"
+    adr: docs/architecture/adr-0012-graph-propagation-scheme.md
+    added: 2026-10-29
+    referenced_by:
+      - docs/architecture/adr-0012-graph-propagation-scheme.md
+  - purpose: graph_rng_subject_key
+    status: active  # ADR-0012 is Proposed
+    api: "plain stream graph.fail; RngFacet.draw(stream, counter) with counter (step_no << 26) | (kind << 24) | id, kind 0 node, 1 edge, 2 reserved compartment, id < GraphLimits.ID_MAX <= 2^24; burst test posmod_i(raw & 0x7FFFFFFFFFFFFFFF, 1000) < burst_p_pm; no stored counter; no restore epoch"
+    not: "draw_epoch for a Graph draw; a node id and an edge id sharing one subject field; an id field narrower than GraphLimits.ID_MAX; a float or bare % in the burst test"
+    adr: docs/architecture/adr-0012-graph-propagation-scheme.md
+    added: 2026-10-29
+    referenced_by:
+      - docs/architecture/adr-0012-graph-propagation-scheme.md
+  - purpose: graph_derived_rebuild
+    status: active  # ADR-0012 is Proposed
+    api: "GraphDerived.ensure_derived is idempotent and never resizes (size_derived/size_scratch/size_descriptors run only in structural mutators and post_restore); called by every writer that changes topology (structural mutators, end of phase 9 after a connectivity change, post_restore); the hook head guard is defect-only and counts late_rebuilds; degrees and deg_max are phase-6 scratch, not cached"
+    not: "lazy-only topology refresh; a read that pays a rebuild; a hook reading a half-applied topology; a resize on the hook path"
+    adr: docs/architecture/adr-0012-graph-propagation-scheme.md
+    added: 2026-10-29
+    referenced_by:
+      - docs/architecture/adr-0012-graph-propagation-scheme.md
+  - purpose: one_rect_set_row_table
+    status: active           # ADR-0014 is Proposed; pass lines pending S1
+    api: "one derived row table per LIVE body in ascending (section_id, idx) order = ascending rect_key; dense CSR uniform grid (BROADPHASE_CELL_PX) of row numbers; leaf, PLATE and JAMB slots inserted at maximum footprint, layout.doors writes only the row's current extent via set_extent (hot); empty extent is the EXTENT_EMPTY_LO/HI sentinel; rects_in and solid_in are OCCLUDES_LIGHT and SOLID masks over the same table; the tile-cell leg of GEOM_OVERLAP is not in this table (ADR-0013 floor_tile_at check); rebuilt synchronously as the last step of LM1-LM4 and restore"
+    not: "a second rect copy or per-consumer index; an Emitter-owned rect index; engine physics, PhysicsDirectSpaceState2D or TileSet physics/occlusion/navigation layers as a rect source; a separate dynamic leaf list; a Dictionary-keyed grid; a perceived or phantom variant of any geometry query"
+    adr: docs/architecture/adr-0014-geometry-broadphase-and-occluder-source-seam.md
+    reason: "Pillar 1 (collision, light and drawing cannot disagree); structural key order needs no sort; door animation changes no grid"
+    referenced_by:
+      - docs/architecture/adr-0014-geometry-broadphase-and-occluder-source-seam.md
+    added: 2026-10-29
+    revised: ""
+  - purpose: caller_owned_query_buffer
+    status: active           # ADR-0014 is Proposed
+    api: "hot geometry queries are out-parameter calls into a consumer-owned QueryBuffer (overwrite, count authoritative, public SoA columns, no set( accessor); box is four half-open ints plus an explicit body_id; return value is the record count; overflow calls the cold untagged geometric grow() (counted, never truncates) and steady state means grew == 0"
+    not: "Rect2i box arguments; a value-returning rects_in; a shared buffer returned by Layout; resize/append/array construction inside a ## @hot query; reading at or beyond count; keeping out.keys/spans/flags beyond the call; one buffer for two live results; passing out.keys/spans/flags by value to a native method inside a hot function"
+    adr: docs/architecture/adr-0014-geometry-broadphase-and-occluder-source-seam.md
+    reason: "aliasing between Body, Emitter, Lighting within one tick (AC-151); HOT-01 + CNT-01 + CNT-02 allocation wording; probed alias write-through and shrink/grow zero-fill"
+    referenced_by:
+      - docs/architecture/adr-0014-geometry-broadphase-and-occluder-source-seam.md
+    added: 2026-10-29
+    revised: ""
+  - purpose: occupied_span_single_conversion
+    status: active           # ADR-0014 is Proposed
+    api: "QueryBuffer.spans hold OCCUPIED (closed) spans (x0, y0, x1-1, y1-1) in the body frame; a half-open consumer decodes in exactly one inline helper: x1 = spans[4k+2] + 1, y1 = spans[4k+3] + 1; a polygon builder places corners at (x0, y0) and (x1_occ+1, y1_occ+1); Layout applies no shift; CollideSource/LayoutCollide (ADR-0015) is the only wrapper over SolidQuery"
+    not: "reading spans[4k+2] or spans[4k+3] as a half-open bound (shrinks every rect 1 px on its high edges); a second decode site; a Layout-side shift"
+    adr: docs/architecture/adr-0014-geometry-broadphase-and-occluder-source-seam.md
+    reason: "a 1-px shrink lets an actor enter a wall and leaves a 1-px seam between abutting hull rects, and a 1-px light leak at every wall edge (Pillar 1)"
+    referenced_by:
+      - docs/architecture/adr-0014-geometry-broadphase-and-occluder-source-seam.md
+    added: 2026-10-29
+    revised: ""
+  - purpose: layout_version_counters
+    status: active           # ADR-0014 is Proposed
+    api: "per-section int64 version/static_version/leaf_version in private columns behind bounds-guarded getters (compare for inequality only; 0 = no live section; invalidate to 0 on discard; at restore every LIVE section is 1 and every other section 0); non-persisted version_epoch incremented by restore and default_state (new_epoch also resets every changed_region stamp_tick to -1), consumers cache (version_epoch, version) and an epoch change gates only result-neutral cache rebuilds; changed_region is simulation-side, lazily valid only when stamp_tick == ClockView.tick(), merge lattice ALL > REGION(union) > FRAME, advisory after a restore"
+    not: "persisting or hashing a counter, stamp or version_epoch; a presentation read of changed_region; relying on changed_region == ALL after a restore; reusing 0 for a live section; confusing version_epoch with restore_epoch; feeding a version_epoch change into a work budget, persisted value or RNG draw"
+    adr: docs/architecture/adr-0014-geometry-broadphase-and-occluder-source-seam.md
+    reason: "a reset-to-1 version can equal a stale cached value after restore; the epoch closes it in the type"
+    referenced_by:
+      - docs/architecture/adr-0014-geometry-broadphase-and-occluder-source-seam.md
+    added: 2026-10-29
+    revised: ""
+  - purpose: broadphase_cell_coupling
+    status: active           # ADR-0014 is Proposed
+    api: "BOOT-tier named invariant BROADPHASE_CELL_COUPLING (CONTENT_INVARIANT, domain 2): BROADPHASE_CELL_PX >= max(FOOT_BOX_W, FOOT_BOX_H) + V_RUN, evaluated at ContentLoader stage 4 by the pure helper BroadphaseCoupling.holds in src/shared/layout/; sole owner of TR-shipbody-037 (ADR-0015 carries no separate BODY_BROADPHASE_CELL); companion BOOT invariant WORLD_COORD_LIMIT_BELOW_SENTINEL (WORLD_COORD_LIMIT < EXTENT_EMPTY_LO, BroadphaseCoupling.sentinel_clear; ADR-0007 registration ask); protects the 4-cell cost bound only, queries are correct at any positive cell size"
+    not: "treating it as an advisory range; clamping the cell size; hard-coding the constant 3 for V_RUN; a second cell-size invariant in Body"
+    adr: docs/architecture/adr-0014-geometry-broadphase-and-occluder-source-seam.md
+    reason: "TR-shipbody-037; a swept foot box of width at most FOOT_BOX_W + V_RUN touches at most 2 cells per axis iff cell >= that width; packed int32 writes truncate silently so coordinates must stay far from the sentinels"
+    referenced_by:
+      - docs/architecture/adr-0014-geometry-broadphase-and-occluder-source-seam.md
+    added: 2026-10-29
+    revised: ""
+  - purpose: actor_collision_sweep
+    status: active           # ADR-0015 is Proposed
+    api: "one SolidQuery.solid_in query (via LayoutCollide) per moving actor per tick over the Minkowski cover of the foot box; rectangles decoded from ADR-0014 inclusive spans through RectSpans only (x1 = spans[4k+2] + 1, y1 = spans[4k+3] + 1); per-axis analytic clamp against each returned rectangle's near edge for E-empty actors; exempt actors (start box inside a SOLID rect) use a per-sub-step predicate (non-increasing per-rectangle overlap AND destination origin in a section of the actor's body); stationary actors issue no query; the literal 1-px stepper is the test oracle and a debug cross-check only"
+    not: "engine physics bodies or shapes; the 1-px stepper in a release hot path; an inflated margin or second rectangle set; push-out, shove, snap or eject; a stateful bind(body_id) on the collide port; a second span-to-half-open conversion"
+    adr: docs/architecture/adr-0015-integer-kinematics-and-the-ship-body.md
+    reason: "exact equivalence to the 1-px specification (probed 2026-10-29: 0 mismatches in 300,000 fixtures; scripts to be committed under tests/support/probes/adr-0015/) at about 3K instead of 7K rectangle tests"
+    referenced_by:
+      - docs/architecture/adr-0015-integer-kinematics-and-the-ship-body.md
+    added: 2026-10-29
+  - purpose: body_interpolated_pair
+    status: active           # ADR-0015 is Proposed
+    api: "body.state is interpolated=true; pos_prev and world_prev are derived columns rolled inside body.integrate for every row and inside every discontinuous mutator; commit_baseline is a documented no-op; snap_baseline(_key, ctx) sets prev := curr; post_restore derives prev := curr"
+    not: "a P4 roll of the pair (prev == curr at P5 erases interpolation and zeroes moved); a persisted or hashed pos_prev"
+    adr: docs/architecture/adr-0015-integer-kinematics-and-the-ship-body.md
+    reason: "controller.noise must read this tick's moved after body.integrate; presenters need the last tick's pair at P5"
+    referenced_by:
+      - docs/architecture/adr-0015-integer-kinematics-and-the-ship-body.md
+    added: 2026-10-29
+  - purpose: body_snapshot_shape
+    status: active           # ADR-0015 is Proposed
+    api: "snapshot() is a plain Dictionary with exactly five keys next_actor_id, n_bodies, n_actors, bodies (n*6 plain-Array ints), actors (n*10 plain-Array ints), ascending ids, no floats, no pos_prev; restore validates version, type, count, per-row column ranges (BDY_RESTORE_COLUMN_RANGE before every other per-row check), order/canonicity, Layout LIVE state and reports only through ctx.fault(BDY_RESTORE_*); phase 2 copies element by element and never replaces a column reference; idempotent so body.state is not in REBASE_BLOCKS; in-memory layout is id-sorted SoA (reversible by spike S1 without a schema change)"
+    not: "Packed arrays in the payload; var_to_bytes for any hashed byte; an owner byte writer; clamping on restore; a wrapping write into an int32 column"
+    adr: docs/architecture/adr-0015-integer-kinematics-and-the-ship-body.md
+    reason: "TR-shipbody-008/009/041; the type walk (binary path only) keeps a decoded float from being truncated into a range-valid integer; a PackedInt32Array element write wraps silently"
+    referenced_by:
+      - docs/architecture/adr-0015-integer-kinematics-and-the-ship-body.md
+    added: 2026-10-29
+  - purpose: packed_array_constant_declaration
+    status: active           # ADR-0015 is Proposed
+    api: "table constants are declared `const NAME: PackedInt32Array = [..]` (or Array[int]) and treated as read-only; `_find_actor_row`/`_find_body_row` return -1 unless bsearch row < size and id matches; blocked stored as a byte"
+    not: "`const NAME := PackedInt32Array([..])` or `PackedInt32Array()` in a const (does not compile on 4.7.2); reading a_id[row] from a raw bsearch index; assigning a bool into a PackedByteArray element"
+    adr: docs/architecture/adr-0015-integer-kinematics-and-the-ship-body.md
+    reason: "probed on 4.7.2 by the engine review (V9)"
+    referenced_by:
+      - docs/architecture/adr-0015-integer-kinematics-and-the-ship-body.md
+    added: 2026-10-29
+  - purpose: restore_order_tiebreak
+    status: active           # ADR-0016 is Proposed
+    adr: docs/architecture/adr-0016-restore-ordering-and-cross-block-verification.md
+    api: "restore, post_restore, default_state and init_world all follow one DAG order: Kahn over restore_after, ready list ordered by registration index, smallest ready index first (the rule of the hook sort, ADR-0003 section 8); unknown id UNKNOWN_DEPENDENCY, cycle or self edge RESTORE_CYCLE (18), more than MAX_BLOCKS BLOCK_LIMIT (19), all boot failures; duplicate entry is a boot warning; bind_order is built once at the freeze with CanonicalEncoder.sorted_string_keys"
+    reason: "One algorithm and one total order that is a pure function of registration data; the permutation test (KRN-RST-05) catches any dependency not declared in restore_after"
+    referenced_by:
+      - docs/architecture/adr-0016-restore-ordering-and-cross-block-verification.md
+    added: 2026-10-29
+    revised: 2026-10-29
+  - purpose: default_state_through_restore
+    status: active           # ADR-0016 is Proposed
+    adr: docs/architecture/adr-0016-restore-ordering-and-cross-block-verification.md
+    api: "A persisted block's default_state(ctx) ends with ctx.put(payload) of snapshot shape and current schema_version; the kernel moves the payload out of the put-slot, clears the slot, then applies it by calling that block's own restore (which copies by value); no put is DEFAULT_STATE_NO_PAYLOAD (21); a non-persisted block's default_state only resets derived members"
+    reason: "One copy path validates every default on every new game and every absent-block restore; clearing the slot means re-arming never leaves a stale payload"
+    referenced_by:
+      - docs/architecture/adr-0016-restore-ordering-and-cross-block-verification.md
+    added: 2026-10-29
+    revised: 2026-10-29
+  - purpose: exposure_cone_test
+    status: active
+    api: "Q14 direction table DirTable.UX/UY (generated, const Array[int], AIM_UNITS entries, quadrant reflection); in_cone = d2 == 0 or (dd > 0 and dd*dd >= d2*cos2_q28) with dd = rx*ux + ry*uy; cos2_q28 derived by the ShapeCatalog freeze; exact distance d = ConeMath.floor_root(sq, d2) = sq.bsearch(d2, false) - 1 on a boot-built squares table"
+    not: "floats, trig, sqrt, Vector2 on the sim path; const PackedInt32Array (not a constant expression on 4.7.2); the default bsearch(v) form for a floor root (wrong for non-squares); computing the table in src/"
+    adr: docs/architecture/adr-0017-emitter-state-and-integer-light-exposure-query.md
+    reason: "exact, mirror-symmetric, machine-independent; probed 2026-10-29: 0 mirror mismatches, cos2_q28 equal to the GDD column, 63 ns per exact root"
+    referenced_by:
+      - docs/architecture/adr-0017-emitter-state-and-integer-light-exposure-query.md
+    added: 2026-10-29
+    revised: ""
+  - purpose: occluder_segment_test
+    status: active
+    api: "SegmentMath.blocked over OccluderSource.rects_in spans in doubled coordinates: closed box [2*x0-1, 2*(x1-1)+1] x [2*y0-1, 2*(y1-1)+1] per rectangle, slab method by cross-multiplied fractions, a touch blocks; candidate box = segment cell bounding box, half-open; actors and horrors never occlude; anchors at least ANCHOR_CLEARANCE_PX outside every rectangle"
+    not: "PhysicsDirectSpaceState2D or any physics/rendering occluder (including as a test-only cross-check); open cell-index spans (leak at abutting rectangles); solid_in for light"
+    adr: docs/architecture/adr-0017-emitter-state-and-integer-light-exposure-query.md
+    reason: "probed 2026-10-29: 0 mismatches in 300,000 cases against an independent separating-axis test (reproduced by the engine review on 200,000 further cases); no leak at wall seams or corner joins"
+    referenced_by:
+      - docs/architecture/adr-0017-emitter-state-and-integer-light-exposure-query.md
+    added: 2026-10-29
+    revised: ""
+  - purpose: emitter_pair_cache
+    status: active
+    api: "subject-major fixed-stride pair rows (emitter id, d, f_pm, c) for resting subjects only, with unsaturated raw sums; updated by deltas synchronously in W4; a pure optimisation: every answer equals the cache-free TestBruteExposure oracle; overflow of the stride changes cost, never an answer; moving subjects hold no rows (static_epoch); built only if the oracle/cold-build path misses B at the S1 harness (Migration step 7)"
+    not: "a saturated partial sum; a deferral queue or counted-unit cap that leaves work pending past the tick; any cache-dependent answer"
+    adr: docs/architecture/adr-0017-emitter-state-and-integer-light-exposure-query.md
+    reason: "removal needs the unsaturated sum; G4 needs the table to be a function of canonical state"
+    referenced_by:
+      - docs/architecture/adr-0017-emitter-state-and-integer-light-exposure-query.md
+    added: 2026-10-29
+    revised: ""
+  - purpose: emitter_subject_index
+    status: active
+    api: "Emitter-owned section-local PointGrid (dense cells of EMITTER_CELL_PX, intrusive buckets, two populations: subjects and static emitters); answers independent of bucket order; a weld or cut re-indexes nothing"
+    not: "a linear subject scan (TR-emitter-046); a Layout-owned subject index; a per-body grid rebuilt on weld"
+    adr: docs/architecture/adr-0017-emitter-state-and-integer-light-exposure-query.md
+    reason: "ADR-0014 section 7 leaves the subject index to the Emitter; section-local grids are frame-invariant"
+    referenced_by:
+      - docs/architecture/adr-0017-emitter-state-and-integer-light-exposure-query.md
+    added: 2026-10-29
+    revised: ""
+  - purpose: lit_hysteresis_bit
+    status: active
+    api: "lit' = act_lux_pm >= LIT_ON_PM or (lit and act_lux_pm >= LIT_OFF_PM), no dwell; the bit is canonical (one PackedByteArray entry per subject), copied verbatim by post_restore and never recomputed there (LitHysteresis.next runs only in a live W6); lux(ref) and lit(ref) are separate answers; unregistered reads 0/false in release"
+    not: "rebuilding bits against LIT_ON_PM in post_restore; re-running the hysteresis in post_restore; a dwell; deriving lit from the beacon"
+    adr: docs/architecture/adr-0017-emitter-state-and-integer-light-exposure-query.md
+    reason: "kernel G4: a subject between the thresholds must answer the same in the live and the restored run"
+    referenced_by:
+      - docs/architecture/adr-0017-emitter-state-and-integer-light-exposure-query.md
+    added: 2026-10-29
+    revised: ""
+  - purpose: emitter_pending_intents
+    status: active
+    api: "pending bytes on emitter and subject rows, a pending anchor pair, hdr.last_place_tick, and the closed TRANSITIONS_PENDING table: a mutator that runs after emitter.place in its tick stays out of the subject table until the next run; post_restore builds the applied view and derives at last_place_tick over end-of-tick upstream state; registrations restore verbatim and drift is repaired by the registrant's first hook run, never written from post_restore"
+    not: "a restore that cold-builds the table from every row; a mutator call from post_restore"
+    adr: docs/architecture/adr-0017-emitter-state-and-integer-light-exposure-query.md
+    reason: "hooks ordered after emitter.place (Interaction, Horror) call E3/E6/E7/E8; without canonical pending state a snapshot at that tick breaks save-equivalence"
+    referenced_by:
+      - docs/architecture/adr-0017-emitter-state-and-integer-light-exposure-query.md
+    added: 2026-10-29
+    revised: ""
+  - purpose: emitter_work_units
+    status: active
+    api: "counted work units (REJ, CONE, CON, SEG, RECTS, POSE, DER, TAB, PUB, DELTA, BROAD, FRAME, RLIT, CELL) through an injected WorkCounter (Null in shipped builds) equal to the D.14 closed form under CNT-04; an always-on integer tally feeds the release counter emitter_rebuild_over_ceiling; weights are EmitterTuning data; counts never branch the simulation"
+    not: "wall-clock governors; skipping or deferring mandatory work; conditional compilation"
+    adr: docs/architecture/adr-0017-emitter-state-and-integer-light-exposure-query.md
+    reason: "a time-based governor is nondeterministic; a ceiling is a counter, not a deferral"
+    referenced_by:
+      - docs/architecture/adr-0017-emitter-state-and-integer-light-exposure-query.md
+    added: 2026-10-29
+    revised: ""
+  - purpose: light_origin_lattice
+    status: active           # ADR-0018 is Proposed; B is the design of record pending lighting spike step 3b and SO-P10; acceptance conditional on ADR-0009 F1
+    api: "Every Light2D node position is Placement.at(...) or the emitter anchor (an integer cell) plus Placement.CELL_CENTRE (0.5, 0.5), written only through Placement.put_light_origin(node: Light2D, p: Vector2i); occluder polygon vertices stay on the integer corners of the OCCLUDES_LIGHT occupied spans (x0, y0)..(x1_occ + 1, y1_occ + 1) with CULL_DISABLED, closed true and no shift; shadow origin == render(EmitterDerived.occlusion_origin) at rest; a shadow-casting light anchor's cell centre is never inside an OCCLUDES_LIGHT box (SHO-07)"
+    not: "Placement.put or any other writer of a Light2D position; a polygon shifted by -1/2; CULL_CLOCKWISE or CULL_COUNTER_CLOCKWISE on occluder nodes; a tolerance-only shadow agreement with no origin identity; a shadow-casting light anchored inside an occluder box"
+    adr: docs/architecture/adr-0018-shadow-origin-and-beam-occlusion-consistency.md
+    reason: "Sim cell n is centred on n, render pixel n spans [n, n+1): an integer node sits on the cell corner, 0.707 px off and on the polygon face when the foot touches a wall (probed 2026-10-29: 3-10x more mismatches than the half-cell lattice, whole regions flip on a face)"
+    referenced_by:
+      - docs/architecture/adr-0018-shadow-origin-and-beam-occlusion-consistency.md
+    added: 2026-10-29
+    revised: 2026-10-29
+  - purpose: beam_apex_offset_and_mode
+    status: active           # ADR-0018 is Proposed; OFFSET_FRAME LOCAL probed on one machine, spike step 3b confirms
+    api: "The beam PointLight2D sits at the occlusion origin (foot, lattice) and Lighting writes PointLight2D.offset every render frame, write-on-change, as BeamOffset.offset_for(theta_read_back_from_node, vx, vy, ax, ay) = Vector2(vx, vy).rotated(-theta) - Vector2(ax, ay) (v = (0,0) for non-beams); beam_offset_writer.gd parameters are typed PointLight2D; mode LightingTuning.SHADOW_ORIGIN_MODE {FOOT_OFFSET 0, CHEST_NODE 1} chosen once at setup (value 2 and the Emitter OCC_ORIGIN_MODE row and combination invariant arrive together with outcome D); the shadow-reach occluder set is measured from the apex and is necessary but not sufficient; ladder B, then B-pad (texture padded so the quad contains the foot), then A (control), then D; C rejected"
+    not: "offset written by the Presenter or from a cached rotation; a Light2D-typed offset writer; a Light2D parented to a rotating node; a second shadow-casting light per beam; a per-frame branch on the mode; an Emitter OCC_ORIGIN_MODE row or combination invariant before outcome D"
+    adr: docs/architecture/adr-0018-shadow-origin-and-beam-occlusion-consistency.md
+    reason: "Probed 2026-10-29: the shadow origin follows the node and ignores offset and rotation, offset is node-local and unscaled, the apex lands within float32 at five angles, B has zero mismatches at six AC-57 offsets on a centred 1200x1200 texture while a chest node renders black; occluder culling by the real edge-apex quad is untested (SO-P10)"
+    referenced_by:
+      - docs/architecture/adr-0018-shadow-origin-and-beam-occlusion-consistency.md
+    added: 2026-10-29
+    revised: 2026-10-29
+  - purpose: beam_light_parent_body_root
+    status: active           # ADR-0018 is Proposed; attach path owned by ADR-0034 (CT-32)
+    api: "The beam PointLight2D's parent is the translation-only BodyRoot of BodyView.body_of_actor(actor), attached through BodyScenes namespace LIGHTING keyed by the seat's beam id; stage 0 BODY_TRANSFER reparents it with reparent(p, false) before stage AVATAR (2); the owning Presenter rewrites the position from BodyView.pos_x/pos_y the same frame; dev counter shadow_origin_wrong_frame is zero (SHO-04)"
+    not: "parenting the beam light to the avatar, the tool layer or a rotating node; a projector write of a foreign node's position; leaving the light in the old body root after a pod hop or weld rebase"
+    adr: docs/architecture/adr-0018-shadow-origin-and-beam-occlusion-consistency.md
+    reason: "A wrong parent root for one frame shifts the drawn origin by the inter-body canvas offset: the drawn-against-simulated lie SO-1 exists to prevent"
+    referenced_by:
+      - docs/architecture/adr-0018-shadow-origin-and-beam-occlusion-consistency.md
+    added: 2026-10-29
+  - purpose: y_sort_scope_merged
+    status: active           # ADR-0034 is Proposed; probed 2026-10-29 on the 4.7.2 editor binary, release export UNVERIFIED (SP-YSORT-1)
+    api: "World and every BodyRoot are y_sort_enabled; nested y_sort_enabled nodes form one merged sort scope keyed by accumulated transform; equal keys tie by tree order; a TileMapLayer cell key = cell_top + tile_size.y/2 + TileData.y_sort_origin + TileMapLayer.y_sort_origin + layer.position.y (texture size irrelevant); same-row cells of one layer tie by x, independent of set_cell order; wall-face and wall-mounted layers use cell height WALL_FOOTPRINT_DEPTH and a layer y_sort_origin of WALL_FOOTPRINT_DEPTH/2; class rank is the order of the sorted groups Faces < Mounted < PropsActors; in every group the TileMapLayers are a prefix of the child list in ascending section_id (LayerOrder), followed by sprites in (class_rank, entity_id) order via SortedLayer with index base layers.count()"
+    not: "a non-sorting BodyRoot (sorts its subtree as one unit); tie-break by creation order or mount order; copying y_sort_origin 24 without the cell height; two atlas sources in one TileMapLayer; tile layers ordered by weld history"
+    adr: docs/architecture/adr-0034-projector-scene-shape-and-y-sort.md
+    reason: "Probed: nested sorting nodes merge by global key, ties follow tree order, tile key is measured from the cell centre; reparent appends the node as last child so layer order must be restored by section_id; two atlas sources alternating by row read 440 draw calls in an unsorted layer and 23 when sorted"
+    referenced_by:
+      - docs/architecture/adr-0034-projector-scene-shape-and-y-sort.md
+    added: 2026-10-29
+  - purpose: z_band_names
+    status: active           # ADR-0034 is Proposed
+    api: "ZBand FLOOR 0, MARKS 1, YSORT 10, CAPS 20, DUST 30 in src/presentation/projector/z_band.gd; z_index is written only by the group builder; dependents use names; every light's range_z_min <= FLOOR and range_z_max >= DUST (default -1024..1024 probed inclusive); fallback table 0, 1, window 10..899, 900, 910 is specified, not built"
+    not: "a z number outside z_band.gd; a presenter writing z_index; a trail on z 0 or +20; a Y-sorted floor, cap or dust node"
+    adr: docs/architecture/adr-0034-projector-scene-shape-and-y-sort.md
+    reason: "The order of the bands is the contract (PR-5); Light2D range_z excludes items outside it (probed)"
+    referenced_by:
+      - docs/architecture/adr-0034-projector-scene-shape-and-y-sort.md
+    added: 2026-10-29
+  - purpose: scene_move_primitive
+    status: active           # ADR-0034 is Proposed; ADR-0009 is asked to reword its reparent sanction
+    api: "SceneMove.to(node, new_parent) = node.reparent(new_parent, false) is the only way presentation changes a node's parent; the local position is kept (probed), the node becomes the last child, LayerOrder and SortedLayer restore order; positions are recomputed through Placement.put; on 4.7.2 reparenting or showing a TileMapLayer makes the engine rebuild every cell once, deferred (about 0.9 us per cell on the dev machine), and that rebuild is the weld budget term R_weld"
+    not: "Node.reparent(parent) with the default keep_global_transform = true (rewrites the local position); freeing a node another presenter attached; treating the reparent call time as the weld cost; position + delta arithmetic for sprites"
+    adr: docs/architecture/adr-0034-projector-scene-shape-and-y-sort.md
+    reason: "TR-shipbody-032 forbids global-transform-preserving reparent; Placement.put is the one integer assignment point; probe V10 shows the rebuild lands in the deferred update"
+    referenced_by:
+      - docs/architecture/adr-0034-projector-scene-shape-and-y-sort.md
+    added: 2026-10-29
 
 # Example:
 #
@@ -1139,6 +2333,7 @@ forbidden_patterns:
     adr: docs/architecture/adr-0001-kernel-tick-driver-and-frame-order.md
     referenced_by:
       - docs/architecture/adr-0010-source-layout-static-typing-and-lint-enforcement.md
+      - docs/architecture/adr-0014-geometry-broadphase-and-occluder-source-seam.md
     added: 2026-10-28
   - pattern: cosmetic_phase_from_tick_counter
     status: active
@@ -1147,6 +2342,7 @@ forbidden_patterns:
     adr: docs/architecture/adr-0001-kernel-tick-driver-and-frame-order.md
     referenced_by:
       - docs/architecture/adr-0009-presentation-subscriber-contract.md
+      - docs/architecture/adr-0019-player-controller-split-and-input-contexts.md
     added: 2026-10-28
   - pattern: await_process_frame_in_sim_or_presentation
     status: active
@@ -1163,6 +2359,7 @@ forbidden_patterns:
     adr: docs/architecture/adr-0002-authority-model-and-command-pipeline.md
     referenced_by:
       - docs/architecture/adr-0010-source-layout-static-typing-and-lint-enforcement.md
+      - docs/architecture/adr-0019-player-controller-split-and-input-contexts.md
     added: 2026-10-28
   - pattern: presentation_submit_without_handle
     status: active
@@ -1173,6 +2370,7 @@ forbidden_patterns:
       - docs/architecture/adr-0004-change-notification-and-dirty-keys.md
       - docs/architecture/adr-0009-presentation-subscriber-contract.md
       - docs/architecture/adr-0010-source-layout-static-typing-and-lint-enforcement.md
+      - docs/architecture/adr-0019-player-controller-split-and-input-contexts.md
     added: 2026-10-28
   - pattern: peer_id_keyed_persistent_state
     status: active
@@ -1206,6 +2404,7 @@ forbidden_patterns:
     referenced_by:
       - docs/architecture/adr-0006-save-container-generations-versioning-and-restore-epoch.md
       - docs/architecture/adr-0010-source-layout-static-typing-and-lint-enforcement.md
+      - docs/architecture/adr-0016-restore-ordering-and-cross-block-verification.md
     added: 2026-10-28
   - pattern: content_directory_scan
     status: active
@@ -1278,6 +2477,8 @@ forbidden_patterns:
     description: "StringName is never passed to Array.sort() or compared for order in simulation, kernel or hashing code; convert with String(k) first. sort_custom, and any sort over keys that can tie, is banned in sim: pack the key and a stable id into one int and sort the ints."
     why: "StringName.sort() is not lexical and not a function of text (probed 2026-10-28: [&b,&a,&c,&aa,&B] sorted to [&c,&a,&b,&B,&aa]; intern-order based, may change between runs); the sort is not stable."
     adr: docs/architecture/adr-0005-determinism-keyed-rng-canonical-encoding-and-hashing.md
+    referenced_by:
+      - docs/architecture/adr-0016-restore-ordering-and-cross-block-verification.md
     added: 2026-10-28
   - pattern: global_rng_or_engine_hash_in_sim
     status: active           # ADR-0005 is Proposed; the token list itself is ADR-0010 SIM-02 and the DET rules
@@ -1395,10 +2596,11 @@ forbidden_patterns:
     added: 2026-10-28
   - pattern: unrounded_or_foreign_placement
     status: active           # ADR-0009 is Proposed
-    description: "Position, global position, offset and transform of a Node2D or world-anchored Control (world layer 0, HUD layer 2) are written only in placement.gd (Placement.put / put_control) and the named allow-list (viewport_wiring.gd; the camera host's frame_pre_draw handler for canvas_transform and Placement.floor_v parallax offsets), by assignment, setter, relative-move method or animation property track; sim-owned positions are never rounded with int(), round or roundi and never animated by Tween or AnimationPlayer; presenters read alpha only from PresentFrame (tick_alpha is read only in presentation_driver.gd). Layer 3 and 4 UI Controls are outside the pattern."
+    description: "Position, global position, offset and transform of a Node2D or world-anchored Control (world layer 0, HUD layer 2) are written only in placement.gd (Placement.put / put_control / put_light_origin) and the named allow-list (viewport_wiring.gd; the camera host's frame_pre_draw handler for canvas_transform and Placement.floor_v parallax offsets; lighting/beam_offset_writer.gd for a PointLight2D offset), by assignment, setter, relative-move method or animation property track; sim-owned positions are never rounded with int(), round or roundi and never animated by Tween or AnimationPlayer; presenters read alpha only from PresentFrame (tick_alpha is read only in presentation_driver.gd). Layer 3 and 4 UI Controls are outside the pattern."
     why: "One floor function and one alpha per frame keep the camera, the beam chest point and the sprite on the same pixel at every render rate."
     adr: docs/architecture/adr-0009-presentation-subscriber-contract.md
     added: 2026-10-28
+    revised: 2026-10-29
   - pattern: presentation_state_fed_back_or_persisted
     status: active           # ADR-0009 is Proposed
     description: "A presentation-local scalar is never persisted, hashed, replicated or read by the simulation, never decides visibility of a truth-channel element, never changes what a value settles to, and is reset by on_discontinuity on restore, new game, camera cut and hard_start."
@@ -1416,6 +2618,8 @@ forbidden_patterns:
     description: "No Node-derived class, scene-tree token (Node, SceneTree, get_tree, get_node, $, @onready, @export, _process, _input), engine server (RenderingServer, PhysicsServer2D, AudioServer, DisplayServer) or Input singleton in src/shared, src/kernel, src/data, src/save or src/sim. KernelHost and SaveHost live in src/game. No waiver (SIM-01)."
     why: "Kernel H10 and architecture Principle 1: the simulation runs headless; gdUnit4 runs inside a tree so tree-freedom is a lint, not an arrangement."
     adr: docs/architecture/adr-0010-source-layout-static-typing-and-lint-enforcement.md
+    referenced_by:
+      - docs/architecture/adr-0014-geometry-broadphase-and-occluder-source-seam.md
     added: 2026-10-28
   - pattern: float_or_wall_clock_in_sim
     status: active           # ADR-0010 is Proposed
@@ -1452,6 +2656,8 @@ forbidden_patterns:
     description: "No access to a ._member through a receiver other than self, and no assignment to a frozen catalog _field outside its own _freeze (ARCH-06); a same-class peer access carries a '# lint-allow: ARCH-06 reason' waiver."
     why: "GDScript has no private fields; write-once catalog fields and block internals are conventions the lint must hold (ADR-0007 section 1.5)."
     adr: docs/architecture/adr-0010-source-layout-static-typing-and-lint-enforcement.md
+    referenced_by:
+      - docs/architecture/adr-0011-life-support-graph-data-model.md
     added: 2026-10-28
   - pattern: render_test_in_headless_lane
     status: active           # ADR-0010 is Proposed
@@ -1476,6 +2682,10 @@ forbidden_patterns:
     description: "Accessors return Array[T] or Dictionary[K, V] marked read-only, never a Packed*Array; a Packed*Array property with a set( accessor is a finding in src/ unless the owner marks dirty explicitly (ARCH-11, CNT-03)."
     why: "Packed arrays have no read-only marker and pass by reference; 4.7 element writes skip setters."
     adr: docs/architecture/adr-0010-source-layout-static-typing-and-lint-enforcement.md
+    referenced_by:
+      - docs/architecture/adr-0011-life-support-graph-data-model.md
+      - docs/architecture/adr-0012-graph-propagation-scheme.md
+      - docs/architecture/adr-0014-geometry-broadphase-and-occluder-source-seam.md
     added: 2026-10-28
   - pattern: live_reference_in_snapshot_payload
     status: active
@@ -1489,6 +2699,373 @@ forbidden_patterns:
     why: "restore_epoch is non-persisted and non-hashed; any other simulation-visible use breaks bit-exact replay of (save bytes, restore_epoch)."
     adr: docs/architecture/adr-0003-state-block-registry-and-owner-contract.md
     added: 2026-10-28
+  - pattern: graph_field_write_outside_writer_files
+    status: active           # needs ADR-0010 OWN-01 (directory globs, per-member entries) and the ARCH-06 exemption (foundation ask 1)
+    description: "Assignment or a mutating call on a GraphState/GraphCaches/GraphScratch underscore-prefixed member outside the writer matrix of ADR-0011 section 12.1 (GraphState: propagate/**, graph_mutators.gd, graph_restore.gd; GraphCaches: graph_derived.gd, plus propagate/** for the intensive values, descriptor store and alarm_sections, plus propagate/** and graph_mutators.gd for the last-emitted buckets; GraphScratch: propagate/** contents, graph_derived.gd sizing and the stack/queue buffers)."
+    why: "GDScript has no private fields; one writer set keeps the dirty-key and touch-serial discipline checkable."
+    adr: docs/architecture/adr-0011-life-support-graph-data-model.md
+    added: 2026-10-29
+    referenced_by:
+      - docs/architecture/adr-0011-life-support-graph-data-model.md
+  - pattern: graph_id_reuse_renumber_or_compaction
+    status: active
+    description: "Reusing, renumbering or decrementing a Graph node, edge, seam or section id or counter, compacting tables in the MVP, or changing a persisted GraphIds value (append-only; ids.lock.json)."
+    why: "Layout bases, Interaction subjects, Perception refs and saves hold these ids."
+    adr: docs/architecture/adr-0011-life-support-graph-data-model.md
+    added: 2026-10-29
+    referenced_by:
+      - docs/architecture/adr-0011-life-support-graph-data-model.md
+  - pattern: graph_holder_static_var_or_state_backref
+    status: active           # lexical part needs ADR-0010 OWN-01 (static var scan)
+    description: "A static var in GraphState, GraphCaches, GraphScratch or GraphDiag, or a field of type GraphState in GraphCaches, GraphScratch, GraphDiag or GraphView."
+    why: "Reflection does not list a static var and it is shared by every instance, including the restore scratch object; a back-reference makes a RefCounted cycle that leaks."
+    adr: docs/architecture/adr-0011-life-support-graph-data-model.md
+    added: 2026-10-29
+    referenced_by:
+      - docs/architecture/adr-0011-life-support-graph-data-model.md
+  - pattern: graph_derived_value_in_payload
+    status: active
+    description: "Putting a derived cache, scratch buffer, diagnostics counter or StringName key in the graph.state snapshot payload, or persisting the intensive atmosphere values P, p_o2, o2_pm or trend (the hook products n_served, n_draw, CABLE e0 and power_use_w0..w4 are persisted by design)."
+    why: "Hash stability, TR-lsg-004/038/039, ADR-0006 type walk."
+    adr: docs/architecture/adr-0011-life-support-graph-data-model.md
+    added: 2026-10-29
+    referenced_by:
+      - docs/architecture/adr-0011-life-support-graph-data-model.md
+  - pattern: socket_state_write_outside_lm2_lm3
+    status: active
+    description: "Any write to layout.state socket columns, or a set_socket_state / install_cap_plate mutator, outside attach_section and detach_section"
+    why: "A cap plate or scar must not exist without its cut record; sockets are terminal and atomic with the Graph weld and cut"
+    adr: docs/architecture/adr-0013-ship-layout-block-geometry-and-id-allocation.md
+    referenced_by:
+      - docs/architecture/adr-0013-ship-layout-block-geometry-and-id-allocation.md
+    added: 2026-10-29
+  - pattern: layout_reads_body_state
+    status: active
+    description: "Layout reading body.state (pose, velocity, actor positions, foot boxes) in a check, mutator, hook or read; foot boxes are caller arguments"
+    why: "Layout is the restore root (restore_after []); a read of body.state makes the restore order cyclic"
+    adr: docs/architecture/adr-0013-ship-layout-block-geometry-and-id-allocation.md
+    referenced_by:
+      - docs/architecture/adr-0013-ship-layout-block-geometry-and-id-allocation.md
+    added: 2026-10-29
+  - pattern: graph_id_allocated_in_layout
+    status: active
+    description: "Layout allocating, predicting or renumbering a node, edge, compartment or seam id, or a section/body/room id being reused, skipped, reserved or renumbered"
+    why: "One writer per id space; dense id == row+1 and graph_ref_base mapping break on any reuse or gap"
+    adr: docs/architecture/adr-0013-ship-layout-block-geometry-and-id-allocation.md
+    referenced_by:
+      - docs/architecture/adr-0013-ship-layout-block-geometry-and-id-allocation.md
+    added: 2026-10-29
+  - pattern: door_area_written_outside_p2
+    status: active
+    description: "Writing a template door or mated hatch opening area/door_state from a hook (M13 called from P3), or Layout storing, mirroring or writing area or door_state"
+    why: "layout.doors reads same-tick P2 state; collision, light and the drawn leaf must not disagree"
+    adr: docs/architecture/adr-0013-ship-layout-block-geometry-and-id-allocation.md
+    referenced_by:
+      - docs/architecture/adr-0013-ship-layout-block-geometry-and-id-allocation.md
+    added: 2026-10-29
+  - pattern: layout_hash_rewrite_in_restore
+    status: active
+    description: "Rewriting a stored geometry_hash, visual_hash or structure_hash (or any other persisted field) inside layout.state restore() to absorb template drift"
+    why: "snapshot(restore(x)) must equal x; ADR-0006's REBASED causes are a closed set that does not include owner-side content drift, so a rewrite yields NOT_REPRODUCED; hashes refresh only in LM2 when an instance first gets history"
+    adr: docs/architecture/adr-0013-ship-layout-block-geometry-and-id-allocation.md
+    referenced_by:
+      - docs/architecture/adr-0013-ship-layout-block-geometry-and-id-allocation.md
+    added: 2026-10-29
+  - pattern: layout_result_array_aliased
+    status: active
+    description: "Assigning another packed array (a LayoutDerived column or a local) to a Layout result record field, using clear()/push_back() on a reused result or traversal array, or retaining a result array across Layout calls without duplicate()"
+    why: "Packed arrays alias on assignment in GDScript; the caller would alias Layout's scratch and the next apply would silently rewrite it"
+    adr: docs/architecture/adr-0013-ship-layout-block-geometry-and-id-allocation.md
+    referenced_by:
+      - docs/architecture/adr-0013-ship-layout-block-geometry-and-id-allocation.md
+    added: 2026-10-29
+  - pattern: device_id_literal_compare
+    status: active           # ADR-0019 is Proposed
+    description: "InputEvent.device is never compared with an integer literal or a DEVICE_ID_* constant anywhere in src/ or tools/ (lint CTL-02); a comparison with a variable such as the stored active pad is allowed."
+    why: "Godot 4.7 changed the keyboard and mouse ids from 0 to 16 and 32, and pad ids are enumeration indices."
+    adr: docs/architecture/adr-0019-player-controller-split-and-input-contexts.md
+    referenced_by:
+      - docs/architecture/adr-0019-player-controller-split-and-input-contexts.md
+    added: 2026-10-29
+  - pattern: input_read_outside_adapter_files
+    status: active           # ADR-0019 is Proposed
+    description: "Input.*, InputMap, InputEvent and subclasses, _input, _unhandled_input, _unhandled_key_input and _shortcut_input appear only in the files listed in tools/lint/config/allowlists/input_surface.json (input_adapter.gd, engine_input_source.gd, binding_factory.gd, raw_event.gd, dev_actions.gd); set_input_as_handled only in input_adapter.gd; get_mouse_position, warp_mouse, joy_connection_changed, focus_exited and the two focus notification constants only in engine_input_source.gd; the pipeline root, HUD, Chart Table layer, debug overlay, Instruments and Presenter read no device and define no _input (lint CTL-07)."
+    why: "One door to the devices makes input replayable and keeps the Chart Table layer, pipeline root and HUD from forking their own input handling or starving the Adapter's ring."
+    adr: docs/architecture/adr-0019-player-controller-split-and-input-contexts.md
+    referenced_by:
+      - docs/architecture/adr-0010-source-layout-static-typing-and-lint-enforcement.md
+      - docs/architecture/adr-0019-player-controller-split-and-input-contexts.md
+    added: 2026-10-29
+  - pattern: adapter_writes_block_or_reads_perception
+    status: active           # ADR-0019 is Proposed
+    description: "The Input Adapter and the Avatar Presenter write no block and hold no ModuleFacet or WriteScope (lint CTL-01); no file under src/sim/controller/ or src/presentation/controller/ reads Attention, Sanity or PERCEPTION_OUT (get_view(&\"attention.state\"), AttentionView/SanityView, perceived(, PerceptionRef, true_value), the single allowed exception being the injected Attention mutator's push_stimulus in controller_noise.gd; the Controller Sim's Suit read-view requests are locomotion_cap and stowed_heavy only (lint CTL-08); mass_g, instance_mass_g, weight_class and salvage_yield never appear in the Controller (lint CTL-03)."
+    why: "Input mapping, deadzones and aim source are HR-6 anchors that must be structurally unable to lie; carry speed is independent of mass; controller.noise must still be able to push its stimulus."
+    adr: docs/architecture/adr-0019-player-controller-split-and-input-contexts.md
+    referenced_by:
+      - docs/architecture/adr-0019-player-controller-split-and-input-contexts.md
+    added: 2026-10-29
+  - pattern: controller_writes_body_position
+    status: active           # ADR-0019 is Proposed
+    description: "The Controller Sim writes no body.state field (pos_curr, pos_prev, sub, odometer); on a body edge controller.step clears only channel_ref, channel_face and channel_body; the position baseline and sub reset belong to Body's transfer mutators (ADR-0015: BM4 new side and BM5 reset pos_prev and zero sub; BM3 keeps sub and last_octant)."
+    why: "PC-14 position ownership; a same-tick Controller write after a pod hop must not displace the arrival cell (TR-shipbody-048)."
+    adr: docs/architecture/adr-0019-player-controller-split-and-input-contexts.md
+    referenced_by:
+      - docs/architecture/adr-0019-player-controller-split-and-input-contexts.md
+    added: 2026-10-29
+  - pattern: controller_derived_point_stored
+    status: active           # ADR-0019 is Proposed
+    description: "The chest and hand points are never stored on a ControllerRow, in a snapshot payload or in a cache, and never returned as a Vector2i; they are read-time scalar getters over BodyView.pos_x/pos_y plus the ControllerCatalog offsets."
+    why: "A value derived in controller.step is one tick stale against body.integrate and breaks apex and occlusion consistency (ADR-0017, ADR-0018)."
+    adr: docs/architecture/adr-0019-player-controller-split-and-input-contexts.md
+    referenced_by:
+      - docs/architecture/adr-0019-player-controller-split-and-input-contexts.md
+    added: 2026-10-29
+  - pattern: input_action_zero_engine_deadzone
+    status: active           # ADR-0019 is Proposed
+    description: "No InputMap action is registered with a 0.0 deadzone; BindingFactory uses a named non-zero ENGINE_ACTION_DEADZONE and a boot lint rejects action_get_deadzone == 0.0."
+    why: "With a 0.0 deadzone a centred stick or a trigger at rest reports is_action_pressed true (probed on 4.7.2), corrupting the edge latch and the hold-mode cancel."
+    adr: docs/architecture/adr-0019-player-controller-split-and-input-contexts.md
+    referenced_by:
+      - docs/architecture/adr-0019-player-controller-split-and-input-contexts.md
+    added: 2026-10-29
+  - pattern: graph_iterate_to_convergence_or_catch_up
+    status: active  # ADR-0012 is Proposed
+    description: "No Graph phase iterates to a convergence condition, recurses, repeats a step or runs a missed step; one pass per loop per step"
+    adr: docs/architecture/adr-0012-graph-propagation-scheme.md
+    added: 2026-10-29
+    referenced_by:
+      - docs/architecture/adr-0012-graph-propagation-scheme.md
+  - pattern: graph_wall_clock_or_epoch_in_propagation
+    status: active  # ADR-0012 is Proposed
+    description: "No wall clock, restore_epoch, draw_epoch, float or bare % in src/sim/graph/; budgets are counted work units per commit and wall clock on hardware nightly"
+    adr: docs/architecture/adr-0012-graph-propagation-scheme.md
+    added: 2026-10-29
+    referenced_by:
+      - docs/architecture/adr-0012-graph-propagation-scheme.md
+  - pattern: graph_hook_product_cache_not_persisted
+    status: active  # ADR-0012 is Proposed
+    description: "A value read by a later Graph hook or another block between hooks must be persisted, recomputed at its single point of use from persisted state, or listed as a re-derived cache with a stated window (ADR-0012 section 11); the intensive atmosphere caches are closed out by phase 0 so they hold at every tick boundary"
+    adr: docs/architecture/adr-0012-graph-propagation-scheme.md
+    added: 2026-10-29
+    referenced_by:
+      - docs/architecture/adr-0012-graph-propagation-scheme.md
+  - pattern: engine_collision_or_tileset_as_rect_source
+    status: active           # ADR-0014 is Proposed
+    description: "No PhysicsDirectSpaceState2D, shape query, CharacterBody2D/Area2D, TileSet physics/occlusion/navigation layer or LightOccluder2D is a source of collision, occlusion or footprint rectangles; the PROJECTOR and the occluder builder draw from Layout's rect set, never the reverse."
+    why: "TR-section-011 / TR-light-035: one rect set; engine physics is non-deterministic and tree-bound; a TileSet occluder layer carries one mask per layer."
+    adr: docs/architecture/adr-0014-geometry-broadphase-and-occluder-source-seam.md
+    referenced_by:
+      - docs/architecture/adr-0014-geometry-broadphase-and-occluder-source-seam.md
+    added: 2026-10-29
+  - pattern: shared_or_returned_query_buffer
+    status: active           # ADR-0014 is Proposed
+    description: "A geometry query never returns an array or a Layout-owned buffer; every consumer passes its own QueryBuffer, never stores its columns beyond the call that filled them and never shares one buffer between two live results."
+    why: "A shared returned buffer aliases between Body, Emitter, Lighting and Interaction within one tick and cannot be both allocation-free and copy-on-write safe (LY-12 e, AC-151)."
+    adr: docs/architecture/adr-0014-geometry-broadphase-and-occluder-source-seam.md
+    referenced_by:
+      - docs/architecture/adr-0014-geometry-broadphase-and-occluder-source-seam.md
+    added: 2026-10-29
+  - pattern: perceived_variant_of_geometry_query
+    status: active           # ADR-0014 is Proposed
+    description: "rects_in, solid_in, solid_at and section_rects_into have no perceived, phantom or lying variant; a hallucination never changes what a wall or door leaf is for collision or occlusion."
+    why: "Pillar 1 / TR-section-011: the world never lies; only instruments and perception can."
+    adr: docs/architecture/adr-0014-geometry-broadphase-and-occluder-source-seam.md
+    referenced_by:
+      - docs/architecture/adr-0014-geometry-broadphase-and-occluder-source-seam.md
+    added: 2026-10-29
+  - pattern: changed_region_read_outside_its_tick
+    status: active           # ADR-0014 is Proposed
+    description: "changed_region is a simulation-side read valid only in the tick it was stamped; presentation never reads it (it keys on version_epoch, version and the dirty batch), and no consumer relies on changed_region == ALL after a restore (it is advisory there; version_epoch is the restore signal)."
+    why: "A rendered frame can follow up to four ticks, and a stamp written in post_restore does not match the first RUNNING tick's T (ADR-0016 section 1.1, OQ-1 closed)."
+    adr: docs/architecture/adr-0014-geometry-broadphase-and-occluder-source-seam.md
+    referenced_by:
+      - docs/architecture/adr-0014-geometry-broadphase-and-occluder-source-seam.md
+    added: 2026-10-29
+  - pattern: half_open_read_of_occupied_span
+    status: active           # ADR-0014 is Proposed
+    description: "No consumer reads QueryBuffer.spans[4k+2] or spans[4k+3] as a half-open x1/y1; the conversion (+ 1) happens in one inline helper, and SolidQuery is wrapped only by CollideSource/LayoutCollide."
+    why: "A 1-px shrink on high edges lets an actor enter a wall, leaves a 1-px seam between abutting hull rects and a 1-px light leak."
+    adr: docs/architecture/adr-0014-geometry-broadphase-and-occluder-source-seam.md
+    referenced_by:
+      - docs/architecture/adr-0014-geometry-broadphase-and-occluder-source-seam.md
+    added: 2026-10-29
+  - pattern: engine_physics_on_sim_path
+    status: active
+    description: "Any Godot physics body, area, shape, server, physics query (including RayCast2D, ShapeCast2D, KinematicCollision2D, the 2D query-parameter types, CollisionObject2D/Shape2D/Polygon2D, direct_space_state, get_world_2d), engine tile collision (collision_enabled) or navigation mesh referenced from src/sim or src/shared (SIM-06 plus the BDY-01 supplementary tokens); the only future exemption is the presentation-only debris of ADR-0033 on a src/presentation path"
+    adr: docs/architecture/adr-0015-integer-kinematics-and-the-ship-body.md
+    why: "Position must be a pure function of the command stream and Layout (G3, G4); one rectangle set serves collision, light and drawing; the guarantee is no use, not not-instantiated"
+    referenced_by:
+      - docs/architecture/adr-0015-integer-kinematics-and-the-ship-body.md
+    added: 2026-10-29
+  - pattern: actor_displacement
+    status: active
+    description: "Push-out, shove, snap, eject or any unannounced position change of an actor by Body, Layout, Assembly or a hook other than LocomotionStep and the BM3/BM4/BM5 transfer arithmetic"
+    adr: docs/architecture/adr-0015-integer-kinematics-and-the-ship-body.md
+    why: "Pillar 2 (no unannounced displacement) and PCI:650; a cut that would entomb an actor is refused (BDY_REBASE_ACTOR_IN_CAP, asked by can_rebase_detach for every cut origin), never resolved by ejection"
+    referenced_by:
+      - docs/architecture/adr-0015-integer-kinematics-and-the-ship-body.md
+    added: 2026-10-29
+  - pattern: sim_read_of_blocked_or_world
+    status: active
+    description: "A SIM hook reading BodyView blocked; a body-frame computation reading world_*/vel_*; a SIM hook not ordered after body.integrate reading moved_* or prev_* (lints BDY-02, BDY-03, BDY-04)"
+    adr: docs/architecture/adr-0015-integer-kinematics-and-the-ship-body.md
+    why: "blocked would become sim state that must be persisted and hashed; the interior must be byte-identical for a moving and a resting ship; moved is only G4-exact after body.integrate"
+    referenced_by:
+      - docs/architecture/adr-0015-integer-kinematics-and-the-ship-body.md
+    added: 2026-10-29
+  - pattern: cached_row_index_across_mutator
+    status: active
+    description: "Holding a body.state row index, an actor_section answer, a Dictionary key or a packed-column alias in a member (BodyView, the hook, LayoutCollide) across a Body mutator or a restore"
+    adr: docs/architecture/adr-0015-integer-kinematics-and-the-ship-body.md
+    why: "Rows are kept id-sorted by insertion and removal, so indices move; restore copies element by element so a member alias would otherwise hold stale data; Suit reads actor_section after a transfer may have run"
+    referenced_by:
+      - docs/architecture/adr-0015-integer-kinematics-and-the-ship-body.md
+    added: 2026-10-29
+  - pattern: post_restore_cross_block_write
+    status: active           # ADR-0016 is Proposed
+    adr: docs/architecture/adr-0016-restore-ordering-and-cross-block-verification.md
+    description: "A post_restore (or restore) that calls another owner's mutator or opens another block's WriteScope, including re-registering subjects with another block. The RESTORE scope opens the restoring block only; the attempt is REFUSED and counted as WRITE_OUTSIDE_SCOPE. Cross-block repair belongs to the owner's ordinary hook. Enforced at run time by the RESTORE scope and test KRN-RST-08 (no lint pack)."
+    referenced_by:
+      - docs/architecture/adr-0016-restore-ordering-and-cross-block-verification.md
+    added: 2026-10-29
+    revised: 2026-10-29
+  - pattern: post_restore_clamp_or_prune
+    status: active           # ADR-0016 is Proposed
+    adr: docs/architecture/adr-0016-restore-ordering-and-cross-block-verification.md
+    description: "Clamping, pruning, repairing or defaulting a persisted value in restore or post_restore. A structurally bad value is a ctx.fault; a well-formed but dead reference restores as it is and is handled by the next hook run. The only writes of persisted state in post_restore are the documented normalisations of REBASE_BLOCKS members."
+    referenced_by:
+      - docs/architecture/adr-0016-restore-ordering-and-cross-block-verification.md
+    added: 2026-10-29
+    revised: ""
+  - pattern: restore_time_catalogue_assert
+    status: active           # ADR-0016 is Proposed
+    adr: docs/architecture/adr-0016-restore-ordering-and-cross-block-verification.md
+    description: "Asserting, clamping, deleting or migrating against a catalogue tunable (mass, WEIGHT_HEAVY_G, GLOWSTICK_STACK_MAX, PATCH_CAP_BP, stock_cap, rated outputs, hook offsets) at restore. Restore checks are structural only (shape, range, id order, reference resolution, physical ceilings, persisted-stamp comparisons); an unresolved def_id is structural."
+    referenced_by:
+      - docs/architecture/adr-0016-restore-ordering-and-cross-block-verification.md
+    added: 2026-10-29
+    revised: 2026-10-29
+  - pattern: first_run_after_restore_branch
+    status: active           # ADR-0016 is Proposed
+    adr: docs/architecture/adr-0016-restore-ordering-and-cross-block-verification.md
+    description: "A hook behaviour keyed on 'the first run after a load' (a just_restored flag). After-load reconciliation must be the same rule that runs every tick and be a no-op on consistent state, so a restored run and an uninterrupted run share one state_hash trace (kernel G4). Test KRN-RST-11."
+    referenced_by:
+      - docs/architecture/adr-0016-restore-ordering-and-cross-block-verification.md
+    added: 2026-10-29
+    revised: ""
+  - pattern: restore_retains_payload_reference
+    status: active           # ADR-0016 is Proposed
+    adr: docs/architecture/adr-0016-restore-ordering-and-cross-block-verification.md
+    description: "A restore() that assigns a Packed*Array, Array or Dictionary from the payload into the live block by reference, or keeps any member of data. Packed arrays, Array and Dictionary are reference types (probed 2026-10-29: a write through the block changed the payload). Phase 2 copies by value (duplicate(), duplicate(true) or element-wise). Also: a lambda or Callable capturing self stored in a RefCounted member, and a self-referencing container in restore scratch. Test KRN-RST-15 and the CNT-02 leg of KRN-RST-10; review rule."
+    referenced_by:
+      - docs/architecture/adr-0016-restore-ordering-and-cross-block-verification.md
+    added: 2026-10-29
+    revised: ""
+  - pattern: physics_or_render_occlusion_query
+    status: active
+    description: "No PhysicsServer2D, direct-space-state, ray/shape cast or Light2D/LightOccluder2D read answers a light-exposure or occlusion question on a simulation path, not even as a test-only cross-check."
+    why: "determinism (CR-13 G3), headless simulation (H10), valid-only-during-the-physics-step"
+    adr: docs/architecture/adr-0017-emitter-state-and-integer-light-exposure-query.md
+    referenced_by:
+      - docs/architecture/adr-0017-emitter-state-and-integer-light-exposure-query.md
+    added: 2026-10-29
+  - pattern: cache_dependent_exposure_answer
+    status: active
+    description: "An exposure answer (lux, act_lux, lit input, top emitter, r_lit_px) that differs from the cache-free oracle because of a pair-row stride, a grid clamp, an insertion order or a rebuild history."
+    why: "restore rebuilds cold; the live run builds incrementally; both must agree"
+    adr: docs/architecture/adr-0017-emitter-state-and-integer-light-exposure-query.md
+    referenced_by:
+      - docs/architecture/adr-0017-emitter-state-and-integer-light-exposure-query.md
+    added: 2026-10-29
+  - pattern: const_packed_array_expression
+    status: active
+    description: "Declaring `const X: PackedInt32Array = PackedInt32Array([...])` (or any Packed*Array const built by constructor) in src/; use a typed const Array[int], or build the packed array once at boot in an instance field."
+    why: "probed 2026-10-29 on 4.7.2: parse error, not a constant expression"
+    adr: docs/architecture/adr-0017-emitter-state-and-integer-light-exposure-query.md
+    referenced_by:
+      - docs/architecture/adr-0017-emitter-state-and-integer-light-exposure-query.md
+    added: 2026-10-29
+  - pattern: bool_assigned_to_packed_array_element
+    status: active
+    description: "Assigning a bool (true, false, a comparison) to a Packed*Array element in src/sim/emitter; write byte columns as `1 if x else 0` or an int known to be 0..255 and read them as `b[i] != 0`. An int above 255 stored in a PackedByteArray wraps silently."
+    why: "probed 2026-10-29 on 4.7.2: `b[i] = true` is not a parse error and fails at run time (Invalid assignment ... of type bool on a base object of type PackedByteArray); 300 stores as 44"
+    adr: docs/architecture/adr-0017-emitter-state-and-integer-light-exposure-query.md
+    referenced_by:
+      - docs/architecture/adr-0017-emitter-state-and-integer-light-exposure-query.md
+    added: 2026-10-29
+  - pattern: light2d_position_outside_put_light_origin
+    status: active
+    description: "A Light2D position is written only by Placement.put_light_origin (integer cell plus CELL_CENTRE); Placement.put, position =, global_position = and relative-move calls on a Light2D are banned (lint SHO-01); PointLight2D.offset only in beam_offset_writer.gd (SHO-02). The Node2D write allow-list gains both entries."
+    why: "An integer node sits on the cell corner and, next to a wall, on the polygon face; probed 2026-10-29 the shadow classification then differs from the simulation's segment test by 3-10x more cells."
+    adr: docs/architecture/adr-0018-shadow-origin-and-beam-occlusion-consistency.md
+    referenced_by:
+      - docs/architecture/adr-0018-shadow-origin-and-beam-occlusion-consistency.md
+      - docs/architecture/adr-0019-player-controller-split-and-input-contexts.md
+    added: 2026-10-29
+  - pattern: occluder_cull_mode_not_disabled
+    status: active
+    description: "Builder-owned OccluderPolygon2D nodes use CULL_DISABLED with integer vertices, closed true; pooled LightOccluder2D set sdf_collision false and explicit masks; CULL_CLOCKWISE and CULL_COUNTER_CLOCKWISE are banned (asserted in ADR-0028's occluder-builder tests, formerly SHO-05/SHO-06)."
+    why: "Probed 2026-10-29: CULL_CLOCKWISE leaks light through walls for lights outside them (35.94 % of cells wrong with the chest outside the wall); it is not a repair for a light inside a footprint."
+    adr: docs/architecture/adr-0018-shadow-origin-and-beam-occlusion-consistency.md
+    referenced_by:
+      - docs/architecture/adr-0018-shadow-origin-and-beam-occlusion-consistency.md
+    added: 2026-10-29
+  - pattern: chest_node_for_beam_shadow_without_ac57
+    status: active
+    description: "The beam Light2D is not positioned at the chest point (outcome A) unless lighting spike step 3b records every AC-57 row passing; the default is the foot-lattice node with an offset-carried apex (outcome B), with B-pad tried before A."
+    why: "A chest node inside or beyond a wall footprint renders black or leaks (probed 2026-10-29: 27 % to 66 % of cells wrong for s <= 20, a black beam at s = 20)."
+    adr: docs/architecture/adr-0018-shadow-origin-and-beam-occlusion-consistency.md
+    referenced_by:
+      - docs/architecture/adr-0018-shadow-origin-and-beam-occlusion-consistency.md
+    added: 2026-10-29
+  - pattern: shadow_light_anchored_inside_occluder
+    status: active
+    description: "A shadow-casting light anchor whose cell centre (p + CELL_CENTRE) lies inside any OCCLUDES_LIGHT box is demoted to non-shadow or fails content validation (SHO-07)."
+    why: "With CULL_DISABLED a shadow-casting light inside a closed occluder polygon renders the whole view dark (probed 2026-10-29, luminance 0.00)."
+    adr: docs/architecture/adr-0018-shadow-origin-and-beam-occlusion-consistency.md
+    referenced_by:
+      - docs/architecture/adr-0018-shadow-origin-and-beam-occlusion-consistency.md
+    added: 2026-10-29
+  - pattern: merged_per_body_tilemaplayer
+    status: active           # ADR-0034 is Proposed
+    description: "One TileMapLayer per body holding the cells of several sections, or two TileSetAtlasSource in one layer."
+    why: "Welded sections sit on a 24 px grid offset (the MVP pair is 14.5 tiles) so cells cannot share a 48 px grid, which alone settles it; a salvage would also rebuild the whole body, and a second atlas source is a draw-call risk (440 calls in an unsorted probe, 23 when sorted)."
+    adr: docs/architecture/adr-0034-projector-scene-shape-and-y-sort.md
+    added: 2026-10-29
+    referenced_by:
+      - docs/architecture/adr-0034-projector-scene-shape-and-y-sort.md
+  - pattern: one_arg_node_reparent
+    status: active           # ADR-0034 is Proposed
+    description: "Calling Node.reparent with one argument (global-transform-preserving) anywhere in presentation; every parent change goes through SceneMove."
+    why: "It rewrites the local position to a float outside Placement.put and violates TR-shipbody-032."
+    adr: docs/architecture/adr-0034-projector-scene-shape-and-y-sort.md
+    added: 2026-10-29
+    referenced_by:
+      - docs/architecture/adr-0034-projector-scene-shape-and-y-sort.md
+  - pattern: sort_tiebreak_by_x_or_creation_order
+    status: active           # ADR-0034 is Proposed
+    description: "Resolving an equal Y-sort key between nodes or layers by x, by creation order, by mount or weld order, or by unmanaged tree order; ties resolve by group order, then tile layers by section_id, then sprites by (class_rank, entity_id) through LayerOrder and SortedLayer. (Same-row cells inside one TileMapLayer tie by the engine's own x rule, which is deterministic.)"
+    why: "Creation and weld order are not save-stable, and x makes an actor swap order with a prop as it walks a row (PR-5 acceptance)."
+    adr: docs/architecture/adr-0034-projector-scene-shape-and-y-sort.md
+    added: 2026-10-29
+    referenced_by:
+      - docs/architecture/adr-0034-projector-scene-shape-and-y-sort.md
+  - pattern: projector_builds_into_body_root_directly
+    status: active           # ADR-0034 is Proposed
+    description: "The Layout projector creating, parenting or inserting nodes under a live BodyRoot or a SortedLayer; it creates nodes only in the hidden in-tree Staging holder or through SectionScene methods, and all parenting and SortedLayer insertion under a body root goes through body.projector."
+    why: "ADR-0009 registers the layout projector before body.projector, so a root may not exist yet, and a half-built section must never draw."
+    adr: docs/architecture/adr-0034-projector-scene-shape-and-y-sort.md
+    added: 2026-10-29
+    referenced_by:
+      - docs/architecture/adr-0034-projector-scene-shape-and-y-sort.md
+  - pattern: free_root_with_foreign_attachments
+    status: active           # ADR-0034 is Proposed
+    description: "Freeing a BodyRoot, band group or SectionScene while a node another presenter attached is still its descendant; body.projector parks every foreign attachment in Staging with its registration first."
+    why: "Freeing a root also frees the Avatar Presenter, Trail, Interaction, Horror and Suit nodes, contradicting the rule that the projector never frees an attached node (restore, ProjectionSet exit, dissolved body)."
+    adr: docs/architecture/adr-0034-projector-scene-shape-and-y-sort.md
+    added: 2026-10-29
+    referenced_by:
+      - docs/architecture/adr-0034-projector-scene-shape-and-y-sort.md
 
 # Example:
 #

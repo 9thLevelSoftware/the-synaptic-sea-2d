@@ -182,3 +182,71 @@ Findings:
 - [RECOMMENDED] AC-DA-148; REF_CARRY_LEVER_N and SPINE_LENGTH_TILES knob ranges: [main review] AC-DA-148's effective pass band is 1,219-1,344 px, not the 1,008-1,344 px it states. The R19 conditional values (n up to 14, spine up to 26) lie outside the stated knob ranges.
 Reviewed-Content-Hash: design/gdd/derelict-authoring-handmade-kits.md 04428b97eb7010b8e6f46a64280827f5d0da4b32
 Reviewed-Content-Hash: design/registry/entities.yaml c7c42b1a48216686518b8b47b2a01a34e276ab50
+
+
+## Review — 2026-10-29 — Core ADR sync (lean confirming)
+
+Scope: the 10 hunks of the 2026-10-29 diff (ADR-0012 leak-wear gate, ADR-0013 three-hash split, ADR-0034 atlas_map) and their knock-on effects inside this GDD.
+
+Verdict: NEEDS REVISION (2 blockers, 5 advisories). It was APPROVED on 2026-10-28.
+
+Verified clean:
+- Amendment-note convention is present on every changed hunk.
+- No `template_hash` reference remains. The new hash names and `LAYOUT_RESTORE_TEMPLATE_CHANGED` match ADR-0013 sections 3 and 10.
+- `atlas_map.json`, `ATLAS_MAP_TEMPLATE_UNKNOWN` and `ATLAS_MAP_MISSING` match ADR-0034 section 5.
+- The `isolated_at_step` stamp matches ADR-0012 amendment item 15 and LS-11 / D.9.
+
+Blockers:
+1. The 'stamp is the form of the intensity_pm > 0 test' wording (L324, L739, L1886, L1888) claims an equivalence that does not hold. ADR-0012 stamps `isolated_at` only behind a closed valve. `pb_leak` is dry, not valve-isolated, so under the new gate it wears before V12. This breaks 'held while dry' (L332, L1046), the AC-DA-75 clause and the V12 race arithmetic. Fix: valve, seeded stamp, or Graph/ADR ruling, then narrow the claim.
+2. AC-DA-97's 'changes the template hashes as the edit touches them' cannot be tested. Graph initial values are in none of `geometry_hash`, `visual_hash` or `structure_hash`. Split the clause per hash.
+
+Advisories:
+- DA-44 and the L1369 edge case omit add, remove and rename of identity keys from the structural list. The `room_key` rename sentence now understates a saves-breaking edit.
+- `WEAR_TOKEN_MISMATCH` (L564) and L1592 still say the template names its atlas. Add an AC for the three `atlas_map` rows.
+- Closed-valve staging has a one-run stamp lag at wake. It is harmless at the 100-step wear period, but unstated.
+- Carried: the stale 'dead SHORT at intensity 0' (L1849, L1958).
+- ADR-0012 spells the field both `isolated_at` and `isolated_at_step`.
+
+Next: apply blockers 1 and 2, then re-run this lean check.
+
+## Review — 2026-10-29 — Core ADR sync (lean confirming, round 2)
+
+**Verdict:** NEEDS REVISION (one blocker, down from two; it is a missing tracking entry, not a design change).
+
+**Scope:** design/gdd/derelict-authoring-handmade-kits.md, the 18 diff hunks of the 2026-10-29 sync and knock-on fix (DA-5, DA-16, DA-17, DA-35, D.14, D.21, Dependencies, ASK-G1, AC-DA-21, 75, 97, 118). Checked against ADR-0012 § 8.1 and § 8.4, ADR-0011 and ADR-0013 § 3. The ADRs win by the standing ruling.
+
+**Blockers resolved:**
+- Blocker 2 (AC-DA-97 hash clause): split by edit class. A Graph initial-value edit changes `state_hash` only. A wall, door, socket or hardpoint move changes `geometry_hash`. A kit-piece or label change changes `visual_hash`. A key reorder, rename, add or remove changes `structure_hash` and refuses restore with `LAYOUT_RESTORE_TEMPLATE_CHANGED`. This matches ADR-0013 § 3, and DA-35 is aligned.
+- Blocker 1, wording and consistency: 'equivalent form' is now 'equivalent only behind a closed valve' at all sites. The seeded triple (`mode_key` 11, `mode_since_step` -14400, `isolated_at_step` 1) appears in DA-17, DA-35, the D.14 row, the D.21 sentence and the AC-DA-97 diff list. The AC-DA-75 clause is restated per subject. The D.21 arithmetic is unchanged and consistent.
+
+**Remaining blocker:**
+1. The seeded-stamp hold on `pb_leak` depends on a clear-on-flow reading that ADR-0012 § 8.4 does not state. The ADR says the stamp clears 'when the valve reopens or the mode clears', and no valve exists upstream of `pb_leak`. DA-17 promises 'a registry request below and Open Questions', but neither exists, and OQ-DA-18, OQ-DA-21 and ASK-G1 read ANSWERED. AC-DA-21 and AC-DA-75 (auto) assert the unratified behaviour. Fix: add the OPEN Graph-owner question (one-line amendment to § 8.4) and the registry request. Mark the `pb_leak` clauses of AC-DA-75, AC-DA-21 and DEAD_FAULT_STILL_REPAIRABLE as blocked on it. Name option (a), an isolating valve, as the dated fallback.
+
+**Advisories:**
+- `mode_key` 11 assumes sev 3 at hp 2900; tag it [UNV].
+- The '1 px' wall-run test should say 'one tile' for wall runs.
+- AC-DA-97's restore-refusal check needs a named old-template save fixture.
+- ADR-0013 TR-derelict-007 and ADR-0012 TR-derelict-037 still use the old wording; route to the ADR owner.
+
+## Review — 2026-10-29 — Core ADR sync (lean confirming, round 3)
+
+**Verdict:** APPROVED (0 blockers, 5 advisories; round 2 had 1).
+
+**Scope:** design/gdd/derelict-authoring-handmade-kits.md, the round-3 edits (DA-17 'How pb_leak holds', DA-35 derelict_b row and hash split, D.14 and D.21 sentences, ASK-G1, OQ-DA-18, Dependencies, AC-DA-75 and AC-DA-97). Checked against ADR-0012 § 8.1, § 8.4 and § 10, ADR-0013 § 3, Graph LS-11 and D.9, and the TR registry.
+
+**Round-2 blocker resolved:** the seeded-stamp hold on pb_leak now has its upstream rule.
+- ADR-0012 § 8.4 states the clear-on-flow rule: a seeded isolated_at on a valveless subject persists while the triple matches the live key, holds wear, and is cleared on the first run its intensity_pm exceeds 0.
+- § 8.1, the ADR Review Log, Graph LS-11 and D.9, and TR-derelict-037 (pb_leak fixture) all carry it. The § 8.4 references in the GDD resolve.
+- M1 accepts the back-dated mode_since -14400. isolated_at 1 is valid, and the § 10 dormancy re-base advances it.
+- OQ-DA-18 and ASK-G1 now read ANSWERED for the valveless stamp, with option (a), a closed isolating valve, kept as the dated fallback.
+
+**Consistency:** the seeded triple (11, -14400, 1) is identical in DA-17, DA-35, D.14, D.21, AC-DA-75 and AC-DA-97. The sev arithmetic is right: 1 + 4100/1500 = 3, so key 11. The D.21 figures are unchanged. The hash split matches ADR-0013 § 3.
+
+**Advisories:**
+- The general 'dry dead leak holds hp at any idle time' wording (DA-17, D.14 Status) now holds only behind a valve or a seed.
+- Seed coupling omits PB_LEAK_HP (sev 4 and key 12 at hp 2500 or below, inside the 2200 to 3000 knob range).
+- The 'DA-44 old-template save fixture' that AC-DA-97 cites does not exist in DA-44.
+- DA-35 'rect' moves are not covered by the AC-DA-97 test.
+- Route ADR-0013 line 651 (TR-derelict-007, 'template_hash') to the ADR owner.
+Reviewed-Content-Hash: design/gdd/derelict-authoring-handmade-kits.md 87c705d18289031525c55ab21d85e8a7a8dbb6e6
+Reviewed-Content-Hash: design/registry/entities.yaml 423447f14cd1ef7c387109f2b366b17ebdca9dd3

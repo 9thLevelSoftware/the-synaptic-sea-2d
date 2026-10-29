@@ -203,3 +203,24 @@ Advisories (all editorial, none mislead an implementer):
 Reviewed-Content-Hash: not recomputed by this review (the working tree was not hashed; see git for the current hash)
 Reviewed-Content-Hash: design/gdd/pixel-perfect-render-pipeline-camera.md 7eb814598cdcf604031117c3c95719dbd6c0b140
 Reviewed-Content-Hash: design/registry/entities.yaml 4d9d9f7a469ff3c3aeb97b06fa6fa82c1b2dec16
+
+
+## Review — 2026-10-29 — Core ADR sync (lean confirming)
+Scope: `git diff` of design/gdd/pixel-perfect-render-pipeline-camera.md (5 hunks, 7 lines) and the knock-on effects inside this GDD. Verdict: APPROVED. Blockers: none.
+
+Checked and consistent:
+- PR-4 item 2: the Light2D exception (floored cell + CELL_CENTRE, `Placement.put_light_origin`) matches ADR-0018 s3 (SO-3) and ADR-0009 s4. The snap-flag and step-12 text is unaffected.
+- PR-5 sort origin, z-band table and Y-sort row: the engine key `cell_top + tile_h/2 + y_sort_origin`, wall layers at cell height WALL_FOOTPRINT_DEPTH with layer origin WALL_FOOTPRINT_DEPTH/2 (south edge), ZBand names and values (FLOOR 0, MARKS 1, YSORT 10, CAPS 20, DUST 30) and the merged sort scope all match ADR-0034 s2 and s3.2. D.12 (sort_y = y_0 + 24, face and cap rows), D.13 BAND_H = 24 and the fallback window need no change.
+- C8: the north overhang `WALL_FACE_PX + WALL_FOOTPRINT_DEPTH` matches ADR-0034 s9. The solver stays the only clamp, and D.8b, `rect_eff` and CLAMPED are unchanged. Both constants are registered.
+- Lint ACs (L1087, L1122): both replace stale "origin == 24" and "cap not a child of Y-sort node" assertions with the ADR-0034 s2 and ADR-0019 text, and are testable.
+- Design intent preserved: no pillar, tuning-knob or numeric change. The only change is a Light2D placement exception and a cell-convention restatement.
+
+Advisories (none mislead an implementer):
+- C11 (L181), the D.14b cursor_px row (L639) and C6 (L168) still describe the pipeline reading the cursor and zoom itself, while the L1087 AC says the root reads no Input (ADR-0019 s6.4). Add the ADR-0019 sync note to each.
+- PR-4 "light origin and sprite never disagree" now carries a deliberate 0.5 px offset; reword to "same floored cell".
+- L1122 "descendant of a sorted group" is ambiguous because BodyRoot is itself y_sorted. Name the Faces, Mounted and PropsActors groups.
+- No AC for the C8 overhang. Dependencies rows 8 and 18 and the knob tables do not mention it or WALL_FACE_PX.
+- The header has no 2026-10-29 sync entry, and the earlier review's stale-wiring advisories are still open.
+Reviewed-Content-Hash: not recomputed (working tree uncommitted)
+Reviewed-Content-Hash: design/gdd/pixel-perfect-render-pipeline-camera.md 5262b3905f2ea8725e423922ed664bf6d1ead2a6
+Reviewed-Content-Hash: design/registry/entities.yaml 423447f14cd1ef7c387109f2b366b17ebdca9dd3

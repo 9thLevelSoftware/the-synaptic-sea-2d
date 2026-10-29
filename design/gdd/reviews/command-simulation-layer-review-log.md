@@ -254,3 +254,29 @@ Advisories (none block):
 Verdict: APPROVED. No blockers.
 Reviewed-Content-Hash: design/gdd/command-simulation-layer.md c85ce40f47ba49806bafc2f49e59856e7c7cb419
 Reviewed-Content-Hash: design/registry/entities.yaml 4d9d9f7a469ff3c3aeb97b06fa6fa82c1b2dec16
+
+
+## Review — 2026-10-29 — Core ADR sync (lean confirming)
+
+Scope: design/gdd/command-simulation-layer.md, the ADR-0016 sync diff only (4 hunks: CR-7 and CR-8 at lines 112 and 114; the LOADING and BOOTING rows at 183 and 186; the fault-code paragraph at 834; the AC at 990). Checked against ADR-0016 sections 1.1, 2.2, 3.3 and 6, and the ADR-0003 fault table (lines 242-245). Rulings applied: Proposed ADRs win over GDD text; Tuning Knob ranges are guidance only.
+
+Confirmed consistent:
+- The pre-check order (unknown block, tick rate, epoch, version) matches ADR R1 in both state-table rows. "State intact" matches ADR R1, and line 731 ("pre-check failures only") still holds.
+- The new kernel codes 18-21 match ADR-0003 and ADR-0016 by number, name and tag. There is no stale count of kernel codes elsewhere in the GDD.
+- Restore order governing post_restore, default_state and init_world, with ties broken by smallest registration index, matches ADR-0003 and ADR-0016 section 2.2. This includes the self edge and MAX_BLOCKS failing boot.
+- The AC at 922 and 985 (all defaults, then init_world, then post_restore) matches the ADR new-game steps N3-N5.
+- The flat PackedInt64Array form, a new array built on every call, and ascending block_id source order match ADR section 6.2 and 6.3. The rebuild stays last, after the hash verdict and before RUNNING.
+- No rules, formulas, edge cases or knobs now conflict. Design intent (kernel-owned rebuild, whole-block restore, no silent defaults) is preserved.
+
+Blockers: none.
+
+Advisories:
+- The GDD omits the malformed-array reasons (SHAPE, ORDER, PLAYER_RANGE) that make BINDING_REBUILD_CONFLICT in ADR section 6.3.
+- The binding_source sentence is duplicated in CR-8.
+- DEFAULT_STATE_NO_PAYLOAD (21) is listed only at line 834, with no behavioural statement.
+- The AC at line 990 says "cycle path", but ADR section 2.2 names the remaining blocks. It also names no codes.
+- No AC for RESTORE_VERSION_UNSUPPORTED (including a two-bad-blocks order case), DEFAULT_STATE_NO_PAYLOAD, or the binding array reasons.
+
+Verdict: APPROVED. No blockers.
+Reviewed-Content-Hash: design/gdd/command-simulation-layer.md f90bf5daa702a89e386ae98467ebad40b9658493
+Reviewed-Content-Hash: design/registry/entities.yaml 423447f14cd1ef7c387109f2b366b17ebdca9dd3

@@ -235,3 +235,31 @@ Advisories (non-blocking):
 - No AC covers the restore-then-settle case.
 Reviewed-Content-Hash: design/gdd/web-map-and-transit.md 41bcea154ef0a1769fc49f8f510d30868b92c587
 Reviewed-Content-Hash: design/registry/entities.yaml 4d9d9f7a469ff3c3aeb97b06fa6fa82c1b2dec16
+
+
+## Review — 2026-10-29 — Core ADR sync (lean confirming)
+
+Scope: `design/gdd/web-map-and-transit.md`. I read the diff (10 hunks) and checked its knock-on effects inside this GDD. Rulings applied: Proposed ADR-0015 and ADR-0034 win over GDD text; tuning-knob ranges are guidance.
+
+Verdict: APPROVED. No blockers.
+
+What changed:
+- ADR-0015 sync: BM1 `place_actor(scope, body_id, pos, kind, seat, out: PlaceResult)` in WM-7 step 4 and the Dependencies Body row.
+- ADR-0034 sync: the arrival build count `ceil(U / BUILD_TILES_PER_FRAME) + S` in WM-14, D.13 (formula, variables, Output Range, Example), the ARRIVE_SETTLE_TICKS tuning row, AC-WM-69, AC-WM-78 and AC-WM-125. WM-19 is realised as `BodyRoot.visible` in WM-19 and AC-WM-27.
+
+Checked and clean:
+- Every `tiles_max` is replaced by `U` and `S`; none remain.
+- The formula, variables, tuning knob, ACs and WM-14 prose agree. The tiles-only floor of 24 is consistent (2 x 2 + 20; 26 at 24 fps; L3b gives 17). The new figure of at most 12 frames at settle 45 is correct, floor(25 / 2).
+- ADR-0034 § 6, § 8 and § 11, `R_flip`, SP-YSORT-1 and the `ARRIVE_SCENE_LATE` diagnostic all resolve. ADR-0015's `PlaceResult` and its OK / REFUSED / -fault_code returns match. The WM-7 failure path (`SL_NEW_GAME_NO_BASELINE`) covers REFUSED.
+- ACs stay testable (`U` and `S` come from a test run on `build_section` output). The amendment-note convention is kept. Design intent is preserved: the frozen target, the late-projector argument and the P2 fairness window are unchanged.
+
+Advisories (non-blocking):
+- WM-19 and AC-WM-27 name an undefined 'Web Map read of the docked set'. The web.view list is closed (AC-WM-60), so name Body's `docked` read instead.
+- WM-7 and BM1: `pos` is not ADR-0015's int `x, y` in body coordinates, and the avatar's `kind` (SEAT) and `seat` (1) are not stated.
+- `R_flip` is 'charged to D.13' but the formula has no term for it.
+- The 'range floor 24' wording (D.2, L3b, AC-WM-124) is now only the tiles-only floor.
+- 'that bound' is ambiguous in the D.13 Output Range.
+- The AC-WM-125 grid uses an S = 0 fixture only.
+- Add a pointer to ADR-0034 from OQ-WM-47 and the ASK-PIPE row.
+Reviewed-Content-Hash: design/gdd/web-map-and-transit.md e32563a90604ab2328c4dd7fe7d632f82d19cb2d
+Reviewed-Content-Hash: design/registry/entities.yaml 423447f14cd1ef7c387109f2b366b17ebdca9dd3

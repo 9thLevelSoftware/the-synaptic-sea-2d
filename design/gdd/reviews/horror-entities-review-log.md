@@ -201,3 +201,49 @@ Advisories (4):
 4. The slot-epoch file format appears in Horror only as an ADR-0006 citation, which is correct, and nothing depends on it.
 Reviewed-Content-Hash: design/gdd/horror-entities.md 1cc50f8d2bfe00d8f2a16424f6a62f84878762bd
 Reviewed-Content-Hash: design/registry/entities.yaml 4d9d9f7a469ff3c3aeb97b06fa6fa82c1b2dec16
+
+
+## Review — 2026-10-29 — Core ADR sync (lean confirming)
+Verdict: NEEDS REVISION (prior verdict 2026-10-29 Foundation sync: APPROVED; design intent unchanged)
+Scope: git diff of design/gdd/horror-entities.md, 4 hunks (HE-34, the S_h Output Range, E-HE-44, AC-HE-68), all syncing the E6 `register_subject` result from a boolean return to `out.code` per ADR-0017 D3.4 and D10.2. No rule, formula, constant or tuning knob changed.
+Checked:
+- `OK`, `DUPLICATE`, `OVER_CAP`, `OVER_MOVING_CAP` and `NO_SECTION` all exist in ADR-0017 D3.4 (E6 row), and `DUPLICATE` is idempotent and not a defect (TR-horror-039). The new wording matches D10.2.
+- The budget-defect semantics are unchanged: the subject reads dark, the horror still moves and strikes, and this is never a gameplay state. `HORROR_SUBJECTS_MAX` 2, `A_max` 4 and the 16 cap are untouched.
+- Citations (EM-21, ADR-0017 D3.4, EM:154) resolve. The dropped EM:152 citation leaves nothing dangling.
+Blockers (1):
+1. HE-34 (and AC-HE-68 and AC-HE-140) still have the record call E6 inside `post_restore`. ADR-0017 D10.2 and ADR-0016 section 4.2 say `post_restore` holds no WriteScope, only compares, and writes nothing. Drift is repaired by the first ordinary run through E6/E7/E8. Fix: make `post_restore` read-only, let the existing run-time reconcile (guard 3) do the E6, and conform the two ACs.
+Advisories (5):
+1. HE-34 still says 'a false return on an already-registered ref is not' [a defect]. Reword it as `DUPLICATE`.
+2. Line 996 still reads 'an E6 false return risk during ingress'.
+3. The counter named in the HE-34 and S_h parenthetical (`emitter_subjects_overflow`) fits only `OVER_CAP`. `OVER_MOVING_CAP` increments `emitter_moving_overflow`, and `NO_SECTION` increments no overflow counter. Say why `NO_SECTION` counts as a defect.
+4. The AC-HE-68 negative fixture covers only `OVER_CAP`.
+5. The header Last Updated line has no 2026-10-29 note (carried over from the previous entry).
+Reviewed-Content-Hash: not recorded (read-only review; no hash computed)
+
+## Review — 2026-10-29 — Core ADR sync (lean confirming, round 2)
+
+**Verdict:** APPROVED
+
+**Scope:** `design/gdd/horror-entities.md`, the 5-line diff (HE-34 line 237, the S_h Output Range line 676, E-HE-44 line 897, AC-HE-68 and AC-HE-140 lines 1636-1637). Checked against Proposed ADR-0016 and ADR-0017 (D3.4 `out.code` set, D10.2 post_restore).
+
+**Blockers resolved (1 of 1):**
+- b02 (`post_restore` E6 vs ADR-0017 D10.2 / ADR-0016): resolved.
+  - HE-34 now makes `post_restore` a read-only comparison that writes nothing and calls no E6.
+  - Drift is repaired by the first run's registration reconcile (guard 3) with at most a one-run lag.
+  - The "One registration rule" heading now reads "body load and restore alike".
+  - AC-HE-68 asserts zero E6 calls from `post_restore` and an unchanged `state_hash`.
+  - AC-HE-140 splits the calls: `post_restore` makes none, the first run makes one.
+  - All three `post_restore` mentions (lines 237, 1636, 1637) agree with each other and with ADR-0016/0017.
+- The `out.code` set used (`OK`, `DUPLICATE`, `OVER_CAP`, `OVER_MOVING_CAP`, `NO_SECTION`) matches the ADR-0017 E6 row. HE-34, the S_h Output Range, E-HE-44 and AC-HE-68 are mutually consistent on defect vs no-op.
+
+**Remaining blockers:** none.
+
+**Advisories (4):**
+- Stale "a false return on an already-registered ref is not" at the end of the HE-34 defect sentence.
+- Stale "E6 false return risk" in the HORROR_SUBJECTS_MAX knob row (line 996).
+- The lag-run lux/lit behaviour (reads dark for one run) is not stated for AC-HE-140.
+- AC-HE-68's "forced duplicate E6" needs a named fixture that bypasses the reconcile guard.
+
+**Not run:** tests and lint.
+Reviewed-Content-Hash: design/gdd/horror-entities.md de80a31376f55effc32586514a3f438654bcc46e
+Reviewed-Content-Hash: design/registry/entities.yaml 423447f14cd1ef7c387109f2b366b17ebdca9dd3

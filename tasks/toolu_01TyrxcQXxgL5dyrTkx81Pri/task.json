@@ -1,0 +1,15 @@
+{
+  "tool_use_id": "toolu_01TyrxcQXxgL5dyrTkx81Pri",
+  "agent_id": "a94d85031544c038a",
+  "subagent_type": "general-purpose",
+  "task_description": "Architecture doc coverage check",
+  "token_usage": {
+    "input_tokens": 26,
+    "cache_creation_tokens": 141276,
+    "cache_read_tokens": 1134741,
+    "output_tokens": 13625,
+    "api_call_count": 12
+  },
+  "started_at": "2026-10-28T19:14:42.1295905-04:00",
+  "completed_at": "2026-10-28T19:17:13.3753279-04:00"
+}

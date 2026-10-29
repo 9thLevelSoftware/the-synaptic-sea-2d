@@ -1,0 +1,15 @@
+{
+  "tool_use_id": "toolu_016BCSe7rS6ghPcU8YrW7Uw5",
+  "agent_id": "af588b1a25791e366",
+  "subagent_type": "general-purpose",
+  "task_description": "Cross-ADR conflict detection",
+  "token_usage": {
+    "input_tokens": 66,
+    "cache_creation_tokens": 170010,
+    "cache_read_tokens": 3753735,
+    "output_tokens": 25757,
+    "api_call_count": 32
+  },
+  "started_at": "2026-10-28T19:14:41.187134-04:00",
+  "completed_at": "2026-10-28T19:19:09.3466282-04:00"
+}

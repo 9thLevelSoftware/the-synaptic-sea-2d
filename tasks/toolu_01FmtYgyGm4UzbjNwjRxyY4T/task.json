@@ -1,0 +1,15 @@
+{
+  "tool_use_id": "toolu_01FmtYgyGm4UzbjNwjRxyY4T",
+  "agent_id": "ae0d88b78d959544d",
+  "subagent_type": "general-purpose",
+  "task_description": "Coverage ADR-0004",
+  "token_usage": {
+    "input_tokens": 14,
+    "cache_creation_tokens": 73420,
+    "cache_read_tokens": 323841,
+    "output_tokens": 3017,
+    "api_call_count": 6
+  },
+  "started_at": "2026-10-28T19:14:40.835259-04:00",
+  "completed_at": "2026-10-28T19:15:28.1382504-04:00"
+}

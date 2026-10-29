@@ -1,0 +1,17 @@
+{
+  "tool_use_id": "ab2a2fe1716de15f9",
+  "agent_id": "ab2a2fe1716de15f9",
+  "subagent_type": "workflow-subagent",
+  "files": [
+    "design/gdd/save-load-and-versioned-format.md"
+  ],
+  "token_usage": {
+    "input_tokens": 24,
+    "cache_creation_tokens": 65772,
+    "cache_read_tokens": 776496,
+    "output_tokens": 7174,
+    "api_call_count": 12
+  },
+  "started_at": "2026-10-29T01:36:45.5912179-04:00",
+  "completed_at": "2026-10-29T01:38:01.0939287-04:00"
+}

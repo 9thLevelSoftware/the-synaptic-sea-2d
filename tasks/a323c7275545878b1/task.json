@@ -1,0 +1,17 @@
+{
+  "tool_use_id": "a323c7275545878b1",
+  "agent_id": "a323c7275545878b1",
+  "subagent_type": "workflow-subagent",
+  "files": [
+    "design/gdd/ship-section-and-layout-data-model.md"
+  ],
+  "token_usage": {
+    "input_tokens": 50,
+    "cache_creation_tokens": 69439,
+    "cache_read_tokens": 1561198,
+    "output_tokens": 12292,
+    "api_call_count": 23
+  },
+  "started_at": "2026-10-29T00:59:05.1431966-04:00",
+  "completed_at": "2026-10-29T01:01:01.35568-04:00"
+}

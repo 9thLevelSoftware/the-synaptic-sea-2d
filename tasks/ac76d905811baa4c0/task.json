@@ -1,0 +1,17 @@
+{
+  "tool_use_id": "ac76d905811baa4c0",
+  "agent_id": "ac76d905811baa4c0",
+  "subagent_type": "workflow-subagent",
+  "files": [
+    "docs/engine-reference/godot/breaking-changes.md"
+  ],
+  "token_usage": {
+    "input_tokens": 8,
+    "cache_creation_tokens": 39850,
+    "cache_read_tokens": 182202,
+    "output_tokens": 1499,
+    "api_call_count": 4
+  },
+  "started_at": "2026-10-29T00:59:57.394721-04:00",
+  "completed_at": "2026-10-29T01:00:13.3897848-04:00"
+}

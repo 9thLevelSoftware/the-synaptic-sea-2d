@@ -1,0 +1,15 @@
+{
+  "tool_use_id": "toolu_01LDA6bV6CVxeDU2ZoFk5iHn",
+  "agent_id": "a09410adb169789ed",
+  "subagent_type": "general-purpose",
+  "task_description": "Insert 10 Foundation ADR clauses",
+  "token_usage": {
+    "input_tokens": 52,
+    "cache_creation_tokens": 142865,
+    "cache_read_tokens": 2945583,
+    "output_tokens": 27682,
+    "api_call_count": 26
+  },
+  "started_at": "2026-10-29T00:51:45.3721121-04:00",
+  "completed_at": "2026-10-29T00:55:44.4137716-04:00"
+}

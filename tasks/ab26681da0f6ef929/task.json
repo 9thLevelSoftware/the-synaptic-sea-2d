@@ -1,0 +1,17 @@
+{
+  "tool_use_id": "ab26681da0f6ef929",
+  "agent_id": "ab26681da0f6ef929",
+  "subagent_type": "workflow-subagent",
+  "files": [
+    "design/gdd/2d-lighting-and-occlusion.md"
+  ],
+  "token_usage": {
+    "input_tokens": 28,
+    "cache_creation_tokens": 57408,
+    "cache_read_tokens": 867413,
+    "output_tokens": 6481,
+    "api_call_count": 14
+  },
+  "started_at": "2026-10-29T00:58:06.3519623-04:00",
+  "completed_at": "2026-10-29T00:59:14.375168-04:00"
+}

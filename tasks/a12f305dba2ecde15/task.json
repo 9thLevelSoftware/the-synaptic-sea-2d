@@ -1,0 +1,17 @@
+{
+  "tool_use_id": "a12f305dba2ecde15",
+  "agent_id": "a12f305dba2ecde15",
+  "subagent_type": "workflow-subagent",
+  "files": [
+    "design/gdd/player-controller-input.md"
+  ],
+  "token_usage": {
+    "input_tokens": 30,
+    "cache_creation_tokens": 78675,
+    "cache_read_tokens": 1054148,
+    "output_tokens": 10767,
+    "api_call_count": 15
+  },
+  "started_at": "2026-10-29T00:58:06.4963749-04:00",
+  "completed_at": "2026-10-29T00:59:55.4967352-04:00"
+}

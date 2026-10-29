@@ -1,0 +1,17 @@
+{
+  "tool_use_id": "afba3ba203beeae43",
+  "agent_id": "afba3ba203beeae43",
+  "subagent_type": "workflow-subagent",
+  "files": [
+    "tests/README.md"
+  ],
+  "token_usage": {
+    "input_tokens": 12,
+    "cache_creation_tokens": 44260,
+    "cache_read_tokens": 250510,
+    "output_tokens": 1236,
+    "api_call_count": 5
+  },
+  "started_at": "2026-10-29T01:00:10.314326-04:00",
+  "completed_at": "2026-10-29T01:00:29.0706274-04:00"
+}

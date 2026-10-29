@@ -1,0 +1,17 @@
+{
+  "tool_use_id": "a6291907a3b511311",
+  "agent_id": "a6291907a3b511311",
+  "subagent_type": "workflow-subagent",
+  "files": [
+    "design/gdd/perception-filter.md"
+  ],
+  "token_usage": {
+    "input_tokens": 28,
+    "cache_creation_tokens": 58087,
+    "cache_read_tokens": 760465,
+    "output_tokens": 5689,
+    "api_call_count": 12
+  },
+  "started_at": "2026-10-29T00:58:06.4900841-04:00",
+  "completed_at": "2026-10-29T00:59:03.5246777-04:00"
+}

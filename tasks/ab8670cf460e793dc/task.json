@@ -1,0 +1,17 @@
+{
+  "tool_use_id": "ab8670cf460e793dc",
+  "agent_id": "ab8670cf460e793dc",
+  "subagent_type": "workflow-subagent",
+  "files": [
+    "docs/engine-reference/godot/modules/rendering.md"
+  ],
+  "token_usage": {
+    "input_tokens": 10,
+    "cache_creation_tokens": 42676,
+    "cache_read_tokens": 185450,
+    "output_tokens": 1969,
+    "api_call_count": 4
+  },
+  "started_at": "2026-10-29T01:00:08.7004332-04:00",
+  "completed_at": "2026-10-29T01:00:28.1913228-04:00"
+}

@@ -1,0 +1,15 @@
+{
+  "tool_use_id": "toolu_017M2DoC39KUUQ9PRyBN4TVm",
+  "agent_id": "a316b0f7c90a01906",
+  "subagent_type": "general-purpose",
+  "task_description": "Apply Foundation ADR text fixes",
+  "token_usage": {
+    "input_tokens": 80,
+    "cache_creation_tokens": 128826,
+    "cache_read_tokens": 3894817,
+    "output_tokens": 23667,
+    "api_call_count": 40
+  },
+  "started_at": "2026-10-29T00:46:51.7828172-04:00",
+  "completed_at": "2026-10-29T00:51:00.2285734-04:00"
+}

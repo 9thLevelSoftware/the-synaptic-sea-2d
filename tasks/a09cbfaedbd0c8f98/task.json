@@ -1,0 +1,17 @@
+{
+  "tool_use_id": "a09cbfaedbd0c8f98",
+  "agent_id": "a09cbfaedbd0c8f98",
+  "subagent_type": "workflow-subagent",
+  "files": [
+    "design/gdd/attention-system.md"
+  ],
+  "token_usage": {
+    "input_tokens": 20,
+    "cache_creation_tokens": 85755,
+    "cache_read_tokens": 562938,
+    "output_tokens": 7681,
+    "api_call_count": 9
+  },
+  "started_at": "2026-10-29T01:36:43.5000131-04:00",
+  "completed_at": "2026-10-29T01:37:50.8306844-04:00"
+}

@@ -1,0 +1,17 @@
+{
+  "tool_use_id": "a4316c86b9c4e2286",
+  "agent_id": "a4316c86b9c4e2286",
+  "subagent_type": "workflow-subagent",
+  "files": [
+    "docs/architecture/tr-baseline.md"
+  ],
+  "token_usage": {
+    "input_tokens": 16,
+    "cache_creation_tokens": 61654,
+    "cache_read_tokens": 412016,
+    "output_tokens": 6341,
+    "api_call_count": 7
+  },
+  "started_at": "2026-10-29T00:59:50.0785886-04:00",
+  "completed_at": "2026-10-29T01:00:47.9018491-04:00"
+}

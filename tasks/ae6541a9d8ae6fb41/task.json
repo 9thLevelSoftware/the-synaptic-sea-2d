@@ -1,0 +1,17 @@
+{
+  "tool_use_id": "ae6541a9d8ae6fb41",
+  "agent_id": "ae6541a9d8ae6fb41",
+  "subagent_type": "workflow-subagent",
+  "files": [
+    "design/gdd/chart-table-web-map-and-menus.md"
+  ],
+  "token_usage": {
+    "input_tokens": 24,
+    "cache_creation_tokens": 67037,
+    "cache_read_tokens": 725361,
+    "output_tokens": 5724,
+    "api_call_count": 11
+  },
+  "started_at": "2026-10-29T00:58:06.3743911-04:00",
+  "completed_at": "2026-10-29T00:59:03.1831358-04:00"
+}

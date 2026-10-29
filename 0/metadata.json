@@ -1,0 +1,210 @@
+{
+  "cli_version": "0.12.2",
+  "checkpoint_id": "01M63VPTZBZFBAWEV06VEYBVXV",
+  "session_id": "a5c30614-4e6e-4b6b-a781-54ec94879f80",
+  "strategy": "manual-commit",
+  "created_at": "2026-10-29T12:56:54.1986501Z",
+  "branch": "main",
+  "checkpoints_count": 20,
+  "save_step_count": 16,
+  "files_touched": [
+    "design/art/art-bible.md",
+    "design/gdd/2d-lighting-and-occlusion.md",
+    "design/gdd/adaptive-audio-and-tells.md",
+    "design/gdd/attention-system.md",
+    "design/gdd/boarding-and-salvage.md",
+    "design/gdd/chart-table-web-map-and-menus.md",
+    "design/gdd/command-simulation-layer.md",
+    "design/gdd/debug-overlay-true-values.md",
+    "design/gdd/emitter-state-and-light-exposure-query.md",
+    "design/gdd/failure-and-trail-system.md",
+    "design/gdd/game-concept.md",
+    "design/gdd/horror-entities.md",
+    "design/gdd/hud-and-suit-layer.md",
+    "design/gdd/in-world-instruments-and-inspect-view.md",
+    "design/gdd/interaction-system.md",
+    "design/gdd/item-and-module-database.md",
+    "design/gdd/life-support-graph.md",
+    "design/gdd/modular-ship-assembly.md",
+    "design/gdd/perception-filter.md",
+    "design/gdd/pixel-perfect-render-pipeline-camera.md",
+    "design/gdd/player-controller-input.md",
+    "design/gdd/reviews/2d-lighting-and-occlusion-review-log.md",
+    "design/gdd/reviews/attention-system-review-log.md",
+    "design/gdd/reviews/chart-table-web-map-and-menus-review-log.md",
+    "design/gdd/reviews/command-simulation-layer-review-log.md",
+    "design/gdd/reviews/debug-overlay-true-values-review-log.md",
+    "design/gdd/reviews/emitter-state-and-light-exposure-query-review-log.md",
+    "design/gdd/reviews/failure-and-trail-system-review-log.md",
+    "design/gdd/reviews/horror-entities-review-log.md",
+    "design/gdd/reviews/hud-and-suit-layer-review-log.md",
+    "design/gdd/reviews/item-and-module-database-review-log.md",
+    "design/gdd/reviews/life-support-graph-review-log.md",
+    "design/gdd/reviews/modular-ship-assembly-review-log.md",
+    "design/gdd/reviews/perception-filter-review-log.md",
+    "design/gdd/reviews/pixel-perfect-render-pipeline-camera-review-log.md",
+    "design/gdd/reviews/player-controller-input-review-log.md",
+    "design/gdd/reviews/sanity-and-hallucination-rules-review-log.md",
+    "design/gdd/reviews/save-load-and-versioned-format-review-log.md",
+    "design/gdd/reviews/ship-body-and-interior-physics-review-log.md",
+    "design/gdd/reviews/ship-section-and-layout-data-model-review-log.md",
+    "design/gdd/reviews/suit-and-equipment-review-log.md",
+    "design/gdd/reviews/web-map-and-transit-review-log.md",
+    "design/gdd/sanity-and-hallucination-rules.md",
+    "design/gdd/save-load-and-versioned-format.md",
+    "design/gdd/ship-body-and-interior-physics.md",
+    "design/gdd/ship-section-and-layout-data-model.md",
+    "design/gdd/suit-and-equipment.md",
+    "design/gdd/systems-index.md",
+    "design/gdd/web-map-and-transit.md",
+    "design/registry/entities.yaml",
+    "docs/architecture/adr-0001-kernel-tick-driver-and-frame-order.md",
+    "docs/architecture/adr-0002-authority-model-and-command-pipeline.md",
+    "docs/architecture/adr-0003-state-block-registry-and-owner-contract.md",
+    "docs/architecture/adr-0004-change-notification-and-dirty-keys.md",
+    "docs/architecture/adr-0005-determinism-keyed-rng-canonical-encoding-and-hashing.md",
+    "docs/architecture/adr-0006-save-container-generations-versioning-and-restore-epoch.md",
+    "docs/architecture/adr-0007-static-content-data-pipeline-and-stable-type-ids.md",
+    "docs/architecture/adr-0008-render-pipeline-wiring-and-integer-scaling.md",
+    "docs/architecture/adr-0009-presentation-subscriber-contract.md",
+    "docs/architecture/adr-0010-source-layout-static-typing-and-lint-enforcement.md",
+    "docs/architecture/architecture.md",
+    "docs/architecture/gdd-sync-queue.json",
+    "docs/architecture/requirements-traceability.md",
+    "docs/architecture/review-data/res-0001.txt",
+    "docs/architecture/review-data/res-0002.txt",
+    "docs/architecture/review-data/res-0003.txt",
+    "docs/architecture/review-data/res-0004.txt",
+    "docs/architecture/review-data/res-0005.txt",
+    "docs/architecture/review-data/res-0006.txt",
+    "docs/architecture/review-data/res-0007.txt",
+    "docs/architecture/review-data/res-0008.txt",
+    "docs/architecture/review-data/res-0009.txt",
+    "docs/architecture/review-data/res-0010.txt",
+    "docs/architecture/review-data/res-archdoc.md",
+    "docs/architecture/review-data/res-conflicts.md",
+    "docs/architecture/review-data/res-engine.md",
+    "docs/architecture/tr-baseline.md",
+    "docs/architecture/tr-registry.yaml",
+    "docs/engine-reference/godot/VERSION.md",
+    "docs/engine-reference/godot/breaking-changes.md",
+    "docs/engine-reference/godot/modules/rendering.md",
+    "docs/registry/architecture.yaml",
+    "tests/README.md"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-opus-5-5",
+  "turn_id": "ed8867cecd88",
+  "checkpoint_transcript_start": 826,
+  "transcript_lines_at_start": 826,
+  "compact_transcript_start": 109,
+  "token_usage": {
+    "input_tokens": 256,
+    "cache_creation_tokens": 1027617,
+    "cache_read_tokens": 43881858,
+    "output_tokens": 94096,
+    "api_call_count": 105,
+    "subagent_tokens": {
+      "input_tokens": 4298,
+      "cache_creation_tokens": 12948659,
+      "cache_read_tokens": 178258747,
+      "output_tokens": 1547746,
+      "api_call_count": 2115
+    }
+  },
+  "redaction": {
+    "replacements": 4,
+    "layers": {
+      "betterleaks": 0,
+      "connection_string": 0,
+      "credential_key": 0,
+      "credential_value": 0,
+      "credentialed_uri": 0,
+      "entropy": 160,
+      "key_context": 0,
+      "provider_token": 0,
+      "shell_stdin": 0
+    }
+  },
+  "skill_events_version": 1,
+  "skill_events": [
+    {
+      "id": "prompt-skill-claude-code-architecture-review-2026-10-28T23:07:38.7841968Z",
+      "event_type": "prompt_invocation",
+      "skill": {
+        "name": "architecture-review"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "prompt_slash_command",
+        "confidence": "explicit"
+      },
+      "turn_id": "72f84b14f35c",
+      "timestamp": "2026-10-28T23:07:38.7841968Z",
+      "native": {
+        "command": "/architecture-review"
+      },
+      "collapse": {
+        "target": "user_message",
+        "label": "/architecture-review",
+        "default_collapsed": true
+      }
+    },
+    {
+      "id": "prompt-skill-claude-code-plan-2026-10-29T04:40:48.7223365Z",
+      "event_type": "prompt_invocation",
+      "skill": {
+        "name": "plan"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "prompt_slash_command",
+        "confidence": "explicit"
+      },
+      "turn_id": "69cac5647e1d",
+      "timestamp": "2026-10-29T04:40:48.7223365Z",
+      "native": {
+        "command": "/plan"
+      },
+      "collapse": {
+        "target": "user_message",
+        "label": "/plan",
+        "default_collapsed": true
+      }
+    },
+    {
+      "id": "claude-skill-toolu_01XfMzGr9j44H2SvrjzNJAce",
+      "event_type": "tool_invocation",
+      "skill": {
+        "name": "workflow-authoring"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "skill_tool_use",
+        "confidence": "explicit"
+      },
+      "turn_id": "ed8867cecd88",
+      "transcript_anchor": {
+        "unit": "line",
+        "start": 1309,
+        "end": 1310,
+        "entry_ids": [
+          "a0055738-9780-4212-8ef6-02da5e165cbd"
+        ],
+        "tool_use_id": "toolu_01XfMzGr9j44H2SvrjzNJAce"
+      },
+      "native": {
+        "tool_name": "Skill",
+        "tool_use_id": "toolu_01XfMzGr9j44H2SvrjzNJAce"
+      },
+      "collapse": {
+        "target": "tool_pair",
+        "label": "Skill: workflow-authoring",
+        "default_collapsed": true
+      }
+    }
+  ],
+  "session_metrics": {
+    "turn_count": 32
+  }
+}

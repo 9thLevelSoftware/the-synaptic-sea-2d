@@ -1,0 +1,17 @@
+{
+  "tool_use_id": "a43bc8708d1dd2273",
+  "agent_id": "a43bc8708d1dd2273",
+  "subagent_type": "workflow-subagent",
+  "files": [
+    "design/art/art-bible.md"
+  ],
+  "token_usage": {
+    "input_tokens": 10,
+    "cache_creation_tokens": 47350,
+    "cache_read_tokens": 264335,
+    "output_tokens": 1158,
+    "api_call_count": 5
+  },
+  "started_at": "2026-10-29T01:00:18.388766-04:00",
+  "completed_at": "2026-10-29T01:00:35.9117204-04:00"
+}

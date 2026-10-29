@@ -1,0 +1,17 @@
+{
+  "tool_use_id": "a9725d3e650a590a8",
+  "agent_id": "a9725d3e650a590a8",
+  "subagent_type": "workflow-subagent",
+  "files": [
+    "design/gdd/interaction-system.md"
+  ],
+  "token_usage": {
+    "input_tokens": 10,
+    "cache_creation_tokens": 43897,
+    "cache_read_tokens": 240818,
+    "output_tokens": 1466,
+    "api_call_count": 5
+  },
+  "started_at": "2026-10-29T01:22:11.0680456-04:00",
+  "completed_at": "2026-10-29T01:22:24.8085892-04:00"
+}

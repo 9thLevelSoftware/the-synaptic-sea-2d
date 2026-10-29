@@ -1,0 +1,15 @@
+{
+  "tool_use_id": "toolu_01YWvDoCyjLjYcugzfX2K9UZ",
+  "agent_id": "af42b4e11777fdcff",
+  "subagent_type": "general-purpose",
+  "task_description": "Gap proposals ADR-0007",
+  "token_usage": {
+    "input_tokens": 10,
+    "cache_creation_tokens": 72421,
+    "cache_read_tokens": 216993,
+    "output_tokens": 6718,
+    "api_call_count": 4
+  },
+  "started_at": "2026-10-29T00:47:51.1083767-04:00",
+  "completed_at": "2026-10-29T00:48:40.6413438-04:00"
+}

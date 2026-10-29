@@ -1,0 +1,17 @@
+{
+  "tool_use_id": "a5be619a3cd9aaed3",
+  "agent_id": "a5be619a3cd9aaed3",
+  "subagent_type": "workflow-subagent",
+  "files": [
+    "docs/architecture/adr-0011-life-support-graph-data-model.md"
+  ],
+  "token_usage": {
+    "input_tokens": 166,
+    "cache_creation_tokens": 469579,
+    "cache_read_tokens": 20524280,
+    "output_tokens": 192831,
+    "api_call_count": 80
+  },
+  "started_at": "2026-10-29T11:34:13.7198111-04:00",
+  "completed_at": "2026-10-29T12:06:19.7635332-04:00"
+}

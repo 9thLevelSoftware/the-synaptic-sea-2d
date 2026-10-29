@@ -1,0 +1,19 @@
+{
+  "tool_use_id": "a7b25a3de4c7c768b",
+  "agent_id": "a7b25a3de4c7c768b",
+  "subagent_type": "workflow-subagent",
+  "files": [
+    "docs/architecture/adr-0003-state-block-registry-and-owner-contract.md",
+    "docs/architecture/adr-0007-static-content-data-pipeline-and-stable-type-ids.md",
+    "docs/architecture/adr-0009-presentation-subscriber-contract.md"
+  ],
+  "token_usage": {
+    "input_tokens": 44,
+    "cache_creation_tokens": 118466,
+    "cache_read_tokens": 1830281,
+    "output_tokens": 13465,
+    "api_call_count": 21
+  },
+  "started_at": "2026-10-29T15:04:15.664687-04:00",
+  "completed_at": "2026-10-29T15:06:45.1811728-04:00"
+}

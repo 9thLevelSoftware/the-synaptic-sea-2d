@@ -1,0 +1,17 @@
+{
+  "tool_use_id": "a73f16d95b0d79b77",
+  "agent_id": "a73f16d95b0d79b77",
+  "subagent_type": "workflow-subagent",
+  "files": [
+    "design/gdd/adaptive-audio-and-tells.md"
+  ],
+  "token_usage": {
+    "input_tokens": 8,
+    "cache_creation_tokens": 47669,
+    "cache_read_tokens": 190480,
+    "output_tokens": 1490,
+    "api_call_count": 4
+  },
+  "started_at": "2026-10-29T15:48:20.6061285-04:00",
+  "completed_at": "2026-10-29T15:48:48.9561684-04:00"
+}

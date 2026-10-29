@@ -1,0 +1,17 @@
+{
+  "tool_use_id": "afbbd9407dd29b099",
+  "agent_id": "afbbd9407dd29b099",
+  "subagent_type": "workflow-subagent",
+  "files": [
+    "design/gdd/ship-body-and-interior-physics.md"
+  ],
+  "token_usage": {
+    "input_tokens": 84,
+    "cache_creation_tokens": 150018,
+    "cache_read_tokens": 4840611,
+    "output_tokens": 34232,
+    "api_call_count": 41
+  },
+  "started_at": "2026-10-29T15:25:15.0097027-04:00",
+  "completed_at": "2026-10-29T15:34:09.5070771-04:00"
+}

@@ -1,0 +1,17 @@
+{
+  "tool_use_id": "a6d930c5598305214",
+  "agent_id": "a6d930c5598305214",
+  "subagent_type": "workflow-subagent",
+  "files": [
+    "design/gdd/web-map-and-transit.md"
+  ],
+  "token_usage": {
+    "input_tokens": 22,
+    "cache_creation_tokens": 67553,
+    "cache_read_tokens": 742294,
+    "output_tokens": 8178,
+    "api_call_count": 11
+  },
+  "started_at": "2026-10-29T15:25:15.0148498-04:00",
+  "completed_at": "2026-10-29T15:26:48.4716321-04:00"
+}

@@ -1,0 +1,17 @@
+{
+  "tool_use_id": "a43f25c895a76d76c",
+  "agent_id": "a43f25c895a76d76c",
+  "subagent_type": "workflow-subagent",
+  "files": [
+    "docs/architecture/adr-0002-authority-model-and-command-pipeline.md"
+  ],
+  "token_usage": {
+    "input_tokens": 16,
+    "cache_creation_tokens": 57030,
+    "cache_read_tokens": 404268,
+    "output_tokens": 5613,
+    "api_call_count": 7
+  },
+  "started_at": "2026-10-29T14:48:57.8193755-04:00",
+  "completed_at": "2026-10-29T14:50:03.4401804-04:00"
+}

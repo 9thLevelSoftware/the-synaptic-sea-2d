@@ -1,0 +1,17 @@
+{
+  "tool_use_id": "aa6b44e288e4134a0",
+  "agent_id": "aa6b44e288e4134a0",
+  "subagent_type": "workflow-subagent",
+  "files": [
+    "docs/architecture/architecture.md"
+  ],
+  "token_usage": {
+    "input_tokens": 16,
+    "cache_creation_tokens": 46440,
+    "cache_read_tokens": 373977,
+    "output_tokens": 3102,
+    "api_call_count": 7
+  },
+  "started_at": "2026-10-29T15:25:15.0097027-04:00",
+  "completed_at": "2026-10-29T15:26:10.0951695-04:00"
+}

@@ -1,0 +1,17 @@
+{
+  "tool_use_id": "aedd0dec0d2b9ab60",
+  "agent_id": "aedd0dec0d2b9ab60",
+  "subagent_type": "workflow-subagent",
+  "files": [
+    "docs/architecture/adr-0018-shadow-origin-and-beam-occlusion-consistency.md"
+  ],
+  "token_usage": {
+    "input_tokens": 128,
+    "cache_creation_tokens": 291177,
+    "cache_read_tokens": 10570712,
+    "output_tokens": 124962,
+    "api_call_count": 61
+  },
+  "started_at": "2026-10-29T12:50:09.0670685-04:00",
+  "completed_at": "2026-10-29T13:13:03.7945713-04:00"
+}

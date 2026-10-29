@@ -1,0 +1,17 @@
+{
+  "tool_use_id": "a8367987587da9e1e",
+  "agent_id": "a8367987587da9e1e",
+  "subagent_type": "workflow-subagent",
+  "files": [
+    "design/gdd/life-support-graph.md"
+  ],
+  "token_usage": {
+    "input_tokens": 12,
+    "cache_creation_tokens": 43278,
+    "cache_read_tokens": 299422,
+    "output_tokens": 1448,
+    "api_call_count": 6
+  },
+  "started_at": "2026-10-29T15:47:53.6468872-04:00",
+  "completed_at": "2026-10-29T15:48:21.8632282-04:00"
+}

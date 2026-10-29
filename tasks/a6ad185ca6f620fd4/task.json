@@ -1,0 +1,17 @@
+{
+  "tool_use_id": "a6ad185ca6f620fd4",
+  "agent_id": "a6ad185ca6f620fd4",
+  "subagent_type": "workflow-subagent",
+  "files": [
+    "docs/architecture/adr-0012-graph-propagation-scheme.md"
+  ],
+  "token_usage": {
+    "input_tokens": 76,
+    "cache_creation_tokens": 221808,
+    "cache_read_tokens": 6200745,
+    "output_tokens": 67927,
+    "api_call_count": 37
+  },
+  "started_at": "2026-10-29T13:55:17.9899795-04:00",
+  "completed_at": "2026-10-29T14:04:51.4350491-04:00"
+}

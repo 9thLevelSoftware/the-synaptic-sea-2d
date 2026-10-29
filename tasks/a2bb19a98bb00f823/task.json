@@ -1,0 +1,17 @@
+{
+  "tool_use_id": "a2bb19a98bb00f823",
+  "agent_id": "a2bb19a98bb00f823",
+  "subagent_type": "workflow-subagent",
+  "files": [
+    "design/gdd/derelict-authoring-handmade-kits.md"
+  ],
+  "token_usage": {
+    "input_tokens": 14,
+    "cache_creation_tokens": 52918,
+    "cache_read_tokens": 386936,
+    "output_tokens": 2847,
+    "api_call_count": 7
+  },
+  "started_at": "2026-10-29T15:48:23.7246725-04:00",
+  "completed_at": "2026-10-29T15:49:11.5853935-04:00"
+}

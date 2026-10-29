@@ -1,0 +1,17 @@
+{
+  "tool_use_id": "ae4f29d5efbc354eb",
+  "agent_id": "ae4f29d5efbc354eb",
+  "subagent_type": "workflow-subagent",
+  "files": [
+    "docs/architecture/adr-0001-kernel-tick-driver-and-frame-order.md"
+  ],
+  "token_usage": {
+    "input_tokens": 16,
+    "cache_creation_tokens": 83818,
+    "cache_read_tokens": 407284,
+    "output_tokens": 6073,
+    "api_call_count": 7
+  },
+  "started_at": "2026-10-29T14:48:53.877453-04:00",
+  "completed_at": "2026-10-29T14:50:06.3796167-04:00"
+}

@@ -1,0 +1,17 @@
+{
+  "tool_use_id": "adc388ce8da340b4c",
+  "agent_id": "adc388ce8da340b4c",
+  "subagent_type": "workflow-subagent",
+  "files": [
+    "docs/architecture/adr-0005-determinism-keyed-rng-canonical-encoding-and-hashing.md"
+  ],
+  "token_usage": {
+    "input_tokens": 30,
+    "cache_creation_tokens": 92210,
+    "cache_read_tokens": 1197929,
+    "output_tokens": 11506,
+    "api_call_count": 14
+  },
+  "started_at": "2026-10-29T14:48:57.8338044-04:00",
+  "completed_at": "2026-10-29T14:51:49.2915919-04:00"
+}

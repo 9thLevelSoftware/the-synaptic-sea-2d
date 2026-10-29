@@ -1,0 +1,17 @@
+{
+  "tool_use_id": "a13e6047d2a24bc9c",
+  "agent_id": "a13e6047d2a24bc9c",
+  "subagent_type": "workflow-subagent",
+  "files": [
+    "design/gdd/emitter-state-and-light-exposure-query.md"
+  ],
+  "token_usage": {
+    "input_tokens": 48,
+    "cache_creation_tokens": 105666,
+    "cache_read_tokens": 1868892,
+    "output_tokens": 17559,
+    "api_call_count": 23
+  },
+  "started_at": "2026-10-29T15:56:26.1998812-04:00",
+  "completed_at": "2026-10-29T16:01:27.1699756-04:00"
+}

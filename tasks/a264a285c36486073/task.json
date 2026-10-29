@@ -1,0 +1,17 @@
+{
+  "tool_use_id": "a264a285c36486073",
+  "agent_id": "a264a285c36486073",
+  "subagent_type": "workflow-subagent",
+  "files": [
+    "docs/architecture/adr-0007-static-content-data-pipeline-and-stable-type-ids.md"
+  ],
+  "token_usage": {
+    "input_tokens": 54,
+    "cache_creation_tokens": 113436,
+    "cache_read_tokens": 2577742,
+    "output_tokens": 20484,
+    "api_call_count": 26
+  },
+  "started_at": "2026-10-29T14:48:57.8343297-04:00",
+  "completed_at": "2026-10-29T14:53:18.0186651-04:00"
+}

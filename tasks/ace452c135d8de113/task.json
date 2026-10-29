@@ -1,0 +1,17 @@
+{
+  "tool_use_id": "ace452c135d8de113",
+  "agent_id": "ace452c135d8de113",
+  "subagent_type": "workflow-subagent",
+  "files": [
+    "docs/architecture/adr-0014-geometry-broadphase-and-occluder-source-seam.md"
+  ],
+  "token_usage": {
+    "input_tokens": 142,
+    "cache_creation_tokens": 366652,
+    "cache_read_tokens": 15452585,
+    "output_tokens": 152889,
+    "api_call_count": 68
+  },
+  "started_at": "2026-10-29T12:13:25.2463737-04:00",
+  "completed_at": "2026-10-29T12:42:03.2788763-04:00"
+}

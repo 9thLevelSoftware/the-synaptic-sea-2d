@@ -1,0 +1,17 @@
+{
+  "tool_use_id": "a2999bbb219eb6d3a",
+  "agent_id": "a2999bbb219eb6d3a",
+  "subagent_type": "workflow-subagent",
+  "files": [
+    "docs/architecture/adr-0016-restore-ordering-and-cross-block-verification.md"
+  ],
+  "token_usage": {
+    "input_tokens": 126,
+    "cache_creation_tokens": 333258,
+    "cache_read_tokens": 12610799,
+    "output_tokens": 119910,
+    "api_call_count": 61
+  },
+  "started_at": "2026-10-29T12:13:25.2560286-04:00",
+  "completed_at": "2026-10-29T12:34:08.7163563-04:00"
+}

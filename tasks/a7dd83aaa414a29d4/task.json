@@ -1,0 +1,17 @@
+{
+  "tool_use_id": "a7dd83aaa414a29d4",
+  "agent_id": "a7dd83aaa414a29d4",
+  "subagent_type": "workflow-subagent",
+  "files": [
+    "docs/architecture/adr-0019-player-controller-split-and-input-contexts.md"
+  ],
+  "token_usage": {
+    "input_tokens": 80,
+    "cache_creation_tokens": 237182,
+    "cache_read_tokens": 6772681,
+    "output_tokens": 88427,
+    "api_call_count": 39
+  },
+  "started_at": "2026-10-29T13:55:17.9101397-04:00",
+  "completed_at": "2026-10-29T14:07:25.2808193-04:00"
+}

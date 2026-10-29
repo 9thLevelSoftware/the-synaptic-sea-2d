@@ -1,0 +1,17 @@
+{
+  "tool_use_id": "ab03f7bb183d9e15a",
+  "agent_id": "ab03f7bb183d9e15a",
+  "subagent_type": "workflow-subagent",
+  "files": [
+    "docs/architecture/adr-0017-emitter-state-and-integer-light-exposure-query.md"
+  ],
+  "token_usage": {
+    "input_tokens": 190,
+    "cache_creation_tokens": 472243,
+    "cache_read_tokens": 24742579,
+    "output_tokens": 216908,
+    "api_call_count": 91
+  },
+  "started_at": "2026-10-29T12:50:09.0634599-04:00",
+  "completed_at": "2026-10-29T13:26:39.2684211-04:00"
+}

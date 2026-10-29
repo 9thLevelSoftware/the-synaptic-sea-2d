@@ -1,0 +1,17 @@
+{
+  "tool_use_id": "a5b32d54d167a1005",
+  "agent_id": "a5b32d54d167a1005",
+  "subagent_type": "workflow-subagent",
+  "files": [
+    "docs/architecture/adr-0013-ship-layout-block-geometry-and-id-allocation.md"
+  ],
+  "token_usage": {
+    "input_tokens": 118,
+    "cache_creation_tokens": 344795,
+    "cache_read_tokens": 11246311,
+    "output_tokens": 121691,
+    "api_call_count": 56
+  },
+  "started_at": "2026-10-29T11:34:18.2726726-04:00",
+  "completed_at": "2026-10-29T11:57:04.542362-04:00"
+}

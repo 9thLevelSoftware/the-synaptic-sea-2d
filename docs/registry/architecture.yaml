@@ -575,7 +575,7 @@ interfaces:
       - perception-filter
       - debug-overlay
     adr: docs/architecture/adr-0003-state-block-registry-and-owner-contract.md
-    signal_signature: "PresentationViews.get(block_id) -> Object with perception_access: bool set once at issue; default face (false) returns empty_view for PERCEPTION_OUT and counts PERCEPTION_READ_BLOCKED; perception face (true) returns the real facade; subscribe-time PERCEPTION_OUT refusal (SUBSCRIBE_REFUSED) is ADR-0004 section 2 check 6; facet holders are fixed by ADR-0009 section 1"
+    signal_signature: "PresentationViews.get_view(block_id) -> Object (renamed from get 2026-10-28: get overrides Object.get and fails to load on 4.7.2) with perception_access: bool set once at issue; default face (false) returns empty_view for PERCEPTION_OUT and counts PERCEPTION_READ_BLOCKED; perception face (true) returns the real facade; subscribe-time PERCEPTION_OUT refusal (SUBSCRIBE_REFUSED) is ADR-0004 section 2 check 6; facet holders are fixed by ADR-0009 section 1"
     referenced_by:
       - docs/architecture/adr-0003-state-block-registry-and-owner-contract.md
       - docs/architecture/adr-0004-change-notification-and-dirty-keys.md

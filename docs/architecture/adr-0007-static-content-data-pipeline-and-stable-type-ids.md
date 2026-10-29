@@ -30,7 +30,8 @@ Sixty-five requirements from fifteen GDDs need static authored data (items, sect
 
 | Field | Value |
 |-------|-------|
-| **Depends On** | ADR-0001 (composition root injects; no autoload or global; Proposed), ADR-0003 (fault domain 2 and the `*_faults.gd` convention; Proposed), ADR-0005 (golden content-hash vectors only, § Validation; not an authoring dependency; Proposed). *(Amended 2026-10-28, cross-ADR ruling TD-27.)* |
+| **Depends On** | ADR-0001 (composition root injects; no autoload or global; Proposed), ADR-0003 (fault domain 2 and the `*_faults.gd` convention; Proposed). *(Amended 2026-10-28, cross-ADR ruling TD-27.)* |
+| **Validation follow-up (not an acceptance prerequisite)** | ADR-0005 (golden content-hash vectors only, committed after ADR-0005 is Accepted, § Validation Criteria; Proposed). |
 | **Enables** | ADR-0006 (Save/Load header carries `catalogue_version`; `block_versions.json` loads through this pipeline; TD-27), ADR-0011 (Graph data model: type tables loaded by this pipeline), ADR-0013 (Layout block: templates, ids and hashes), ADR-0017 (Emitter reads Failure & Trail's glow table as static content), ADR-0010 (lint tool enforces § 2 and § 3), and every Item DB, Layout template, Derelict Authoring, Horror, Sanity, Audio, Instruments, HUD and Chart Table data story. |
 | **Blocks** | Epics: Item & Module Database, Ship Section & Layout (template loading), Derelict Authoring (lint and converter), and every story that adds a data file under `assets/data/`. |
 | **Ordering Note** | **Forward references (not yet written, not blocking authorship):** ADR-0005 owns the canonical byte encoding and `H64`; this ADR fixes only the hash *input* (post-cast typed integers). ADR-0006 owns the save header; this ADR only defines and offers `catalogue_version`. ADR-0010 owns the source layout and the location of shared pure functions (§ 1.9). Acceptance requires ADR-0001 and ADR-0003 Accepted and CONTENT-EXP-1 passed. **Scope edge with ADR-0003:** content loads *before* the kernel exists (architecture § 8 steps 3 and 4), so content boot failures are handled by the composition root, not by the kernel's `boot_validation_failed` trigger (§ 2.3). This ADR uses ADR-0003's domain 2 exactly as that table defines it ("content data: item DB, templates, tuning"). |
@@ -441,7 +442,7 @@ No code exists. **GDD sync applied 2026-10-28** (each edit is marked *Amended 20
   - a non-append-only ledger change or a missing `catalogue_version` bump after `SHIPPED`;
   - a generated file that drifts from its generator;
   - any `DirAccess`, `FileAccess`, `JSON.parse_string` or `JSON.new` use for content outside `src/data/` (the lint is ADR-0010's).
-- **After ADR-0005 is Accepted** (it depends on ADR-0005): golden `catalogue_hash` and per-template hash vectors are committed and change only with the encoding.
+- **After ADR-0005 is Accepted** (a validation follow-up, not an acceptance prerequisite of this ADR): golden `catalogue_hash` and per-template hash vectors are committed and change only with the encoding.
 
 ## Related
 - Depends on: ADR-0001, ADR-0003 (both Proposed).
@@ -487,3 +488,4 @@ No code exists. **GDD sync applied 2026-10-28** (each edit is marked *Amended 20
   - 11: TR-section-003 added to the Migration Plan; registry entries drafted.
   - 12: as engine minor notes; Item DB uses a manifest.
   - The TD's pre-Accept conditions stand: ADR-0001 and ADR-0003 Accepted, and CONTENT-EXP-1 passed.
+  - 2026-10-28 /architecture-review fixes: the ADR-0005 golden-vector reference moved from Depends On to a Validation follow-up row, and the Validation Criteria wording now matches (dependency-graph cycle through a post-acceptance edge). No change to the acceptance gate.

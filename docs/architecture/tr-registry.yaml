@@ -37,7 +37,7 @@
 #   its fields sit two columns past the dash. Quote a value that holds ": ". A
 #   line in any other shape is reported as unsupported layout, with its number.
 
-version: 1
+version: 2
 last_updated: "2026-10-28"
 
 requirements:
@@ -700,9 +700,9 @@ requirements:
 - id: TR-lsg-030
   system: lsg
   gdd: design/gdd/life-support-graph.md
-  requirement: "Type ids (loop, node kind, port type, edge kind, mode, state) are explicit, stable, unique-checked at boot, append-only and never reused; Item DB loads first, then Layout, then `graph.state` registers last."
+  requirement: "Type ids (loop, node kind, port type, edge kind, mode, state) are explicit, stable, unique-checked at boot against the Graph's code-side enum constants, append-only and never reused; the type tables load first, then the Item DB, then Layout templates (start-up content load), and the `graph.state` block registers last in BOOTING (ADR-0007 § 1.7, § 3.2)."
   created: 2026-10-28
-  revised: ""
+  revised: 2026-10-28
   status: active
 
 - id: TR-lsg-031
@@ -812,9 +812,9 @@ requirements:
 - id: TR-itemdb-001
   system: itemdb
   gdd: design/gdd/item-and-module-database.md
-  requirement: "The catalogue is a static immutable `ItemCatalog` loaded once in BOOTING that registers no kernel state block, step hook, command or mutator."
+  requirement: "The catalogue is a static immutable `ItemCatalog` loaded once at start-up, before the kernel's BOOTING (ADR-0007 § 1.7, stage 2), that registers no kernel state block, step hook, command or mutator."
   created: 2026-10-28
-  revised: ""
+  revised: 2026-10-28
   status: active
 
 - id: TR-itemdb-002
@@ -3564,9 +3564,9 @@ requirements:
 - id: TR-section-003
   system: section
   gdd: design/gdd/ship-section-and-layout-data-model.md
-  requirement: "Templates (rooms, tiles, rect table, doors, sockets, hardpoints, slots, anchors) are immutable data loaded in BOOTING from a committed `assets/data/sections/manifest.json` in sorted `template_id` order (never a DirAccess scan), never appear in a snapshot, and every JSON number is int-cast and bound-checked."
+  requirement: "Templates (rooms, tiles, rect table, doors, sockets, hardpoints, slots, anchors) are immutable data loaded at start-up, before the kernel's BOOTING (ADR-0007 § 1.7), from a committed `assets/data/sections/manifest.json` in sorted `template_id` order (never a DirAccess scan), never appear in a snapshot, and every JSON number is int-cast and bound-checked."
   created: 2026-10-28
-  revised: ""
+  revised: 2026-10-28
   status: active
 
 - id: TR-section-004
@@ -3860,9 +3860,9 @@ requirements:
 - id: TR-section-040
   system: section
   gdd: design/gdd/ship-section-and-layout-data-model.md
-  requirement: "The BOOTING template loader and the offline authoring tool run one lint implementation with an identical set of lint ids and severities, matching the single authoritative LY-30 table; any ERROR rejects the whole template and aborts boot."
+  requirement: "The start-up template loader (before the kernel's BOOTING, ADR-0007 § 1.7) and the offline authoring tool run one lint implementation with an identical set of lint ids and severities, matching the single authoritative LY-30 table; any ERROR rejects the whole template and aborts boot."
   created: 2026-10-28
-  revised: ""
+  revised: 2026-10-28
   status: active
 
 - id: TR-section-041
@@ -3885,6 +3885,22 @@ requirements:
   system: section
   gdd: design/gdd/ship-section-and-layout-data-model.md
   requirement: "Engine behaviours Layout depends on are probed by spike SP-ENG-1 on a 4.7.2 release export before dependent ADRs are accepted: JSON number types, packed-array element-write setter semantics, `var_to_bytes` determinism, negative integer `/` and `%`, SHA-256 and `>>` behaviour, and `PackedInt32Array` round-trips of values at or above 2^31."
+  created: 2026-10-28
+  revised: ""
+  status: active
+
+- id: TR-section-044
+  system: section
+  gdd: design/gdd/ship-section-and-layout-data-model.md
+  requirement: "`template_id` and each template's `room_key`s are pinned by an append-only ledger `assets/data/sections/ids.lock.json` (ADR-LAY-04, ADR-0007 § 3.2); its nesting is the Layout GDD's schema to choose."
+  created: 2026-10-28
+  revised: ""
+  status: active
+
+- id: TR-section-045
+  system: section
+  gdd: design/gdd/ship-section-and-layout-data-model.md
+  requirement: "The release export filter `assets/data/*.json` covers every template and world JSON file; CI checks every manifest path against it (`EXPORT_FILTER_MISSES_MANIFEST`); `geometry_hash` and `visual_hash` are computed at load from the post-cast template and never stored in the file (ADR-0007 § 3.5)."
   created: 2026-10-28
   revised: ""
   status: active

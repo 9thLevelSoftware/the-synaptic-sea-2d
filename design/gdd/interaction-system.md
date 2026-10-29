@@ -446,7 +446,7 @@ Positions are section-local `(section_id, pos_px)` and a cell is valid iff Layou
 | `throws[]` | array of `{owner, land_tick, land_px, life_ticks}` | yes | at most `GLOWSTICK_STACK_MAX` × seats by construction (stock-limited) |
 | `loose[]` | array of `{item_id, section_id, pos_px, inst}` (`inst` = the six-element `to_array()` ItemInstance, IA-28) *(Amended 2026-10-28 — cross-GDD fix: Item DB IDB-15/16/18 and registry item_instance_to_array, G1/G6)* | yes | `pos_px` section-local (LY-22); subjects re-registered at restore; no `carried_item_id` (Suit holds the carried instance) |
 | `stubs[]` | array of `{stub_ref, node_id, port_index}` | yes | |
-| `last_salvage_T` | int64 tick or NONE | yes | the tick of the last `begin_cut` DONE (IA-25); read through the pure `last_salvage_T()`; kept at restore; never a JSON number (two 32-bit parts, as MSA's `last_shape_change_T`) |
+| `last_salvage_T` | int64 tick or NONE | yes | the tick of the last `begin_cut` DONE (IA-25); read through the pure `last_salvage_T()`; kept at restore; never a JSON number (two 32-bit parts or a string wherever it can reach JSON; native int64 is also accepted in the binary payload, as MSA's `last_shape_change_T`, ADR-0006) *(Amended 2026-10-29 — ADR-0006 sync)* |
 | `next_item_id`, `next_stub_id`, `result_seq` | ints | yes | counters live inside the block (CR-8) |
 
 Dirty keys are marked explicitly in the mutators (a packed-array element write runs no setter). -> ADR candidate: state-block representation and the autoload-versus-injected holder for `interaction.state`.

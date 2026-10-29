@@ -148,3 +148,19 @@ Findings:
 - [RECOMMENDED] AC-61, AC-52f, OQ 24, assumption A3: [main review] The CI scripts they cite do not exist yet, and the kernel has not confirmed A3.
 Reviewed-Content-Hash: design/gdd/emitter-state-and-light-exposure-query.md 2467e63766af81f069f82bbf219c5967d1fd3fcb
 Reviewed-Content-Hash: design/registry/entities.yaml cafe6d1169a1fe5dd043eae35c2c07a90c93b4c6
+
+
+## Review — 2026-10-29 — Foundation ADR sync (lean confirming)
+Verdict: APPROVED (prior verdict APPROVED 2026-10-28 stands)
+Scope: lean confirming review of the 10-line diff after the ADR-0005 / ADR-0010 sync, plus its knock-on effects inside this GDD. The three changes are (a) the owner-side `canonical_bytes()` / `block_hash()` read-view row, Provides cell, AC-116, AC-39 and AC-102 are rewritten as kernel-side reads (ADR-0005 3.1, 4.3, 5.3); (b) `floor_div` and `posmod_i` become `IntMath.*` in D.9 L611 and AC-2, including the lint fixtures; (c) `EM_WORK_COUNTER` conditional compilation becomes an injected `WorkCounter` port with `NullWorkCounter` in shipped and benchmarked builds (test seam 9, AC-64b, AC-53; ADR-0010 4.4). Rules, formulas, edge cases and knobs are untouched.
+Checks: grep confirms no residual `K-1`, `EM_WORK_COUNTER`, 'compiled' or 'test flag' wording, and no bare `canonical_bytes()` or `block_hash()` outside the new 'not exposed' statements. The rewritten ACs (AC-2, AC-39, AC-53, AC-64b, AC-102, AC-116) remain testable and agree with the changed rules. Design intent is preserved: save-equivalence, hash equality across restore, determinism lint and benchmark honesty are all unchanged. ADR-0005 4.3 and 5.3 and ADR-0010 4.4 and 5.4 exist and say what the GDD claims.
+Blocking items: 0 | Advisories: 5
+Advisories:
+- ADR-0005 'section 1' is cited at L272, L352 and L1224 for the kernel-read rule; the rule is in section 3.1 (section 1 is integer-only determinism). Cite 'sections 3.1, 4.3, 5.3'.
+- AC-39 and AC-102 treat `block_hash(...)` as returning a bare hash. ADR-0005 5.3 returns a `BlockHashResult` that fails with BLOCK_HASH_IN_WRITE if the scope has opened the block. State 'ok and equal' and read outside a write scope.
+- AC-2 keeps 'non-negative operands, checked' and the stale 'not sourceable' rationale for `IntMath.floor_div`. ADR-0005 defines it for b > 0 and either sign of a. It is safe but narrower. Cite ADR-0010 SIM-04 and SIM-05, which ban bare `/` and `%` in `src/sim` outright.
+- NullWorkCounter keeps one virtual call per counted operation in the hot path. EM-SPIKE-1 should measure with it so `U_OP_NS` and `B` are not understated.
+- The struck-through `block_hash()` row in the read-view table is a negative statement inside a method table. Consider moving it to prose.
+Prior recommended items (2026-10-28) are unaffected by this sync and remain open as logged.
+Reviewed-Content-Hash: design/gdd/emitter-state-and-light-exposure-query.md 68dfeddac372f72b8413402d509c9087bd74d8b9
+Reviewed-Content-Hash: design/registry/entities.yaml 4d9d9f7a469ff3c3aeb97b06fa6fa82c1b2dec16

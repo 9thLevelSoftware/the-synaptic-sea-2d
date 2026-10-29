@@ -1,0 +1,104 @@
+TR-cmd-016 | COVERED | §2.1,§2.2 | Deep-copy sorted snapshots, no derived caches, two-phase copy-in restore, owner migration from stored_version. | -
+TR-cmd-017 | COVERED | §1.8,§1.9 | Capture synchronous in SAVING at boundary; only WORLD blocks passed to restore; PROFILE untouched. | -
+TR-cmd-018 | PARTIAL | §3.1-§3.5 | restore_epoch fully decided; kernel.clock block registration (SIM/WORLD/never dirty) is ADR-0005/0003. | CONFLICT: req single slot_epoch.bin, epoch excluded from snapshot header; ADR uses slot_epoch_a/b.bin with seq and a recovery copy in container header
+TR-cmd-032 | PARTIAL | §1.9,Performance | Only 32-block 16.7 ms capture addressed (one over-budget frame accepted, unmeasured); encode counts, P3 and frame budgets owned by ADR-0005/0003/0010. | -
+TR-cmd-036 | PARTIAL | §1.10,§2.2 | Pure pre-check before restore() covers unknown block, tick rate, epoch, version; pre-restore-state-intact kernel fault path is ADR-0016/0003. | -
+TR-cmd-038 | COVERED | §1.2,§1.3 | var_to_bytes round-trip; JSON header 64-bit values as hex64 via ADR-0005 Hex64. | -
+TR-lsg-022 | PARTIAL | §1.2.4,§1.3 | JSON only in header/dump with base64 and int-as-string; payload ints relaxed beyond 2^53; Graph packed-array layout is ADR-0011/0012. | CONFLICT: req never var_to_bytes for saves and all values <2^53; ADR stores every payload with var_to_bytes and allows native int64
+TR-lsg-023 | PARTIAL | §2.2 | Two-phase restore contract and ctx.fault supplied; GRAPH_RESTORE_* reasons, version 1 only, post_restore bucket seeding owned by ADR-0011/0012. | CONFLICT: req named reasons returned; ADR reports failure via ctx.fault, not return value
+TR-lsg-036 | NOT | - | Snapshot time/size budgets for the Graph are not decided; ADR defers to ADR-0011/0012. | -
+TR-lsg-038 | NOT | - | Reflection allowlist and zero-and-diff CI checks not decided; ADR-0011 owns. | -
+TR-lsg-040 | PARTIAL | §2.6 | Retained goldens and drift fingerprint decided; v1-to-v2 migration hash-equal-to-golden-v2 check not stated. | -
+TR-itemdb-011 | NOT | §1.2 | Only says a positional Array passes the type walk; six-field schema owned by ADR-0007/holder ADRs. | -
+TR-itemdb-013 | NOT | - | validate_instance and restore invariants not decided here; ADR-0007 and holder ADRs (0019/0026/0027). | -
+TR-itemdb-020 | COVERED | §2.4,§1.10 | Single catalogue_version in header gates newer-than-build only; catalogue_hash diagnostic, never gates. | -
+TR-itemdb-029 | NOT | - | ItemInstance encoding byte caps not decided; ADR-0007/holder ADRs. | -
+TR-itemdb-032 | PARTIAL | §1.10,§2.4 | Save side: only version gates load, hash diagnostic; Item DB no-assert/clamp and bump rules owned by ADR-0007/0016. | -
+TR-itemdb-038 | NOT | - | ItemInstance merge rule not addressed; ADR-0007 and holders. | -
+TR-emitter-007 | NOT | §2.2 | Only generic no-derived-caches rule; canonical vs derived emitter field set owned by ADR-0017. | -
+TR-pc-020 | PARTIAL | §2.2 | Transient normalisation, whole-block replace, idempotence contract given; Controller field list, REBASE_BLOCKS exclusion, no Vector2i owned by ADR-0019. | -
+TR-pc-021 | NOT | §2.2 | No Adapter-local state in payload is Controller-specific; ADR-0019 owns. | -
+TR-pc-022 | PARTIAL | §3.3 | Single request_restore after EPOCH_DURABLE, seat stays DEAD, hard gate closed; no-transition/no-commands is ADR-0019. | -
+TR-pc-037 | NOT | - | Schema/view/payload field agreement and cap_seen persistence not addressed; ADR-0019/0003. | -
+TR-suit-007 | NOT | - | Suit persisted field list not decided; ADR-0027. | -
+TR-suit-008 | NOT | - | Suit derived-value list not decided; ADR-0027. | -
+TR-suit-009 | PARTIAL | §2.2 | SL-15 contract, default_state, idempotence supplied; Suit specifics ADR-0027. | CONFLICT: req restore returning (ok, reason, detail); ADR uses ctx.fault, no return value
+TR-suit-010 | NOT | - | Closed SUIT_RESTORE_* reasons are Suit's; ADR-0027. | -
+TR-suit-011 | PARTIAL | §2.1 | Owner migration chain allowed; rev_history rescale and suit_restore_rescaled are ADR-0027. | -
+TR-suit-021 | PARTIAL | §1.12 | vitals_state read granted as soft-gate input; SUIT_MIN_WARNING_S assertion is ADR-0007 s2.5, view is ADR-0027. | -
+TR-suit-029 | PARTIAL | §1.8 | Death = restart from autosave, suit.state PER_PLAYER x WORLD, no PROFILE block; Graph LS-13/Controller hand-off elsewhere. | -
+TR-suit-035 | COVERED | §1.12 | Both carry_ref and carried_id reads granted to gate; gate rows per SL-5 adopted as written. | -
+TR-section-006 | PARTIAL | §1.2,§1.3 | Allowed types, native int64 and halves legal, deep copies; dense array layout is ADR-0013. | -
+TR-section-007 | PARTIAL | §2.2 | Content-replace restore on success only; rot_q/template/geometry rejections owned by ADR-0013/0016. | -
+TR-section-032 | NOT | - | Hash normalisation of PackedInt32Array and H64-only hashing is ADR-0013/0005. | -
+TR-shipbody-007 | COVERED | §1.3 | Binary payload carries int64 exactly (2^53+1 probed); dump renders large ints as strings. | -
+TR-shipbody-008 | PARTIAL | §1.1 | Storage var_to_bytes vs hash TLV two encodings; five-key schema and Body ships no writer is ADR-0015/0005. | -
+TR-shipbody-009 | PARTIAL | §2.2 | Two-phase, never clamp, idempotent contract; BDY_RESTORE_* order and Layout liveness ADR-0015. | CONFLICT: req named reason returned; ADR uses ctx.fault
+TR-shipbody-040 | NOT | - | Post-mutator block consistency is ADR-0015. | -
+TR-shipbody-041 | NOT | §2.2 | REBASE_BLOCKS is closed (SL-12) but body.state exclusion is ADR-0015. | -
+TR-assembly-012 | NOT | - | pending-as-NONE and runtime-only last_result are ADR-0021. | -
+TR-assembly-013 | PARTIAL | §1.3 | 64-bit halves/strings legal, native int64 accepted; explicit dirty keys and no packed fields ADR-0021/0004. | -
+TR-assembly-037 | PARTIAL | §1.5 | No write while FAULTED decided; hash-equal restore and 17999-tick bound only cited; ADR-0021. | -
+TR-assembly-038 | COVERED | §1.10,§2.2 | Pre-check refuses without touching kernel; owner restore failure via ctx.fault sends LOADING to FAULTED. | -
+TR-derelict-009 | PARTIAL | §1.3 | Signed int64 round-trips exactly; since_steps recompute from step_no is derelict's. | -
+TR-boarding-016 | COVERED | §1.12 | last_salvage_T() granted and polled under SL-5 gate and min gap. | -
+TR-boarding-017 | COVERED | §1.12 | Gate rows per SL-5 adopted unchanged; reads granted. | -
+TR-boarding-018 | COVERED | §3.2,§3.5 | Death advances, newest QUIT Continue keeps; physical counters never read epoch. | -
+TR-boarding-034 | COVERED | §1.12 | Deferral cap/RISKY/GATE_INPUT_ABSENT adopted by reference to SL-5/F-2, not restated. | -
+TR-webmap-023 | PARTIAL | §1.12 | Save/Load half: polled pod_arrived_seq/berthed_seq; event emission is ADR-0004/Web Map ADR. | -
+TR-webmap-030 | PARTIAL | §1.8,§2.2 | World block rolls back (WORLD scope); roster never destroyed and mid-transit restorable is Web Map ADR. | -
+TR-attention-023 | NOT | - | Attention persisted field list is ADR-0022. | -
+TR-attention-024 | PARTIAL | §2.2,§3.5 | Two-phase restore, epoch read from kernel.clock never stored; closed reasons and rng_counter check ADR-0022. | CONFLICT: req restore returns (ok, reason, detail); ADR uses ctx.fault
+TR-attention-027 | PARTIAL | §1.12 | Gate unchanged; defer invariant is ADR-0007 ScalarTable; TELL reports CALM is ADR-0022. | -
+TR-horror-017 | COVERED | §3.1,§3.5 | Save/Load-owned u32 epoch, read-only in kernel.clock, Horror reads via rng_derive_epoch only. | -
+TR-horror-018 | NOT | - | horror.state closed manifest is ADR-0023. | -
+TR-horror-019 | PARTIAL | §2.2 | Two-phase, never-clamp, idempotent contract; HORROR_RESTORE_* set and REACH telegraph ADR-0023. | -
+TR-horror-034 | NOT | - | horror.state 16 KiB and dirty-key bounds are ADR-0023/0004. | -
+TR-horror-036 | NOT | - | Lazy per-epoch counter reset is ADR-0023. | -
+TR-sanity-020 | PARTIAL | §1.3 | Strict never-clamp contract; float recast limited to dev JSON, ints exact in binary; Sanity shape checks ADR-0025. | CONFLICT: req values <2^53 and JSON-float recast on restore; ADR allows int64 and restricts recast to dev fixtures
+TR-sanity-021 | NOT | §2.2 | Sanity ledger fields persisted state is ADR-0025. | -
+TR-sanity-037 | NOT | - | Verbatim Sanity reinstatement on restore is ADR-0025/0016. | -
+TR-charttable-020 | PARTIAL | §1.6,§1.12 | save_and_quit() returns promptly, status reads, cancel_held_close; layer behaviour (no write timer, one frame) ADR-0030. | -
+TR-charttable-021 | PARTIAL | §1.12,§1.4 | Boot-flow calls listed; load sequence (black hold, camera CUT) is ADR-0030. | -
+TR-charttable-034 | PARTIAL | §1.6 | Window-close handled by Save/Load; panel/plate/SAVE_QUIT_WAIT behaviour ADR-0030. | -
+TR-saveload-001 | COVERED | §1.1 | Layout, magic bytes, 32-byte SHA-256 trailer decided. | -
+TR-saveload-002 | COVERED | §1.1,Guidelines | header_len and size caps checked before allocation/decode. | -
+TR-saveload-003 | COVERED | §1.2 | var_to_bytes only, objects forms forbidden, depth/node bounds set. | CONFLICT: req MAX_DECODE_NODES 250000 and owner canonical byte form allowed; ADR provisional 100000 and drops raw-bytes form
+TR-saveload-004 | COVERED | §1.2 | Type walk allows data only; Node/Object/Resource banned. | -
+TR-saveload-005 | COVERED | §1.4 | Ring of 3 ordered by header generation. | -
+TR-saveload-006 | COVERED | §1.5 | T-4 swap via .tmp/.bak with verification; never relies on rename-over. | -
+TR-saveload-007 | COVERED | §1.6,§1.9 | Ownership transfer of immutable buffers to worker; encode bounded 4 ms. | -
+TR-saveload-008 | COVERED | §1.5,§1.6 | store_* checked; failure leaves generations; backoff/escalation unchanged. | -
+TR-saveload-009 | COVERED | §1.9,Guidelines | Synchronous SAVING capture; no write while FAULTED. | -
+TR-saveload-010 | COVERED | §1.12 | Interval/event triggers via counters; SL-4/F-1 adopted; absent read never fires. | -
+TR-saveload-011 | COVERED | §1.6,§1.12 | Gate per SL-5/F-2 adopted as written; observation inputs granted. | -
+TR-saveload-012 | COVERED | §1.6 | QUIT snapshot, request_shutdown after write, 3000 ms polled timeout. | -
+TR-saveload-013 | COVERED | §1.10,§3.3,§3.6 | Death stub restore from newest passing candidate with fallback and step-back. | -
+TR-saveload-014 | COVERED | §1.10 | Pure PreCheck.run signature, no clock/file/kernel. | -
+TR-saveload-015 | COVERED | §1.10,§2.5 | File stage then K-4 reproduction; mismatch never a fallback reason. | -
+TR-saveload-016 | COVERED | §2.1,§2.2 | Two-level versioning; owner chain; Save/Load never rewrites blocks. | -
+TR-saveload-017 | COVERED | §2.2,§1.3 | Authoring contract decided; S-1 restated per medium. | CONFLICT: req numeric values below 2^53; ADR relaxes payload ints to native int64
+TR-saveload-018 | COVERED | §1.4,§1.11 | Zero blocks/hooks; bookkeeping in campaign.json; domain registration neither. | -
+TR-saveload-019 | COVERED | §1.8 | Snapshot split by persist_scope; profile.sav; PROFILE survives restore. | -
+TR-saveload-020 | COVERED | §3.1,§3.3 | Epoch durable before request_restore; carrier for re-keying decided. | CONFLICT: req slot_epoch.bin single file u32+CRC32; ADR uses two alternating files with seq
+TR-saveload-021 | PARTIAL | §1.12 | Save/Load never reads PERCEPTION_OUT or writes it; boot assertion/thumbnail ban owned by ADR-0024. | -
+TR-saveload-022 | COVERED | §3.1,§1.4 | new_game creates directory, campaign_id, epoch 0, initial generation. | -
+TR-saveload-023 | COVERED | §1.12 | Host-local reads only, no commands, no save_now/load outside dev. | -
+TR-saveload-024 | NOT | §1.11 | Knob invariants and data-driven values assigned to ADR-0007 ScalarTable. | -
+TR-saveload-025 | COVERED | §1.9,Performance | Load/size targets and hitch placeholders with measured rung ladder. | -
+TR-saveload-026 | COVERED | §1.4,§1.5,§1.6 | Demotion, quarantine, retries, abandoned-job cap decided. | -
+TR-saveload-028 | COVERED | §1.7,§1.10 | INCOMPATIBLE stops, READ_ONLY mode, held lock opens READ_ONLY. | -
+TR-saveload-029 | COVERED | §1.5,§1.10 | T-6 tiebreak recovery stands; nothing unprovable deleted. | -
+TR-saveload-030 | COVERED | §1.5,§1.6 | write_epoch in .tmp, abandonment, STALE_EPOCH quarantine, no live join. | -
+TR-saveload-031 | COVERED | §3.6,§1.9 | Hot decoded copy and DOWNED pre-stage; walk on worker. | -
+TR-saveload-032 | COVERED | §3.1-§3.4 | Advance/durability, QUIT carry, rebuild from header copy, saturation. | -
+TR-saveload-033 | PARTIAL | §2.2 | Failure via ctx.fault and never-clamp; return form, LOADING-to-FAULTED and failure counter are ADR-0003. | CONFLICT: req owner restore() returns (ok, reason, detail); ADR says failure by ctx.fault, never by return value
+TR-saveload-034 | PARTIAL | §2.2 | Idempotence and default_state, closed REBASE_BLOCKS; fixture factories and empty-at-outside-build owned by ADR-0016. | -
+TR-saveload-035 | COVERED | §2.5,§1.10 | EXACT/REBASED selection and baseline from capture outcome decided. | -
+TR-saveload-036 | PARTIAL | §1.2 | Positional Array passes walk; canonical form and non-canonical named failure owned by ADR-0007/holders. | -
+TR-saveload-037 | COVERED | §1.1 | Header seats PlayerId list; no peer id; kernel rebuilds bindings. | -
+TR-saveload-038 | PARTIAL | §1.12 | Observation set decided; facet grants ADR-0003, Clock port ADR-0010. | -
+TR-saveload-039 | PARTIAL | §1.6 | Close interception and routing decided; quit transition ADR-0001, UI ADR-0030. | -
+TR-saveload-040 | NOT | - | Tick-driver delta discard owned by ADR-0001; nothing decided here. | -
+TR-saveload-041 | COVERED | §1.4,§1.5 | campaign.json a hint rebuilt from headers; gen_next rule. | -
+TR-saveload-042 | PARTIAL | §Requirements table | One dev-only save_load channel with read-only pull(); channel API is ADR-0031. | -

@@ -31,7 +31,7 @@ About fifteen systems register state blocks, step hooks and command handlers wit
 | Field | Value |
 |-------|-------|
 | **Depends On** | ADR-0001 (injected facets, frame order; Proposed), ADR-0002 (command-type descriptor meaning, handles; Proposed) |
-| **Enables** | ADR-0004 (notification consumes the dirty keys collected here), ADR-0005 (canonical encode and hash through `snapshot`), ADR-0006 (snapshot and restore callables), ADR-0009 (the two-face `PresentationViews`, `NotifyContext`), ADR-0016 (restore ordering; consumes `restore_after`), ADR-0031 (diagnostics channel descriptor), and every system ADR that registers a block or hook (ADR-0011, 0013, 0015, 0017, 0019, 0020 to 0027) |
+| **Enables** | ADR-0004 (notification consumes the dirty keys collected here), ADR-0005 (canonical encode and hash through `snapshot`), ADR-0006 (snapshot and restore callables), ADR-0007 (fault domain 2 and the `*_faults.gd` convention), ADR-0010 (`CompletionToken` owner callables, H1 member allow-list, fault domains), ADR-0009 (the two-face `PresentationViews`, `NotifyContext`), ADR-0016 (restore ordering; consumes `restore_after`), ADR-0031 (diagnostics channel descriptor), and every system ADR that registers a block or hook (ADR-0011, 0013, 0015, 0017, 0019, 0020 to 0027) |
 | **Blocks** | Every story that registers a block, hook or command type. |
 | **Ordering Note** | Scope edge with ADR-0002: ADR-0002 owns command-field meaning, ingress and the control plane; **this ADR states the complete `CommandTypeDescriptor`** and moves `register_command` onto the `BlockRegistrar` (ADR-0002 is amended to match, together with its result-handler signature, finding B5). Scope edge with ADR-0004: the dirty key is an opaque `int` here; ADR-0004 fixes its layout. The kernel GDD needs amendments listed in § GDD sync (epoch token; `FAULTED` re-entry qualifier; long-lived read views; fault-code table). **Registry amendments requested by ADR-0004, ADR-0005, ADR-0006 and ADR-0009 are applied here as one batch (§ Amendments, TD-07):** `register_key_space`, `emit_event`, `has_opened`, five violation names, the `touch_serial` and hash-cache registries, the `kernel.clock` view, `ModuleFacet.rng`, the kernel-internal hash `SnapshotContext`, the two-face `PresentationViews` and the host-service registrar facet. **ADR-0003 owns `kernel.clock`** (it is on the H1 allow-list; ADR-0001 does not define it); ADR-0005's attribution of the clock view to ADR-0001 is corrected in ADR-0005. `NotifyContext` is placed in `src/kernel/facets/` (ADR-0010, TD-01). |
 
@@ -117,6 +117,8 @@ Every field is mandatory unless marked optional; a missing field fails boot nami
 **`HookDescriptor`**: `hook_id: StringName`, `owner_name: StringName`, `divisor: int` (≥ 1), `offset: int` (0 ≤ offset < divisor), `after: Array[Dictionary]` each `{&"id": StringName, &"tolerates_stale": bool}`, `callable: Callable`.
 
 **`DiagnosticsChannelDescriptor`** (CR-6 via the Debug Overlay's E-DO-38): the field list is ADR-0031's; registration is here.
+
+**Entity ids are block-local** *(GDD command-simulation-layer CR-8, TR-cmd-015)*: an entity id is allocated by the owning block's own counter and is unique only within that block; the kernel allocates no entity ids. A reference across blocks is the pair `(block_id, entity_id)`, and `(source block_id, entity_id)` is the key form used by the binding sources (ADR-0002 § 4, binding table). A block's counter lives inside the block and is part of its snapshot payload, so a restore returns it to the saved value.
 
 ### 3. Contexts: reused, re-armed per call, non-re-entrant
 
@@ -386,6 +388,7 @@ Each `class_name` above is its own file; the block shows them together for readi
 - **Must** end every branch of an override of a typed-return owner callable in `return ctx.complete()` *(2026-10-28, TD-07)*.
 - **Must** register a `KeySpaceDescriptor` with every block (ADR-0004 § 3) and emit P5 events only through `scope.emit_event`; **must never** read `restore_epoch` outside `RngFacet.draw_epoch` *(2026-10-28, TD-07)*.
 - **Must** give a host service that owns no block only the `HostRegistrarFacet`; **must never** hand it a full `BlockRegistrar` *(2026-10-28, TD-07)*.
+- **Build-mode equivalence** *(GDD command-simulation-layer, TR-cmd-053)*: a `STRICT_DEBUG` kernel and a `LENIENT_RELEASE` kernel fed the same command stream (one that raises no violation under `STRICT_DEBUG`) produce identical result records, identical final state and an identical `state_hash` over `ALL_SIM` (ADR-0005). The strict-only checks (the command round-trip copy of ADR-0002 § 9, the `SIM_WRITE_TRIPWIRE`, the `WRITES_BLOCKS_UNDECLARED` check in `RUNNING`) change only diagnostic counters and call `violation_handler`; they never alter a result, a write or a fault. A replay test runs one stream under both modes and compares result records and hash (TR-cmd-053).
 
 ## Alternatives Considered
 
@@ -468,7 +471,7 @@ Each `class_name` above is its own file; the block shows them together for readi
 | command-simulation-layer.md | CR-3: hooks topologically sorted; cycle or unknown id fails boot; stale-edge warning (TR-cmd-007) | § 8 |
 | command-simulation-layer.md | CR-6: registration only in `BOOTING`, frozen after; no silent defaults (TR-cmd-011) | §§ 2, 8; Guidelines |
 | command-simulation-layer.md | CR-8: single-owner blocks with the full descriptor; PlayerId-keyed persistent state (TR-cmd-014) | § 2 |
-| command-simulation-layer.md | CR-8: ids block-local; cross-block references keyed `(block_id, entity_id)` (TR-cmd-015) | § 2, with ADR-0002 for the binding table |
+| command-simulation-layer.md | CR-8: ids block-local, allocated by the owning block; cross-block references keyed `(block_id, entity_id)` (TR-cmd-015) | § 2 (entity-id rule, 2026-10-29), with ADR-0002 for the binding table |
 | command-simulation-layer.md | CR-9: writes only by owner mutators inside a `WriteScope`; refused elsewhere; validate-then-apply, fault on defect (TR-cmd-021) | §§ 4, 5 |
 | command-simulation-layer.md | CR-18: `init_world` steps run under one `WriteScope` before `post_restore` | § 4 (`INIT` phase) |
 | command-simulation-layer.md | CR-19(a)(b): ctx, `return ctx.complete()`, completion sentinel (TR-cmd-022) | § 3 |
@@ -478,6 +481,7 @@ Each `class_name` above is its own file; the block shows them together for readi
 | player-controller-input.md, modular-ship-assembly.md | Every kernel-invoked callable receives `ctx` and ends in `return ctx.complete()` (TR-pc-019, TR-assembly-008) | § 3 |
 | modular-ship-assembly.md | `assembly.state` SIM block with a four-block `restore_after` (TR-assembly-011) | § 2 |
 | chart-table-web-map-and-menus.md | Settings and menu state registers as a non-`gameplay` block (TR-charttable-023) | § 2 (`gameplay`) |
+| command-simulation-layer.md | `STRICT_DEBUG` and `LENIENT_RELEASE` kernels give identical results, state and `state_hash` for one command stream (TR-cmd-053) | Implementation Guidelines (build-mode equivalence) |
 
 ## Performance Implications
 - **CPU**: One `Callable.call()` per due hook and per dispatched command, selected by one schedule lookup. The MVP's 15 hooks at divisors 1, 5, 6 and 12 average well under 15 due per tick. Re-arming a context or scope is a handful of field writes. P3 ≤ 2.0 ms P99 with a 4 ms alarm, measured on a release export on RM-DESKTOP and RM-DECK (spike S1).
@@ -544,3 +548,6 @@ Cross-ADR note for ADR-0010 (not decided here): `NotifyContext extends CallConte
 Open questions: this ADR carried none; none added.
 
 **2026-10-28 /architecture-review fixes (engine finding E1).** The `SimViews` / `PresentationViews` accessor is renamed `get(block_id)` to `get_view(block_id)` in § 7, the Key Interfaces block and Validation Criteria. On 4.7.2 a script method named `get` overrides `Object.get()` and fails to load (`NATIVE_METHOD_OVERRIDE` is an error by default; probed by the review's engine specialist). ADR-0009 and the `docs/registry/architecture.yaml` stance were updated in the same change. No behaviour changes.
+
+- **2026-10-29 /architecture-review follow-up.** Enables row gains ADR-0007 and ADR-0010, which list this ADR under Depends On (residual 10). No behaviour change.
+- **2026-10-29 /architecture-review follow-up (Foundation gaps).** Added: TR-cmd-015 (entity ids block-local, § 2) and TR-cmd-053 (build-mode equivalence of the two kernel profiles, Implementation Guidelines). Closes review gaps; no change to existing decisions.

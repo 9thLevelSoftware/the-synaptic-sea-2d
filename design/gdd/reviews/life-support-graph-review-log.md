@@ -186,3 +186,44 @@ Findings:
 - [RECOMMENDED] DA OQ-DA-53 (a) / DA L337; LS-14 AIRFLOW hysteresis; LS-1 (e) discarded heat; header and knob ranges; Dependencies L982: [main review] Small items: route the shed-load SHORT answer to Derelict Authoring, add AIRFLOW stall-tail hysteresis, add a discarded_heat term, fix the HP_OK / HP_FAIL range mismatches, and relabel the undesigned VS dependencies as provisional.
 Reviewed-Content-Hash: design/gdd/life-support-graph.md c01fe7d6b09d743f79287d1efecbe445103df075
 Reviewed-Content-Hash: design/registry/entities.yaml c7c42b1a48216686518b8b47b2a01a34e276ab50
+
+
+## Review — 2026-10-29 — Foundation ADR sync (lean confirming)
+Verdict: NEEDS REVISION (1 blocker, 7 advisories). The previous verdict was APPROVED (2026-10-28).
+Scope: the 25 changed lines in `git diff` for this GDD. They sync the serialization and hash mechanism to ADR-0004 (64-bit dirty keys), ADR-0005 (kernel `CanonicalEncoder`, `block_hash`, cache by touch serial) and ADR-0006 (`var_to_bytes` storage, `restore(data, stored_version, ctx)` with `ctx.fault`, copy-in restore, `slot_epoch` pair). Sections touched: Summary/ADR note, LS-1, LS-20, LS-21, Block states, Interactions, D.12, Edge Cases (restore), Diagnostics, Acceptance Criteria (S3, hash, lint, S0-e), Open Questions 6/7/33.
+Checked: rules vs formulas vs edge cases vs ACs vs knobs; dangling ADR sections, TR ids and constants; design intent. The ADR citations resolve (ADR-0004 § 3, ADR-0005 §§ 3.1, 4.1, 4.3, 4.4, 5.2, 5.3, ADR-0006 §§ 1.2, 2.2, 3.1, TR-lsg-023). No gameplay rule, formula, knob or constant changed.
+Blocker:
+- LS-21 hash-cache AC (L1268), `hash_invocations` (L834), D.12 clause (c) (L800): the test calls `block_hash()` with its default `uncached = true`. The kernel then recomputes, so the "second call unchanged" assertion fails. The counter counts a recomputation the Graph can no longer observe (the kernel counts `hash_calls`, `cache_hits` and `enc_blocks`). Clause (c) says "after a write", but the cache invalidates on any granted `open_for`. Fix: assert on `block_hash(..., uncached = false)` with `cache_hits` and `enc_blocks`, drop or redefine the counter, and reword (c) to the touch serial.
+Advisories:
+- L74 still says restore does "swap"; it is now copy-in.
+- ADR-0011 (the packing and range check for composite dirty-key ids) is cited as fixing something but is not written yet; label it planned.
+- Block states: add restore failure to the FAULTED definition.
+- L258 "payload row order" vs sorted-key order; AC L1255 class B should mutate decoded values, not `var_to_bytes` bytes.
+- AC L1254: say whether the 0.5 ms and 32 KB figures include the kernel encode.
+- AC L1267: K-1 is no longer "routed" (only the D.10 note is); the `raw_to_base64` token is out of the scan list but still named.
+- No 2026-10-29 change-log block in the header; only inline markers record the sync.
+Next: fix the blocker, then this GDD can be closed as APPROVED without a further full review.
+
+## Review — 2026-10-29 — Foundation ADR sync (lean confirming, round 2)
+
+**Verdict:** APPROVED
+
+**Scope:** `git diff -- design/gdd/life-support-graph.md` (25 hunks: ADR-0005/0006/0004/0007 sync wording plus the round-1 knock-on fix). The three fix sites were checked against ADR-0005 § 5.2 to § 5.6. I also grepped the whole GDD for stale `canonical_bytes`, `block_hash`, `hash_invocations`, restore and "swap" wording, and for dangling ADR references.
+
+**Blockers resolved (1 of 1):**
+- LS-21 hash-cache AC (L1268): now calls the kernel's `block_hash("graph.state", uncached = false)` twice with no `open_for` between. It asserts `cache_hits` +1 and `enc_blocks` unchanged. It then opens the block through a mutator (a granted `open_for`, with or without a change) and asserts the next cached read re-encodes. It also states that the default `uncached = true` call always re-encodes and is the form determinism assertions use. This matches ADR-0005 § 5.3, § 5.4 and KRN-PERF-02.
+- Diagnostics counters (L834): `hash_invocations` is removed, with the reason given and tests pointed at the kernel's counters. There is no remaining use of the name in the GDD.
+- D.12 clause (c) (L800): now says the cache is invalidated by the touch serial (a granted `open_for`, with or without a change). Verification, capture and `state_hash` requests are uncached. The Graph budgets one uncached encode per snapshot or `state_hash` request and no per-tick hashing.
+
+**Remaining blockers:** none.
+
+**Advisories (5):**
+1. TR-lsg-039 in `tr-registry.yaml` and `requirements-traceability.md` still lists `hash_invocations` as a Graph counter.
+2. L74 still says `graph_restore.gd` does 'decode, validate, swap'. Restore is now a copy-in.
+3. `canonical_bytes()` and `block_hash()` are described as forwarding in L258 and L315, but as 'not a Graph name' in L331 and L979. State it once as kernel reads.
+4. L256 cites ADR-0011 for dirty-key id packing. That ADR does not exist yet, so mark the reference as planned.
+5. The LS-21 AC depends on a kernel diagnostics accessor that is not named. Cite it by name after the kernel sync.
+
+Rules, formulas, edge cases, ACs and tuning knobs are consistent in the changed regions. Restore semantics (LOADING to FAULTED owned by the kernel, `ctx.fault`, contents untouched on failure) agree across L258, L309, L934 and L974.
+Reviewed-Content-Hash: design/gdd/life-support-graph.md 9e79dcaef717cd13a3628c93bf9ee49a181e5bf6
+Reviewed-Content-Hash: design/registry/entities.yaml 4d9d9f7a469ff3c3aeb97b06fa6fa82c1b2dec16

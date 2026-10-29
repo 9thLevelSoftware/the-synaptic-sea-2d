@@ -389,7 +389,7 @@ start.
 | Consideration | Assessment |
 | ---- | ---- |
 | **Recommended Engine** | Godot 4.7.2, GDScript (pinned by `/setup-engine`). TD-FEASIBILITY: nothing argues for another engine; high-level multiplayer fits a small listen-server co-op |
-| **Key Technical Challenges** | Composite welded ship (one physics body, sections reparented on weld); life-support graph as pure data separate from the scene tree; server-authoritative design from day one even in single-player; per-client hallucination presentation filter that never touches the simulation; readable procgen from room kits; 2D lighting budget on D3D12 (Windows default since 4.6); versioned saves from v1 |
+| **Key Technical Challenges** | Composite welded ship (one physics body, sections reparented on weld); life-support graph as pure data separate from the scene tree; server-authoritative design from day one even in single-player; per-client hallucination presentation filter that never touches the simulation; readable procgen from room kits; 2D lighting budget on Vulkan (ADR-0008 § 1 pinned driver) *(Amended 2026-10-29 — ADR-0008 sync)*; versioned saves from v1 |
 | **Art Style** | HD pixel art (high-resolution, detailed pixels), 3/4 oblique top-down, light-as-resource rendering |
 | **Art Pipeline Complexity** | High — lighting pipeline is the main workload; modular derelict sections are the largest asset sink |
 | **Audio Needs** | Adaptive (later tier). Attention and breach tells are audio-first; the ship must breathe |
@@ -425,7 +425,7 @@ start.
   instances.
 - Life-support graph entangled with the scene tree → untestable, unserializable.
 - Save format not versioned from v1 → breaks every time a module changes.
-- 2D lighting cost unmeasured for 4.7 on D3D12; Forward+ vs. Compatibility
+- 2D lighting cost unmeasured for 4.7 on the pinned Vulkan driver (ADR-0008 § 1); Forward+ provisional vs. Compatibility *(Amended 2026-10-29 — ADR-0008 sync)*
   renderer is reversible and should be decided from spike data.
 - Hallucination filter touching simulation state → endless desync bugs. Rule:
   every client receives the true value; corruption is presentation-only, with
@@ -490,7 +490,7 @@ iterate on the loop before any VS-A work. No procgen on an unproven loop.
 
 | Tier | Content | Features | Timeline (solo; low confidence until spikes produce velocity) |
 | ---- | ---- | ---- | ---- |
-| **Spike phase** | Throwaway prototypes | Weld on a moving ship (tilemap + collision + graph merge); graph with spreading failures; save round-trip with version; 2D lighting budget on D3D12 | 4–8 weeks |
+| **Spike phase** | Throwaway prototypes | Weld on a moving ship (tilemap + collision + graph merge); graph with spreading failures; save round-trip with version; 2D lighting budget on Vulkan (ADR-0008 § 1 pinned driver) *(Amended 2026-10-29 — ADR-0008 sync)* | 4–8 weeks |
 | **MVP** | 2 handmade derelicts | Core loop only (list above) + playtest gate | 6–9 months full-time / 10–16 part-time |
 | **VS-A** (single-player, **the shippable fallback**) | Outer ring of the web map; one procgen room kit | Procgen derelicts; 2nd horror type; all 4 hallucination classes with falsification checks; one derelict kit at target HD-pixel fidelity under the lighting model | +8–12 months |
 | **VS-B** (co-op) | Same content | 2-player LAN listen-server; authority model proven with two local instances | +4–6 months, only after VS-A is complete |

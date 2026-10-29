@@ -147,3 +147,35 @@ Findings:
 - [RECOMMENDED] Document scale and readability: [main review] At 505 KB, with 'Amended' provenance nested up to four deep, the document is hard to implement from, although the arithmetic checks out.
 Reviewed-Content-Hash: design/gdd/player-controller-input.md 60d2c066c574f22f670a6a8ffda19c0b91315e70
 Reviewed-Content-Hash: design/registry/entities.yaml cafe6d1169a1fe5dd043eae35c2c07a90c93b4c6
+
+
+## Review — 2026-10-29 — Foundation ADR sync (lean confirming)
+Verdict: NEEDS REVISION (2 contained blockers; no design-intent change)
+Scope: the 22-hunk diff of `design/gdd/player-controller-input.md` (ADR-0006/0008/0009/0010 sync). No specialists; checked against ADR-0006, 0008, 0009, 0010 and the Chart Table and pipeline GDDs.
+Prior verdict resolved: the 2026-10-28 APPROVED items are untouched by the diff.
+Checked and clean: ADR citations (0008 § 5 and § 6.1, 0009 § 3 and Migration Plan, 0010 SIM-02 four-file allow-list, 0003 § 2); in-place restore wording (L202, L288); the Clock/`now_us` and no-`Time.*` rewrite and AC-PCI-211; the per-tick-sample rewrite of AC-PCI-154/156/idle-breathing; design intent preserved.
+Blockers:
+- [BLOCKING] AC-PCI-040 (L1117) and PC-18 test 10 (L232) still assert that `post_restore` yields `prev == curr`. The sync moved that baseline to the kernel's `snap_baseline` on entry to RUNNING (ADR-0008 § 6.1), so an ADR-conformant Body fails the tests. Fix: re-trigger on restore plus `snap_baseline`, keep the `sub` assertion, and mark it an integration check.
+- [BLOCKING] Mouse-aim cursor frame (L121, L162, L496): the Adapter now forwards raw window px 'unconverted' and the Chart Table layer subtracts `picture_rect.position`, but `cursor_vp` for aim is still defined as picture-relative with a picture-relative `picture_centre`. Nobody is assigned the subtraction, so aim is off by the letterbox offset. Fix: have the Adapter subtract `RenderLayout.picture_rect.position` to form `cursor_vp` (or define both in window px), and give AC-PCI-056/059 a non-zero-letterbox fixture.
+Advisories:
+- AC-PCI-154 says 'seven' Presenter samples but lists five.
+- `render_delta` vs 'frame delta' naming differs between D.15, L326 and AC-PCI-211.
+- L263, L597 and L618 keep pre-sync wording ('replaces the block', 'wall time').
+- The pipeline GDD still carries the older [UNV] cursor-unit wording and should be synced.
+Reviewed-Content-Hash: not computed (read-only review).
+
+## Review — 2026-10-29 — Foundation ADR sync (lean confirming, round 2)
+**Verdict:** APPROVED
+**Scope:** design/gdd/player-controller-input.md, the full 2026-10-29 diff (about 26 hunks: ADR-0006, 0008, 0009 and 0010 sync notes plus the knock-on fix). The edits were checked against ADR-0008 s3.3, s5 and s6.1 and against pipeline D.14b. Rules, formulas, edge cases, ACs and tuning knobs were cross-checked for consistency.
+**Blockers resolved (2 of 2):**
+- B1 (AC-PCI-040 and PC-18 test 10 asserted `post_restore` sets `prev == curr`): the trigger is now restore followed by the kernel's `snap_baseline` on entry to RUNNING (ADR-0008 s6.1). The oracle is `pos_prev == pos_curr == (302,200)` and `sub == (106,0)`. AC-040 is marked integration, and Body's own `post_restore` is asserted not to touch `previous` or `sub` (Body unit test). The wording at L146, L202, L232, L300, L1052 and L1117 is consistent, and no stale `previous := current` in `post_restore` remains.
+- B2 (cursor_vp subtraction unowned): PC-2a (L121), PC-5 (L162) and D.7 (L496) state one rule. The Adapter reads raw window px with no inverse stretch transform, then subtracts `world_rect.position` exactly once. The alternative is `mouse_to_world_aim` doing that one subtraction and the Adapter subtracting nothing. Never both. The Chart Table's `picture_rect.position` subtraction is a separate path. AC-056 arithmetic re-derived: (699,276) -> cursor_vp (656,252) -> offset (8,-54); the negative fixture gives (29.5,-42). Both are correct, so the ACs can discriminate.
+**Remaining blockers:** none.
+**Advisories (4):**
+1. AC-PCI-059: the "like AC-056's" window (1366x768, k_z=2) cannot do the stated k 3->4 zoom steps. Give it its own window numbers.
+2. Name `picture_origin` as `RenderLayout.world_rect.position` in pipeline D.14b. The Controller GDD uses world_rect, which is correct per ADR-0008 s3.3.
+3. L1398 'cursor_vp unit is physical window px' could say 'raw cursor' to avoid a reader taking cursor_vp itself as raw.
+4. AC-040 mixes an integration half and a Body unit half. Split into a/b only if the test convention requires it.
+**Other sync hunks:** the ADR-0006 in-place restore, ADR-0009 pose/value split and per-tick replay samples, and ADR-0010 injected Clock / no `Time.*` are consistent across rules, D.11, the Output Range, ACs 082/166 and the lint AC. No dangling references found.
+Reviewed-Content-Hash: design/gdd/player-controller-input.md ede4381bbd699ac3e4e85f68a05daee3b5fd14b5
+Reviewed-Content-Hash: design/registry/entities.yaml 4d9d9f7a469ff3c3aeb97b06fa6fa82c1b2dec16

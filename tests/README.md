@@ -26,8 +26,8 @@ production/qa/
 
 Godot 4.7 replaced the Asset Library with the Asset Store. Either route works:
 
-1. Editor: Asset Store → search "GdUnit4" → install; or download the latest
-   release from https://github.com/godot-gdunit-labs/gdUnit4/releases and copy
+1. Editor: Asset Store → search "GdUnit4" → install; or download v6.2.2 (the ADR-0010 pin)
+   from https://github.com/godot-gdunit-labs/gdUnit4/releases and copy
    its `addons/gdUnit4/` folder into this project's `addons/`
 2. Enable the plugin: Project → Project Settings → Plugins → GdUnit4 ✓
 3. Restart the editor

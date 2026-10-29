@@ -31,7 +31,7 @@ Every change to the simulation must enter as an authority-checked, plain-data co
 | Field | Value |
 |-------|-------|
 | **Depends On** | ADR-0001 (the injected-kernel rule and the frame order this ADR relies on; **Proposed**, not yet Accepted) |
-| **Enables** | ADR-0003 (block registry uses the command-type descriptor defined here), ADR-0006 (Save/Load is the `request_snapshot` / `request_restore` caller and consumes the extended snapshot outcome, § 6), ADR-0016 (binding-table rebuild on restore), ADR-0019 (Input Adapter uses a surface handle), ADR-0020/0021/0022/0026/0027 (each registers command types against this contract), ADR-0030 (`PauseGate` uses a control handle), ADR-0032 (remote ingress for VS-B) |
+| **Enables** | ADR-0003 (block registry uses the command-type descriptor defined here), ADR-0004 (change notification: depends on this ADR's handles being independent of subscription), ADR-0009 (presentation subscriber contract: `SurfaceHandle`, `issue_surface_handle`), ADR-0010 (source layout and lint: `Command.new` only in `src/kernel/`, named handles), ADR-0006 (Save/Load is the `request_snapshot` / `request_restore` caller and consumes the extended snapshot outcome, § 6), ADR-0016 (binding-table rebuild on restore), ADR-0019 (Input Adapter uses a surface handle), ADR-0020/0021/0022/0026/0027 (each registers command types against this contract), ADR-0030 (`PauseGate` uses a control handle), ADR-0032 (remote ingress for VS-B) |
 | **Blocks** | Every story that registers or submits a command type: Player Controller, Interaction, Suit, Emitter toggles, Assembly, Web Map, Chart Table pause. |
 | **Ordering Note** | Scope edge with ADR-0003: this ADR owns the **meaning** of the command fields, the ingress and the control-plane API; ADR-0003 owns the **registration descriptors**, the owner-callable contract and the kernel state machine. The `payload_schema` field defined here is added to ADR-0003's `CommandTypeDescriptor`. The kernel GDD's CR-6 field list does not name `payload_schema`; see § GDD sync. |
 
@@ -371,6 +371,8 @@ No code exists. The document changes are: amend the kernel GDD (CR-4, CR-6, CR-1
 | 2026-10-28 | TD-06 (R19 KRN-04; ADR-0009 X1b `submit`, R19; ADR-0010 R19) | Applied: single `submit(` caller list is the objects named at `issue_surface_handle`; grep reworded in two places; MVP is Input Adapter only; `INPUT_SURFACE` rule applies once a second handle is issued. |
 | 2026-10-28 | TD-27 (owner ADR-0010) | Applied: ADR-0006 added to Enables. The other items of this ruling are owned by other ADRs. |
 | 2026-10-28 | Scope | No Open Questions section existed and no "review unavailable" text was present; nothing else in the ADR was changed. |
+
+- **2026-10-29 /architecture-review follow-up.** Enables row gains ADR-0004, ADR-0009 and ADR-0010, which list this ADR under Depends On (residual 10). No behaviour change.
 
 ## Related
 - `design/gdd/command-simulation-layer.md` (CR-4 to CR-10, CR-13, CR-15 to CR-17, CR-19; D.8)

@@ -1,0 +1,44 @@
+TR-cmd-007 | COVERED | §2,§8 | HookDescriptor with after/tolerates_stale; Kahn by registration index; cycle/unknown fails boot; tolerates_stale required (warning plus Must guideline) | -
+TR-cmd-011 | COVERED | §2,§6,§8 | Registration BOOTING-only and frozen; DUPLICATE_ID, DESCRIPTOR_FIELD_MISSING, HOOK_CYCLE, ACTOR_SOURCE_INVALID fail boot in debug and release | -
+TR-cmd-014 | COVERED | §2 | BlockDescriptor carries every listed field and callable; PER_PLAYER keyed by PlayerId | -
+TR-cmd-015 | NOT | - | ADR never decides block-local entity id counters or (block_id, entity_id) keys; table row defers to ADR-0002 binding table | -
+TR-cmd-021 | COVERED | §4,§5 | WriteScope.open_for, WRITE_OUTSIDE_SCOPE counted, validate-then-apply, no rollback, scope.fault moves kernel to FAULTED | -
+TR-cmd-022 | COVERED | §1,§3 | ctx-only reporting, identity/epoch-checked CompletionToken, INCOMPLETE fault, no assert/exception control flow | -
+TR-cmd-026 | COVERED | §7 | Getter-only long-lived facades; SIM_WRITE_TRIPWIRE with TRIPWIRE_BUDGET_MS 1.0 and sweep 60 | -
+TR-cmd-029 | PARTIAL | §9 | State table, FAULTED never overwrites save covered; NOT_ACCEPTING rejection of submit not stated (deferral instead); ADR-0002 | -
+TR-cmd-032 | PARTIAL | §8,Performance | Covers P3 2.0/4 ms and zero quiet-tick kernel allocation; canonical encode counts, frame sim and 32-block snapshot budgets belong to ADR-0005 | -
+TR-cmd-053 | NOT | - | ADR never decides STRICT_DEBUG vs LENIENT_RELEASE equivalence of results and state_hash | -
+TR-lsg-034 | PARTIAL | §5 | Fail-closed fault and Dropped(FAULTED) covered; one P5 dirty-key batch per mutator and no-notification-on-fault left to ADR-0021/ADR-0004 | -
+TR-emitter-001 | PARTIAL | §2 | Descriptor supports fields and supported_versions; no added_in_format field or lint; per-block values left to emitter ADR; ADR-0006 | -
+TR-emitter-038 | PARTIAL | §4,§2 | Scope closed when not granted, supported_versions exists; no RESTORING state, canonical_bytes/block_hash belong to ADR-0005, K-1 | -
+TR-pc-002 | PARTIAL | §2 | Descriptor mechanism only; controller.state values and contents not decided here; Controller system ADR | -
+TR-pc-005 | PARTIAL | §8 | Sort mechanism and divisor/after support only; concrete hook order lives in architecture.md Data Flow 1 and owner ADRs | -
+TR-pc-019 | COVERED | §1,§3 | Every kernel-invoked owner callable is -> CompletionToken ending in return ctx.complete() | -
+TR-pc-034 | NOT | - | Channel-owner after controller.step and interrupt-through-state rule not decided here; ADR-0020 | -
+TR-pc-037 | NOT | - | Schema/view/snapshot field agreement and cap_seen persistence not addressed; only generic snapshot payload contract; ADR-0006 | -
+TR-pc-044 | NOT | - | Adapter silence while PAUSED and chart_table request_pause not decided; ADR-0002 owns adapter | -
+TR-interact-014 | PARTIAL | §2 | Descriptor mechanism only; interaction.state values and restore_after list not decided here; Interaction ADR | -
+TR-interact-032 | PARTIAL | §8 | Hook registration and Kahn ordering generic; Class A mutator placement (M6/M7/M11-13) and Graph lag belong to ADR-0020 | -
+TR-suit-001 | PARTIAL | §2,§8 | Descriptor mechanism only; suit.state and suit.vitals specifics not decided; Suit system ADR | -
+TR-section-001 | PARTIAL | §2,§8 | Descriptor mechanism only; layout.state specifics not decided here; Layout system ADR | -
+TR-section-036 | PARTIAL | §5 | check_* pure validators and fault to FAULTED covered; closed reason sets and VALIDATION_FAILED(layout.*) belong to ADR-0021 | -
+TR-shipbody-005 | PARTIAL | §2,§8 | Descriptor mechanism only; body.state values and PROJECTOR subscriber (ADR-0004) not decided here; Body ADR | -
+TR-shipbody-011 | PARTIAL | §8 | Unknown after id fails boot and partial order covered; body.integrate's concrete divisor/after set left to Body ADR | -
+TR-shipbody-042 | NOT | - | No lint restricting readers of moved/pos_prev to after body.integrate hooks | -
+TR-assembly-008 | COVERED | §1,§3 | All kernel-invoked owner callables take ctx and end in return ctx.complete() | -
+TR-assembly-011 | PARTIAL | §2 | Descriptor mechanism only; assembly.state contents and CASCADE record not decided here; Assembly ADR | -
+TR-derelict-021 | PARTIAL | §8 | Only P3 2.0 ms target and 4 ms alarm semantics; S4 eight-fault benchmark on RM-DESKTOP/RM-DECK belongs to ADR-0001 | -
+TR-webmap-002 | PARTIAL | §2 | Descriptor mechanism only; web.state_hash row, field order and mvp_world.json ordering belong to ADR-0005/Web Map ADR | -
+TR-webmap-025 | NOT | - | Transit apply timing and transit.step 0.1 ms cost not addressed; ADR-0026 | -
+TR-attention-001 | PARTIAL | §2,§8 | Descriptor and hook mechanism only; integer-only attention.state and hook specifics not decided; Attention ADR | -
+TR-horror-001 | PARTIAL | §2 | Descriptor mechanism only; horror.state contents and HORROR_MAX_MVP not decided; Horror ADR | -
+TR-sanity-001 | PARTIAL | §2,§6 | Per-block descriptor mechanism only; three-block layout not decided; restore returning (ok,reason,detail) contradicts token convention; ADR-0006 | CONFLICT: GDD restore returns (ok, reason, detail); ADR-0003 §1/§3 forbids domain-value returns (all callables -> CompletionToken, report via ctx)
+TR-sanity-035 | NOT | - | WriteScope audit hook restricting Sanity writes to sanity.* blocks not decided | -
+TR-charttable-023 | PARTIAL | §5,§9 | Kernel never overwrites save in FAULTED covered; release return to main menu with Continue focused is UI flow, ADR-0030 | -
+TR-charttable-035 | NOT | - | Boot-flow screen constraints (no request_pause, no Sanity/Filter refs, Quit via request_shutdown) not addressed; ADR-0030 | -
+TR-saveload-033 | NOT | - | Closed BLOCK_RESTORE_* reasons, failure counter, byte-identical-on-failure not decided; ADR-0006 | CONFLICT: requirement has restore() return (ok, reason, detail); ADR-0003 §3 has restore -> CompletionToken reporting via ctx
+TR-saveload-038 | NOT | - | Save/Load observation set, no-mutator-call rule and hash-unchanged guarantee not decided here; ADR-0006 | -
+TR-debug-031 | PARTIAL | §6,§10 | Only diagnostics group, violation counters, boot warnings, fault log; the accessor and its field list belong to ADR-0005/ADR-0031 | -
+TR-debug-032 | NOT | - | Per-hook t_hook sample delivery per restore epoch not addressed; ADR-0001/ADR-0031 | -
+TR-debug-033 | NOT | - | No optional owner-published block_hash or Overlay n/a behavior in descriptor; ADR-0005 | -
+TR-debug-039 | NOT | - | Testability seams (dev-tag provider, subscriber id at WriteScope entry, injectable clock, ObserverSink) not decided; ADR-0010 | -

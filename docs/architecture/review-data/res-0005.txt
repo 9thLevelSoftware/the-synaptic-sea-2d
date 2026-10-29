@@ -1,0 +1,48 @@
+TR-cmd-018 | PARTIAL | §2.4 | ADR states epoch is non-persisted, non-hashed clock value read only in draw_epoch; file/advance/durability owned by ADR-0006 | -
+TR-cmd-019 | COVERED | §2.1-2.4 | Named streams, persisted counters, rng_derive/rng_derive_epoch on SplitMix64 mix64, golden vectors | -
+TR-cmd-020 | COVERED | §4.1-4.5 | H64 SHA-256 prefix, canonical bytes, published block_hash, T||world_seed prefix fold | -
+TR-cmd-027 | PARTIAL | §1.1,§4.4,§6 | Defines compared hash and replay level R1; command ordering owned by ADR-0002 | -
+TR-cmd-032 | PARTIAL | §5.1-5.6 | Encode counts and 16.7 ms capture covered; frame-sim 4/6 ms and STEP_BUDGET alarm kernel's, measurement pending (ADR-0003) | -
+TR-cmd-038 | PARTIAL | §4.2,§4.8 | Hex64/64-bit rule defined; var_to_bytes round-trip container owned by ADR-0006 | -
+TR-cmd-039 | COVERED | §3.2-3.4,§3.7,§4.4 | Injective TLV normalisation rules and PERSIST vs ALL_SIM scopes decided with vectors | -
+TR-cmd-040 | COVERED | §5.2-5.4 | Cache, uncached verification, BLOCK_HASH_IN_WRITE/UNKNOWN decided | CONFLICT: TR says invalidation only by mark_dirty; ADR invalidates by ADR-0004 touch serial (TR wording to be synced)
+TR-cmd-043 | PARTIAL | §4.4 | Fixes T as s64, excludes correlation from hashes; seq/host_order stamping and boot assertion owned by ADR-0002 | -
+TR-lsg-021 | COVERED | §3.1,§5 | Kernel encodes tagged packed-array payload; cached H64 block_hash recomputed after write | CONFLICT: TR says owner-written canonical_bytes() [u32 tag][u32 len]; ADR withdraws owner layout, kernel encodes
+TR-lsg-031 | COVERED | §1.1 R2,§6 | Cross-OS vector job with committed golden files; Graph fixtures are Graph epic's criteria, unverified until run | -
+TR-lsg-037 | PARTIAL | §5.6,P14 | Only 0.33 ms indicative on dev machine; RM-DECK release-export gate pending, fallback ladder defined | -
+TR-lsg-039 | COVERED | §3.6,§5.6 | Payload and kernel counters excluded from canonical bytes and hashes | -
+TR-itemdb-012 | COVERED | §3.1 | Positional int-array payload shape with canonical zeros, no float, no res:// path | -
+TR-itemdb-029 | PARTIAL | §3.1,OQ6 | Notes wording issue on size; 96/1024-byte limits are var_to_bytes sizes owned by ADR-0006/ADR-0002 | -
+TR-pxl-022 | PARTIAL | §6 | Render-rate independence replay test at 30/60/144/0 fps defined; tick driver and _process ordering owned by ADR-0001 | -
+TR-emitter-034 | PARTIAL | §1.4,§1.7 | Helper semantics and rule decided; grep lint tool and fixtures owned by ADR-0010 (SIM-04/05) | -
+TR-emitter-038 | PARTIAL | §3.1,§5.3 | Supplies kernel block_hash/canonical_encode; RESTORING/FAULTED no-op and schema_version failure owned by ADR-0003 | CONFLICT: TR says block exposes its own canonical_bytes()/block_hash(); ADR replaces with kernel reads
+TR-light-032 | COVERED | §2.6,§2.7 | Ihash pure hash of (emitter id, epoch), no rng_derive stream, reproducible after restore | -
+TR-pc-027 | PARTIAL | §1.7 | Forbidden-token list is ADR-0010 SIM-02; allow-list for render-time timers declared unnecessary, lint owned by ADR-0010 | -
+TR-interact-033 | PARTIAL | §5.4,§5.5,§6 | Supplies uncached hash comparison and stale-cache detector; dirty-mark rule owned by ADR-0004 | -
+TR-ftrail-044 | COVERED | §2.6,§2.7 | Non-negative 63-bit Ihash with posmod_i indexing; all-ones vector pinned | -
+TR-suit-005 | COVERED | §1.2,§1.7,§2.3 | No RNG/wall clock/delta, int-only fields; null facet rng makes no-RNG structural | -
+TR-suit-030 | COVERED | §1.4 | Floor-division convention for negatives, explicit trunc_div when truncation intended | -
+TR-section-026 | COVERED | §3.1,§4.3,§1.6,§2.7 | layout_hash is kernel block_hash, ascending-id iteration, no RNG, welded_at_T only time value | -
+TR-section-031 | COVERED | §4.6,§5.3 | Caller memoises layout_hash; kernel read uncached and never per tick; template hashes once | -
+TR-section-032 | COVERED | §1.3,§4.1,§4.6,§1.7 | low32 normalisation, mutation_count unpersisted, only H64, hash() and accumulator loops banned | -
+TR-section-043 | PARTIAL | §Related P3,P5,P8,P9,P13,P21 | Most probes done on editor binary; JSON numbers in ADR-0007, var_to_bytes determinism not relied on, release-export confirmation pending (ADR-0010 spike) | -
+TR-shipbody-031 | COVERED | §1.2,§1.6,§1.7,§2.7,§6 | Int-only, ordered iteration, render-rate independence test covers 1..4 integrate runs | -
+TR-shipbody-038 | PARTIAL | P5,P6,P19,P20 | posmod/truncation/warning gate probed; float32 canvas exactness is ADR-0008, OBJECT_COUNT ADR-0010, bound ADR-0015 | -
+TR-assembly-016 | COVERED | §1.2,§1.5,§1.7 | Integer-only apply, null ModuleFacet.rng, no wall clock | -
+TR-assembly-040 | PARTIAL | §6 | Supplies replay level R1 and uncached comparison; weld/cut kinematics and conservation owned by ADR-0015 | -
+TR-boarding-027 | COVERED | §1.2,§1.4,§1.5 | Integer tick/AU arithmetic rule; no wall-clock criterion | -
+TR-boarding-030 | PARTIAL | §6,Impl Guidelines | Requires golden files from reviewed golden-update job; headless harness and Web Map stub owned by ADR-0010 | -
+TR-webmap-026 | PARTIAL | §1.1 R1,§4.4,§6 | Restore-equivalence and G4 variant decided; the three bounded accruals are Web Map's to name | -
+TR-webmap-031 | COVERED | §1.4,§2.3,§4.8 | IntMath only, null facet (no stream), seeds as PackedByteArray not int | -
+TR-attention-013 | COVERED | §2.4,§2.6,§3.6 | Tell draw only rng_derive use, Ihash.h32 presentation, diagnostics excluded | -
+TR-attention-036 | COVERED | §1.5 | Headroom rule below 2^62, boot product checks, arbitrary-precision oracle tests | -
+TR-horror-016 | COVERED | §2.3,§2.4,§2.6 | Epoch-keyed rng_derive_epoch with RESTORE_KEY_STRIDE, he_hash as Ihash, vectors | -
+TR-horror-020 | COVERED | §1.1 R1,§3.6,§2.4 | Same-pair replay, hashed ledgers, non-hashed debug view | -
+TR-sanity-016 | COVERED | §2.2,§2.7 | Dynamic stream names with persisted counters, fixed draw counts | -
+TR-sanity-017 | COVERED | §1.6,§1.7,§2.4 | Sorted-key hashing, banned-API list, epoch read only in draw_epoch | -
+TR-instr-034 | COVERED | §2.6,§2.7 | Ihash of stable ref_key, no rng_derive or wall clock | -
+TR-saveload-032 | PARTIAL | §2.3 | Fixes consumer epoch range 0..2^32-1 and counter_eff < 2^52; advance, durability, rebuild owned by ADR-0006 | -
+TR-saveload-035 | PARTIAL | §4.1,§4.4 | Defines compared uncached state_hash, hash_algo 2, unsupported algo forces REBASED; verification modes and baseline file owned by ADR-0006 | -
+TR-debug-019 | COVERED | §4.4,§4.7,§5.4 | Kernel publishes state_hash, hash_T, hash_algo; cadence 60 ticks outside P3 | -
+TR-debug-031 | PARTIAL | §5.6 | Supplies hash fields and counters, allocation only on dirty path; accessor shape owned by ADR-0003/ADR-0031 | -
+TR-debug-033 | COVERED | §3.1,§5.3 | Kernel publishes block_hash for every persist block; Overlay shows n/a for unknown | CONFLICT: TR says each owner optionally publishes block_hash/schema_version; ADR has kernel publish, no owner does

@@ -1,0 +1,57 @@
+TR-pxl-001 | COVERED | §3, §5.1 | RenderLayout.derive, k floor formula, window pixels, min_size 1280x720, integer-only wiring | -
+TR-pxl-002 | COVERED | §2, §2.3 | SubViewport in container; CanvasLayers structurally excluded from world light/Filter/jolt | CONFLICT: TR puts menus layer 3, debug layer 4; ADR uses menus 3 and 4, debug 5 (documented sync item)
+TR-pxl-003 | COVERED | §2.6, §3.2 | PipelineRoot sole writer and HudLayout caller; one RESCALING path re-derives everything | -
+TR-pxl-004 | COVERED | §2.2, §5.1 | Nearest in three places, mipmaps off, explicit size and tile_size 48x48 | -
+TR-pxl-005 | PARTIAL | §2.2, §5.5 | Only snap flags and fractional-position tree walk; floor placement formula owned by ADR-0009 | -
+TR-pxl-006 | NOT | - | Y-sort key and class ranks explicitly not decided; ADR-0034 owns (per ADR text) | -
+TR-pxl-009 | PARTIAL | §7.1 | Only the ~300 draw trigger figure stated; z-band fallback design owned by ADR-0034 | -
+TR-pxl-010 | COVERED | §6.1, §6.2 | Pure CameraSolver, CameraHost frame_pre_draw write, fallback in _process, limits default, no Camera2D under body | -
+TR-pxl-011 | COVERED | §6.1, §2.6 | SolverInput type excludes world state; Filter has no camera write path | -
+TR-pxl-012 | PARTIAL | §6.1 | Solver interface, float64, dt clamp fixed; follow formula, SETTLE_EPS, quantisation, D.6b fallback stay GDD's | -
+TR-pxl-013 | PARTIAL | §6.1 | Raw aim input and StartupCheck invariants only; look-ahead formulas and weighting stay with GDD | -
+TR-pxl-014 | COVERED | §3.3 | mouse_to_world_aim uses f_q, view mapping separate, never aim; lint is ADR-0010's | CONFLICT: TR says convert cursor via inverse get_final_transform; ADR says stretch disabled so none needed
+TR-pxl-015 | COVERED | §6.1 | No persistence, CUT on load_seq change, rebase on frame_delta_px; post_restore superseded by kernel snap_baseline | CONFLICT: TR says owners set previous:=current in post_restore; ADR replaces with kernel snap_baseline (documented)
+TR-pxl-016 | COVERED | §3.1, §7.2 | Integer ladder via logical size, 0.15 s limit, one per frame, ZOOM_MIN_K withholding, HUD pinned | -
+TR-pxl-017 | PARTIAL | §6.2 | Solver consumes limits rect, limits win, no Camera2D limits; PROJECTOR, clamp rules and jolt cap owned by ADR-0034 | -
+TR-pxl-019 | COVERED | §2.5, §3.3 | world_to_hud single projection on RenderLayout; HudRoot pinned to k_base picture | -
+TR-pxl-020 | PARTIAL | §2.6 | Reserves viewport/camera writes to PipelineRoot; subscriber contract owned by ADR-0009 | -
+TR-pxl-021 | PARTIAL | §6.3 | present_time owner, advance/freeze rules and layers on engine time stated; kernel pause semantics ADR-0001 | -
+TR-pxl-022 | NOT | - | Only "nothing beyond not reading render state"; tick driver and 60 Hz invariance owned by ADR-0001 | -
+TR-pxl-023 | COVERED | §2.4 | Single container material slot, pipeline-root-only, null at MVP, filter_route NOT_USED | -
+TR-pxl-024 | COVERED | §2, §2.5, §3 | Stretch disabled, CanvasLayer.scale H independent of k, H_default max(k,3), reading text at layer scale 1 | -
+TR-pxl-025 | COVERED | §4, §5.4, §1 | Mode A/B constructor argument, A default, Forward+, readback chain replaces get_final_transform criterion | CONFLICT: TR wants B at window size and get_final_transform scale; ADR sizes B to picture and uses readback chain
+TR-pxl-026 | COVERED | §3 | KEEP default, manual k forces keep, bars are black clear colour; expand formula GDD's | -
+TR-pxl-027 | NOT | - | Flash clamps owned by ADR-0028; ADR-0008 only excludes dev scan cost from budget | -
+TR-pxl-028 | COVERED | §5.1-5.5 | Pins table, StartupCheck readback, headless ConfigFile test, lint and tree walk | -
+TR-pxl-029 | COVERED | §6.4, §2.2, §3.2 | States, three camera fields, PAUSED_FROZEN undimmed, UPDATE_ONCE on resize, #000000 plate | -
+TR-pxl-030 | COVERED | §7, Performance | All budget figures stated, pending spike | CONFLICT: TR says D_root <= 62; ADR caps 63 (62 expected at MVP, documented)
+TR-pxl-033 | NOT | - | Settings options not decided here; DisplaySettings persistence deferred to ADR-0030 | -
+TR-emitter-041 | NOT | - | Not addressed; camera-independence of emitter simulation and lint not in ADR (ADR-0017 owns) | -
+TR-light-019 | COVERED | §3.1 | Zoom via viewport logical size, no Camera2D.zoom, Lighting no zoom handler | -
+TR-light-038 | NOT | - | Shader warm-up matrix not decided; only Shader Baker export option noted (ADR-0028 owns) | -
+TR-light-039 | NOT | - | Not decided; GPU/VRAM ceilings only pending-spike figures for targets, hdr_2d recording into project.yaml absent | -
+TR-light-040 | NOT | - | Lighting-spike capability probes not decided here; owned by ADR-0028 | -
+TR-pc-031 | PARTIAL | §3.3 | Publishes f_q and cursor mapping excluding look-ahead; 1/4096 rounding and cursor warp are ADR-0019's | -
+TR-interact-042 | NOT | - | Presentation-independence of sim outcomes only implied; no REACH_PX or command-stream rule (ADR-0019) | -
+TR-shipbody-038 | PARTIAL | §6.2 | float32 exact to 2^24 paragraph with unit test; posmod, int division, OBJECT_COUNT, spike S2 gating owned by ADR-0010/0005 | -
+TR-shipbody-044 | PARTIAL | §3.1, §6.2 | Zoom confined to viewport size; no explicit body.state independence rule or directory lint; ADR-0009 | -
+TR-derelict-041 | NOT | - | Kit atlas VRAM measurement not addressed | -
+TR-webmap-038 | NOT | - | Largest-offset pixel-identity and Parallax2D recording not addressed (only parallax offsets via CameraHost) | -
+TR-webmap-039 | NOT | - | Pod-local camera offset invariance and exterior restore composition not addressed; ADR-0009 | -
+TR-percfilter-030 | PARTIAL | §2.4 | Null PER_ELEMENT slot and filter_route covered; decoy list explicitly left to Filter/Lighting | -
+TR-percfilter-032 | NOT | - | Leak shader variant warm-up under hold not addressed; ADR-0024 owns | -
+TR-percfilter-033 | NOT | - | Windowed vs headless test lane and SKIPPED rule not in ADR-0008 (only manual windowed palette test); ADR-0010 | -
+TR-percfilter-034 | NOT | - | Per-backend leak budget on D3D12/Vulkan/Compat not addressed; ADR-0024 owns | -
+TR-hud-002 | COVERED | §2, §2.3, §5.5 | HudLayer layer 2 group hud on root; Control under world viewport fails lint | -
+TR-hud-003 | COVERED | §3, §2.5 | H in [H_default, 2*H_default], independent of k; offered from HUD | -
+TR-hud-011 | PARTIAL | §2.5, §5.1 | Control.scale (1,1), no scale animation, snap never relied on; integer rect snapping and fills are HUD's | -
+TR-hud-037 | PARTIAL | §3.3 | world_to_hud on unjolted pose, floored; plate withholding and zoom/H recompute rules owned by ADR-0009/HUD | -
+TR-hud-038 | PARTIAL | §3 | offered(P_w,P_h) is an input to derive; HudLayout purity, display table, fallback owned by ADR-0030/HUD | -
+TR-charttable-017 | PARTIAL | §2 | No fractional transform exists; quad authoring and filament drift rule left to Chart Table | -
+TR-charttable-030 | PARTIAL | §3.2 | Immediate live RESCALING and applied-mode readback covered; no revert timer and focus retention are ADR-0030's | -
+TR-charttable-036 | NOT | - | POINTER unit and HUD/art px mapping not decided beyond physical-px cursor note; ADR-0019 | -
+TR-charttable-037 | NOT | - | Fractional HUD canvas whole-screen-pixel verification on display path not addressed | -
+TR-audio-034 | NOT | - | AudioListener2D in world viewport and pan model not addressed; ADR-0029 | -
+TR-debug-042 | NOT | - | Debug-gate engine capability spikes not addressed (only get_render_info draw counts probed); ADR-0031 | -
+TR-debug-043 | PARTIAL | §2.3 | Debug layer 5 dev-only, outside lighting/jolt; world-viewport debug draws and zero-diff rule ADR-0031 | -
+TR-debug-045 | PARTIAL | §5.5(d) | Windowed palette test manual only; named CI windowed job and non-vacuous assertion owned by ADR-0010 | -

@@ -453,7 +453,7 @@ entities:
       projector: body.projector (one per-body Node2D root, camera limit rectangle; builds nothing physical)
       holds: "actors table (actor_id, kind SEAT|AGENT, seat, body_id, pos_curr, sub, last_octant, odometer 64-bit), sparse bodies table (body_id, world_x, world_y, vel_x, vel_y, heading_q), counter next_actor_id"
       never_holds: "pos_prev, blocked, moved, any diag value, any float, any exemption flag, geometry, body_id allocation, membership"
-      canonical_bytes: "the five-key payload of BDY-32 (3) in the kernel's D.12 TLV form (canonical_encode, the single canonical-bytes definition; Body describes the payload shape only): DICT with keys actors, bodies, n_actors, n_bodies, next_actor_id (sorted by encoded key bytes); bodies = Array of n_bodies*6 ints (body_id, world_x, world_y, vel_x, vel_y, heading_q); actors = Array of n_actors*10 ints (actor_id, kind, seat, body_id, pos_x, pos_y, sub_x, sub_y, last_octant, odometer); every int an 8-byte little-endian INT; rows ascending by body_id / actor_id, sorted at snapshot time; golden file tests/unit/body/golden/body_state_v1.bin is 518 bytes (2 bodies, 3 actors; candidate, confirmed at the spike); world_prev is derived and not persisted"
+      canonical_bytes: "the five-key payload of BDY-32 (3) in the kernel's D.12 TLV form (canonical_encode, the single canonical-bytes definition; Body describes the payload shape only): DICT with keys actors, bodies, n_actors, n_bodies, next_actor_id (sorted by String(key) code point: actors, bodies, n_actors, n_bodies, next_actor_id; ADR-0005 section 3.3); bodies = Array of n_bodies*6 ints (body_id, world_x, world_y, vel_x, vel_y, heading_q); actors = Array of n_actors*10 ints (actor_id, kind, seat, body_id, pos_x, pos_y, sub_x, sub_y, last_octant, odometer); every int an 8-byte little-endian INT; rows ascending by body_id / actor_id, sorted at snapshot time; golden file tests/unit/body/golden/body_state_v1.bin is 518 bytes (2 bodies, 3 actors; candidate, confirmed at the spike); world_prev is derived and not persisted"
       # was: canonical_bytes 'header next_actor_id s64, n_bodies s32, n_actors s32, then body rows ..., then actor rows ...; written by the hand-written encode_s32 / encode_s64 little-endian two's-complement writer (s32 for body_id ... ; s64 for next_actor_id, actor_id, odometer)' (208-byte hand-written layout) before 2026-10-28 (kernel D.12 TLV is the single canonical_bytes definition, G1)
       # was: "integers only; sorted at snapshot time" (no writer named) before 2026-10-27 (design review)
       read_class: "SIM; PRESENTATION and DIAGNOSTIC subscribers may read; no PERCEPTION_OUT or per-player variant"
@@ -461,7 +461,8 @@ entities:
       restore_reject_reasons: "BDY_RESTORE_VERSION, BDY_RESTORE_TYPE (any non-integer field in any row rejects the whole block), BDY_RESTORE_COUNT, BDY_RESTORE_ORDER, BDY_RESTORE_NONCANONICAL, BDY_RESTORE_SUB_INVARIANT (incl. the diagonal clause: |sub.x| == |sub.y| with opposing-UNIT signs on a diagonal octant), BDY_RESTORE_UNKNOWN_BODY (checked in restore() against Layout's already-restored state, the failed-restore state kept intact), plus the Body GDD's further named reasons"
       in_memory: "id-sorted struct-of-arrays; the two 64-bit columns are PackedInt64Array, copied into plain Arrays at snapshot time"
     added: 2026-10-26
-    revised: 2026-10-28
+    revised: 2026-10-29
+    # was: canonical_bytes key order '(sorted by encoded key bytes)' before 2026-10-29 (ADR sync)
   - name: body_mutators
     status: active
     source: design/gdd/ship-body-and-interior-physics.md
@@ -514,11 +515,12 @@ entities:
       - design/gdd/horror-entities.md
       - design/gdd/command-simulation-layer.md
     attributes:
-      description: "state block: class SIM, persist true, persist_scope WORLD, scope SHARED, repl_hint SHARED_SUMMARY, schema_version 1, supported_versions [1], restore_after [graph.state, emitter.state]; one global level L (mAU), phase machine, tell timers, rng_counter, pending_noise_mAU (scalar, 0..L_CEIL), pending_ledger_mAU[section] (loaded sections only, sorted by section_id, bounded by the loaded-section count), ledger_mAU[section], nl_hist_w[section] (5 ints each), tell_occupants_at_entry (sorted seat ids), esc_ticks (0 to TELL_MAX_TICKS, a multiple of 6, 0 outside TELL, at most T - tell_start_T), occ_gone (one bit per recorded seat), pending_burden (bool), tell_carry_items (sorted item ids, at most one per seat); the source PlayerId tag is transient and never stored; schema_version stays 1 (design-time field additions); dirty keys ATT/L and ATT/P; restore returns ATTENTION_RESTORE_{SCHEMA, RANGE, PHASE_INCOHERENT, SECTION_UNKNOWN, RNG_COUNTER}, never clamps; restore_epoch (registry restore_epoch, Save/Load-owned) is read from kernel.clock and NOT stored in the block; threat draws go through rng_derive_epoch (the round trip stays idempotent)"
+      description: "state block: class SIM, persist true, persist_scope WORLD, scope SHARED, repl_hint SHARED_SUMMARY, schema_version 1, supported_versions [1], restore_after [graph.state, emitter.state]; one global level L (mAU), phase machine, tell timers, rng_counter, pending_noise_mAU (scalar, 0..L_CEIL), pending_ledger_mAU[section] (loaded sections only, sorted by section_id, bounded by the loaded-section count), ledger_mAU[section], nl_hist_w[section] (5 ints each), tell_occupants_at_entry (sorted seat ids), esc_ticks (0 to TELL_MAX_TICKS, a multiple of 6, 0 outside TELL, at most T - tell_start_T), occ_gone (one bit per recorded seat), pending_burden (bool), tell_carry_items (sorted item ids, at most one per seat); the source PlayerId tag is transient and never stored; schema_version stays 1 (design-time field additions); dirty keys ATT/L and ATT/P; restore reports ctx.fault(ATTENTION_RESTORE_{SCHEMA, RANGE, PHASE_INCOHERENT, SECTION_UNKNOWN, RNG_COUNTER}), never by return value, never clamps; restore_epoch (registry restore_epoch, Save/Load-owned) is read from kernel.clock and NOT stored in the block; threat draws go through rng_derive_epoch (the round trip stays idempotent)"
     # was: pending and ledger arrays sorted by section_id before 2026-10-27 (design review)
     # was: persisted fields without esc_ticks and no restore_epoch note before 2026-10-27 (user rulings X4, X8)
     added: 2026-10-26
-    revised: 2026-10-27
+    revised: 2026-10-29
+    # was: description 'restore returns ATTENTION_RESTORE_{...}, never clamps' before 2026-10-29 (ADR sync)
   - name: attention.step
     status: active
     source: design/gdd/attention-system.md
@@ -987,10 +989,11 @@ entities:
       - design/gdd/debug-overlay-true-values.md
       - design/gdd/command-simulation-layer.md
     attributes:
-      description: "state block: class SIM, scope PER_PLAYER (PlayerId, never peer_id), persist true, persist_scope WORLD, repl_hint SHARED_SUMMARY (projection {stage, tell_on, harm_eligible} only), schema_version 1, supported_versions [1], restore_after []; contents level (mSU, 0..SAN_MAX), stage 0..3, stage_dwell, tell_on, harm_eligible, harm_below_runs, pending, last_tell_epoch, forced (per-seat dev diagnostic flag set by force_stage/force_level, outside the SHARED_SUMMARY projection, persisted, cleared only by NEW_GAME, always false in a release export; SN-28, read by the Debug Overlay FORCED row); restore returns SANITY_RESTORE_* from a closed set and never clamps"
+      description: "state block: class SIM, scope PER_PLAYER (PlayerId, never peer_id), persist true, persist_scope WORLD, repl_hint SHARED_SUMMARY (projection {stage, tell_on, harm_eligible} only), schema_version 1, supported_versions [1], restore_after []; contents level (mSU, 0..SAN_MAX), stage 0..3, stage_dwell, tell_on, harm_eligible, harm_below_runs, pending, last_tell_epoch, forced (per-seat dev diagnostic flag set by force_stage/force_level, outside the SHARED_SUMMARY projection, persisted, cleared only by NEW_GAME, always false in a release export; SN-28, read by the Debug Overlay FORCED row); restore reports a SANITY_RESTORE_* reason from a closed set through ctx.fault (never by return value) and never clamps"
     # was: contents without forced before 2026-10-27 (consistency pass)
     added: 2026-10-26
-    revised: 2026-10-27
+    revised: 2026-10-29
+    # was: description 'restore returns SANITY_RESTORE_* from a closed set and never clamps' before 2026-10-29 (ADR sync)
 
   - name: sanity.ledger
     status: active
@@ -1395,10 +1398,12 @@ entities:
     attributes:
       kind: P5 Notify events (provisional names until merge)
       events: POD_DEPARTED{tick, leg_epoch, from, to, t0, n}; POD_ARRIVED{tick, leg_epoch, at}; DERELICT_LOADED / DERELICT_UNLOADED{tick, derelict_id}; BERTHED / UNBERTHED{tick, derelict_id}; FIRST_BOARDED{derelict_id, T}
-      rules: this system owns no sound; POD_ARRIVED is Save/Load's SL-4 pod-hop arrival trigger (SL's provisional POD_HOP) and BERTHED its dock completion trigger, both coalesced by AUTOSAVE_MIN_GAP_TICKS; UNBERTHED is not a trigger
+      rules: this system owns no sound; POD_ARRIVED is Save/Load's SL-4 pod-hop arrival trigger (SL's provisional POD_HOP) and BERTHED its dock completion trigger, both coalesced by AUTOSAVE_MIN_GAP_TICKS; UNBERTHED is not a trigger; the events are presentation-subscriber (Audio) notifications and not a sim input; Save/Load detects the POD_ARRIVED and BERTHED triggers by polling the monotonic web.state counters pod_arrived_seq and berthed_seq (web.save_seq(), ADR-0006 section 1.12), not by subscribing; Attention and Horror read the web.state view and do not subscribe
+      save_seq: web.save_seq() -> {pod_arrived_seq u32, berthed_seq u32}, a separate pure read granted to Save/Load's save_load facet only (not part of web.view); counters start at 0, increase by exactly 1 (pod_arrived_seq in the pod_settle apply, berthed_seq in the last berth_step apply, never for UNBERTHED); NOT persisted, NOT in state_hash, no dirty key; post_restore resets both to 0 and Save/Load re-reads after load; Attention and Horror read existing web.view members (WM-31, WM-36), no event subscription and no web.save_seq() read
     # was: POD_ARRIVED is Save/Load's event trigger before 2026-10-27 (consistency pass)
+    # was: rules named POD_ARRIVED and BERTHED as Save/Load's event triggers (subscription), no counters, before 2026-10-29 (ADR-0006 sync)
     added: 2026-10-26
-    revised: 2026-10-27
+    revised: 2026-10-29
 
   - name: pod_body
     status: active
@@ -1455,7 +1460,7 @@ entities:
       - design/gdd/hud-and-suit-layer.md
       - design/gdd/in-world-instruments-and-inspect-view.md
     attributes:
-      signature: "perceived(ref: PerceptionRef, viewer: PlayerId) -> Perceived; a pull called from the render callback; pure in (sanity.perception entry, true value, sim-time age, present_time phases, viewer); honest path (no entry) returns the true reading with leak 0, HONEST, allocation-free"
+      signature: "perceived(ref: PerceptionRef, viewer: PlayerId) -> Perceived; a pull called from the PresentationDriver's FILTER stage (or, for Instruments, the INSTRUMENTS stage; ADR-0009 section 3); pure in (sanity.perception entry, true value, sim-time age, present_time phases, viewer); honest path (no entry) returns the true reading with leak 0, HONEST, allocation-free"
       record: "displayed_pm int 0..1000; displayed_value number (unit of true_value); frame_override StringName|NONE (SPRITE_SWAP frame = params.frame_id); motion_mode HONEST|GLIDE|TICK|STALE|BREATH|RETURN; tick_phase_ms int; leak_amplitude_pm int 0..1000 (gleam only; the sound level is the unbreathed amp_snd LEVEL on the audio request); leak_modes bitmask GLEAM 1 | GLIDE 2 (bit 2 stands for the surface class hue-independent motion mode) | SOUND 4 (GLEAM and the motion mode are mandatory on every ACTIVE lie; only SOUND is droppable; leak_modes & GLEAM != 0, PF-15 / PF-G8); lie_id int (0 none; Sanity's minted lie_id verbatim, SN-23); lie_kind FALSE_OK|FALSE_FAIL|GLIDE|SPRITE_SWAP|NONE; lie_id and lie_kind are kept while motion_mode is RETURN and become 0 / NONE at CLEAR (OQ-DO-2 (v)); tremor_weight_pm int 0..1000 (tenth field, 1000 on the honest path, linear to 0 over WANDER_ONSET_S on a lie first ACTIVE frame)"
     # was: nine record fields, no BREATH motion_mode value, no tremor_weight_pm before 2026-10-27 (design review)
       ref_union: "GRAPH_NODE(kind,id); GRAPH_COMPARTMENT(cid, quantity) with quantity one of the Instruments IW-9 quantities; SUIT_KEY(key) over suit.o2, suit.reserve, suit.integrity, suit.warmth, suit.charge; SCANNER; HOUSING_GLOW(ref); STATE_GLYPH(ref); MACHINE_FRAME(ref); the inspect card uses the SAME ref as its wall gauge; ref_key = kind, id and, for a compartment, quantity; join key = Sanity subject_ref {stable_id, surface 1..5}, with quantity / cid / node id read from the instrument record by stable_id (ref_key is an input, never the join)"
@@ -1464,7 +1469,8 @@ entities:
       linear_branch: "PF-45: a LINEAR surface (sight-glass meniscus) supplies travel_px in place of arc_deg and needle_len_px; D.2 to D.6 run in per-mille space with Instruments' pixel band (IW D.11 linear_position, cited)"
     # was: lie_id 'the Filter-derived lie_key from start_run'; no join key, leak_amplitude_pm and frame_override notes before 2026-10-28 (Req 2, 3 and 7: Sanity's closed SN-23 schema and the LEVEL / leak_amplitude_pm split, G1 / R8)
     added: 2026-10-26
-    revised: 2026-10-28
+    revised: 2026-10-29
+    # was: signature 'a pull called from the render callback' before 2026-10-29 (ADR sync)
     # PF-7, PF-8, PF-9, PF-10, PF-45; LS-19 and SE-29 name the same wrap point. Designed consumers: Instruments (IW-8), HUD, Debug Overlay
 
   - name: perception_tag
@@ -2152,17 +2158,18 @@ entities:
       - design/gdd/debug-overlay-true-values.md
       - design/gdd/boarding-and-salvage.md
     attributes:
-      kind: "persisted u32 in the per-slot side file user://saves/<campaign_id>/slot_epoch.bin (u32 LE + CRC32; written by the Save/Load worker as slot_epoch.tmp, flushed, renamed, re-read = EPOCH_DURABLE); not in any generation file; each WORLD generation header keeps a read-only write-time copy used only for recovery; starts 0 at new_game (request_new_game(world_seed, restore_epoch = 0)) (SL-23, SL-1)"
-      rule: "advances to min(2^32 - 1, max(e_mem, e_slot) + 1) on a death-stub restore, on a FAULT_RECOVERY and on a Continue (in-process or fresh-process) of any generation other than the newest non-demoted verified QUIT generation; a Continue of that QUIT generation carries it unchanged with no epoch write (R13); when an advance is due it is made durable in a pre-restore staging step, polled per frame, before request_restore (EPOCH_DURABLE); on write failure or RESTORE_EPOCH_WRITE_MAX_MS timeout, log SL_EPOCH_NOT_DURABLE, set save_status = FAILED and proceed with the in-memory value (listed exposure: a kill before the next successful write may replay the epoch once) (R14); a missing or corrupt slot_epoch.bin reads as max(newest verified generation header copy, 0) + 1 and logs SL_EPOCH_FILE_REBUILT"
-      exposure: "argument of request_restore(payload, restore_epoch, expected_state_hash); exposed read-only in the kernel.clock view as (T, world_seed, restore_epoch), published before the first restore()"
-      exclusions: the WORLD header holds a read-only write-time copy that never enters the canonical form, the snapshot header or the state_hash prefix; never read by Graph physical failures or persisted counters
+      kind: "persisted u32 in the per-slot pair of side files user://saves/<campaign_id>/slot_epoch_a.bin and slot_epoch_b.bin (12 bytes each: u32 LE epoch, u32 LE seq, CRC32 of the first 8; the Save/Load worker overwrites the older file in place, flushes, closes, re-reads = EPOCH_DURABLE; no .tmp, no rename; the reader takes the valid file with the higher seq; ADR-0006 section 3.1); not in any generation file; each WORLD generation header keeps a read-only write-time copy used only for recovery; starts 0 at new_game (request_new_game(world_seed, restore_epoch = 0)) (SL-23, SL-1)"
+      rule: "advances to min(2^32 - 1, max(e_mem, e_slot) + 1) on a death-stub restore, on a FAULT_RECOVERY and on a Continue (in-process or fresh-process) of any generation other than the newest non-demoted verified QUIT generation; a Continue of that QUIT generation carries it unchanged with no epoch write (R13); when an advance is due it is made durable in a pre-restore staging step, polled per frame, before request_restore (EPOCH_DURABLE); on write failure or RESTORE_EPOCH_WRITE_MAX_MS timeout, log SL_EPOCH_NOT_DURABLE, set save_status = FAILED and proceed with the in-memory value (listed exposure: a kill before the next successful write may replay the epoch once) (R14); both slot_epoch_a/b.bin files missing or invalid reads as max(newest verified generation header copy, 0) + 1 and logs SL_EPOCH_FILE_REBUILT"
+      exposure: "argument of request_restore(payload, restore_epoch, expected_state_hash, has_expected_hash); exposed read-only in the kernel.clock view as (T, world_seed, restore_epoch), published before the first restore()"
+      exclusions: the WORLD header holds a read-only write-time copy that never enters the canonical form, the snapshot payload or the state_hash prefix (the container header keeps only a read-only write-time recovery copy, covered only by the file trailer); never read by Graph physical failures or persisted counters
     added: 2026-10-27
-    revised: 2026-10-28
+    revised: 2026-10-29
+    # was: kind side file slot_epoch.bin (u32 LE + CRC32, slot_epoch.tmp -> flush -> rename -> re-read); exposure request_restore(payload, restore_epoch, expected_state_hash); exclusions 'the snapshot header'; rule 'a missing or corrupt slot_epoch.bin' before 2026-10-29 (ADR-0006 3.1 pair with seq, has_expected_hash; kernel CR-8)
     # Delegated ruling R1 (user ruling D16/X8 consequence): Save/Load owns the persisted value, the kernel owns the derivation (rng_derive_epoch, RESTORE_KEY_STRIDE)
     # was: kind 'persisted u32 in every WORLD generation (save-slot) header'; rule 'on every restore (death stub, load, fault recovery; in-process or fresh-process) set to min(2^32 - 1, E_seen + 1), E_seen = max over all parseable headers in the campaign directory plus the in-memory value; durably written by an atomic header-only rewrite before the first RUNNING tick' before 2026-10-28
-    # Delegated rulings R13/R14 (2026-10-28) amend R1: side file slot_epoch.bin, a Continue of the newest non-demoted verified QUIT generation carries the epoch, durable in a staging step before request_restore
+    # Delegated rulings R13/R14 (2026-10-28) amend R1: side file pair slot_epoch_a/b.bin (was slot_epoch.bin before 2026-10-29), a Continue of the newest non-demoted verified QUIT generation carries the epoch, durable in a staging step before request_restore
 
-  - name: slot_epoch.bin
+  - name: slot_epoch_a/b.bin
     status: active
     source: design/gdd/save-load-and-versioned-format.md
     referenced_by:
@@ -2170,13 +2177,14 @@ entities:
       - design/gdd/horror-entities.md
       - design/gdd/boarding-and-salvage.md
     attributes:
-      kind: "per-slot side file holding the live restore_epoch: user://saves/<campaign_id>/slot_epoch.bin, 8 bytes, u32 little-endian + CRC32"
-      write: "Save/Load worker: slot_epoch.tmp -> flush -> rename over slot_epoch.bin -> re-read; EPOCH_DURABLE on a valid re-read; issued in the pre-restore staging step, before request_restore (SL-23 (2))"
-      recovery: "a leftover slot_epoch.tmp is deleted at campaign open (T-6); a missing or bad-CRC file reads as max(newest verified generation header copy, 0) + 1"
-      diagnostics: "SL_EPOCH_NOT_DURABLE (write failed or timed out; save_status FAILED), SL_EPOCH_FILE_REBUILT (missing or bad CRC)"
+      kind: "per-slot PAIR of side files holding the live restore_epoch: user://saves/<campaign_id>/slot_epoch_a.bin and slot_epoch_b.bin, 12 bytes each (u32 LE epoch, u32 LE seq, u32 LE CRC32 of the first 8 bytes)"
+      write: "Save/Load worker overwrites the OLDER file of the pair in place with seq = max + 1, flush, close, re-read and CRC check; no .tmp, no rename, no remove (ADR-0006 3.1); EPOCH_DURABLE on a valid re-read; issued in the pre-restore staging step, before request_restore (SL-23 (2))"
+      recovery: "the reader takes the valid file (size 12, CRC matches) with the higher seq; no .tmp exists so nothing is deleted at campaign open (T-6); rebuilt as max(newest verified generation header copy, 0) + 1 only when BOTH files are missing or invalid"
+      diagnostics: "SL_EPOCH_NOT_DURABLE (write failed or timed out; save_status FAILED), SL_EPOCH_FILE_REBUILT (both files missing or invalid)"
       timeout: RESTORE_EPOCH_WRITE_MAX_MS
     added: 2026-10-28
-    revised: 2026-10-28
+    revised: 2026-10-29
+    # was: entity slot_epoch.bin, single file, 8 bytes (u32 LE + CRC32), write slot_epoch.tmp -> flush -> rename over slot_epoch.bin -> re-read, recovery deletes a leftover slot_epoch.tmp (T-6) and rebuilds on a missing or bad-CRC file, before 2026-10-29 (ADR-0006 3.1: pair with seq, overwrite-older, 12 bytes)
     # Delegated ruling R14. One registered spelling for each name; see SL_EPOCH_NOT_DURABLE for the variant spellings
 
   - name: SL_EPOCH_NOT_DURABLE
@@ -2190,10 +2198,11 @@ entities:
       - design/gdd/player-controller-input.md
     attributes:
       kind: Save/Load diagnostic event (a log code, not a command or a state)
-      rule: "raised when the pre-restore slot_epoch.bin write fails or exceeds RESTORE_EPOCH_WRITE_MAX_MS; sets save_status = FAILED; the restore proceeds with the advanced value in memory (listed exposure: a kill before the next successful write may replay the epoch once); the write is re-attempted with the next write job (SL-23 (2a), (2b))"
-      aliases: "none; the publisher (Save/Load) spelling SL_EPOCH_NOT_DURABLE is canonical (G1) and the kernel GDD conforms (CR-15, KRN-EPO-05). SL_EPOCH_FILE_REBUILT (missing or bad-CRC slot_epoch.bin, rebuilt) is a separate Save/Load diagnostic"
+      rule: "raised when the pre-restore slot_epoch_a/b.bin write fails or exceeds RESTORE_EPOCH_WRITE_MAX_MS; sets save_status = FAILED; the restore proceeds with the advanced value in memory (listed exposure: a kill before the next successful write may replay the epoch once); the write is re-attempted with the next write job (SL-23 (2a), (2b))"
+      aliases: "none; the publisher (Save/Load) spelling SL_EPOCH_NOT_DURABLE is canonical (G1) and the kernel GDD conforms (CR-15, KRN-EPO-05). SL_EPOCH_FILE_REBUILT (both slot_epoch_a/b.bin files missing or invalid, rebuilt) is a separate Save/Load diagnostic"
     added: 2026-10-28
-    revised: 2026-10-28
+    revised: 2026-10-29
+    # was: rule/aliases naming slot_epoch.bin before 2026-10-29 (ADR sync)
     # was: aliases listed the kernel-spelling variant SL_RESTORE_EPOCH_NOT_DURABLE (CR-15 / KRN-EPO-05 wording) as the same event, before 2026-10-28 (rr4: the kernel GDD now uses SL_EPOCH_NOT_DURABLE everywhere; alias dropped, no live text uses it)
 
   - name: control_plane_request_outcomes
@@ -3644,11 +3653,11 @@ formulas:
       - design/gdd/perception-filter.md
       - design/gdd/chart-table-web-map-and-menus.md
     attributes:
-      expression: "state_hash(scope, T, uncached = false) = H64(T || world_seed || concat over b in scope sorted by block_id of (len(block_id) || block_id || schema_version || len(canonical_bytes(b)) || block_hash(b))); block_hash(b) = H64(canonical_bytes(b)), cached per block and invalidated by the dirty bit"
+      expression: "state_hash(scope, T, uncached = false) = H64(s64(T) || s64(world_seed) || record(b1) || record(b2) || ...), blocks ascending by code point of block_id, record(b) = u64(len(block_id)) || utf8(block_id) || u64(schema_version) || u64(len(canonical_bytes(b))) || s64(block_hash(b)), every u64/s64 8 little-endian bytes; block_hash(b) = H64(canonical_bytes(b)) (the 8 digest bytes), cached per block and invalidated by the block's touch serial (every granted open_for; restore also advances it), not by a dirty key or dirty bit; hash_algo 2 names this whole definition and the encoder (kernel D.12; ADR-0005 sections 4.4, 5.2)"
     # was: expression H64( T || world_seed || concat over b in scope, sorted by block_id, of (block_id || schema_version || canonical_bytes(b)) ) before 2026-10-27 (design review)
     # was: expression hash(canonical_snapshot(blocks)) before 2026-10-27 (consistency pass)
       # was: variables untagged canonical_bytes (dictionary keys sorted bytewise, no type tags or counts), no uncached parameter before 2026-10-27
-      variables: "scope in {PERSIST (G4): persist and persist_scope WORLD only, never PROFILE; ALL_SIM (G3): every SIM block}, both excluding kernel.clock (T and world_seed are the hash prefix; restore_epoch is excluded) and never including PERCEPTION_OUT; canonical_bytes = prefix-free TLV form: one tag byte then a self-delimiting body (length- or count-prefixed), NIL no body, BOOL 1 byte, INT 8 bytes LE, FLOAT IEEE-754 bits LE with -0.0 -> +0.0 and one canonical NaN, STRING UTF-8 length-prefixed, StringName encoded as String, VECTOR2 / VECTOR2I defined, ARRAY count-prefixed in order, DICT count-prefixed with keys sorted by encoded key bytes, Packed*Array element-type tag + count + raw bytes; uncached (default false): G3, G4, K-4, the STRICT_DEBUG tripwire and the test profile use uncached = true, the per-block cache serves the diagnostics cadence only; H64 ratified (R-17, user ruling X13 / D1) = first 8 bytes (little-endian) of SHA-256 via HashingContext"
+      variables: "scope in {PERSIST (G4): persist and persist_scope WORLD only, never PROFILE; ALL_SIM (G3): every SIM block}, both excluding kernel.clock (T and world_seed are the hash prefix; restore_epoch is excluded) and never including PERCEPTION_OUT; canonical_bytes = prefix-free TLV form: one tag byte then a self-delimiting body (length- or count-prefixed), NIL no body, BOOL 1 byte, INT 8 bytes LE, FLOAT IEEE-754 bits LE with -0.0 -> +0.0 and one canonical NaN, STRING UTF-8 length-prefixed, StringName encoded as String, VECTOR2 / VECTOR2I defined, ARRAY count-prefixed in order, DICT count-prefixed with keys sorted by value (int keys ascending as signed integers; String/StringName keys ascending by code point of String(key)); mixed key types are ENC_MIXED_KEYS (ADR-0005 section 3.3), Packed*Array element-type tag + count + raw bytes; uncached (default false): G3, G4, K-4, the STRICT_DEBUG tripwire and the test profile use uncached = true, the per-block cache serves the diagnostics cadence only; H64 ratified (R-17, user ruling X13 / D1) = first 8 bytes (little-endian) of SHA-256 via HashingContext"
     # was: H64 xxHash64 / FNV-1a 64 (ADR) before 2026-10-27 (design review)
     # was: variables 'blocks (persist or all SIM), canonical ordering, -0.0 == +0.0, NaN normalised' before 2026-10-27 (consistency pass)
       output: u64; equality is the G3/G4 determinism and save-equivalence test
@@ -3656,7 +3665,8 @@ formulas:
       encoder: "canonical_encode(value) -> PackedByteArray, a pure static helper, not compiled out of release, the only canonical-bytes definition (owners describe payload shape, never byte layout)"
       golden_vector_candidate: "Body fixture of 2 bodies / 3 actors = 518 bytes, to be confirmed at the spike"
     added: 2026-10-25
-    revised: 2026-10-28
+    revised: 2026-10-29
+    # was: expression 'H64(T || world_seed || concat over b ... (len(block_id) || block_id || ...)); ... invalidated by the dirty bit'; variables 'DICT ... keys sorted by encoded key bytes' before 2026-10-29 (ADR sync)
     # Also the desync check for VS-B
   - name: rng_derive
     status: active
@@ -3664,7 +3674,6 @@ formulas:
     referenced_by:
       - design/gdd/life-support-graph.md
       - design/gdd/save-load-and-versioned-format.md
-      - design/gdd/failure-and-trail-system.md
       - design/gdd/item-and-module-database.md
       - design/gdd/emitter-state-and-light-exposure-query.md
       - design/gdd/ship-body-and-interior-physics.md
@@ -3690,9 +3699,10 @@ formulas:
       variables: "world_seed (signed int with the u64 bit pattern), stream_name (StringName), counter (u64 stored in the owning block); constants as signed int64: GOLDEN -7046029254386353131, C1 -4658895280553007687, C2 -7723592293110705685, FNV_OFFSET -3750763034362895579, FNV_PRIME 1099511628211; golden vectors: rng_derive(0x5EED000000002026, horror.tell, 17) = 0xB2AA94991B52A02E, fnv64(horror.tell) = 0xE500B5B58A7689E2, mix64(1) = 0x5692161D100B05E5"
       output: u64 / unit [0,1); pure and deterministic
     added: 2026-10-25
-    revised: 2026-10-27
+    revised: 2026-10-29
     # RATIFIED 2026-10-27 (user ruling X13 / D1): mix64 = SplitMix64, fnv64 = FNV-1a 64, H64 = SHA-256 low 64 bits via HashingContext (R-17)
     # No global randf() anywhere in simulation (H9)
+    # was: design/gdd/failure-and-trail-system.md in referenced_by before 2026-10-29 (ADR-0005 TD-28: the Trail no longer calls rng_derive; its presentation variation uses Ihash.h(TRAIL_VIS_SEED, ...))
 
 
 # Example:
@@ -5250,9 +5260,10 @@ formulas:
     # was: consumer event_due = event_pending AND (T - last_save_T) >= AUTOSAVE_MIN_GAP_TICKS AND a settle conjunct (T - last_shape_change_T) >= (the withdrawn settle constant) AND NOT ragged_breach_open() before 2026-10-28 (rr4; Assembly conforms to Save/Load F-1)
     # was: consumer event_due = event_pending AND (T - last_save_T) >= AUTOSAVE_MIN_GAP_TICKS (no withhold conjunct) before 2026-10-27 (user rulings X7 / D54)
       variables: "welded_at_T and cut_at_T (int64 ticks, Layout welds[]), AUTOSAVE_MIN_GAP_TICKS 1800, event_kind (enum: ASSEMBLY_WELD iff the maximum is a welded_at_T, ASSEMBLY_CUT iff it is a cut_at_T; names the event only, the withhold reads the pending-set kinds)"
-      output: NONE or an int64 tick; two 32-bit parts or a string at the serialisation boundary (SL-2)
+      output: NONE or an int64 tick; two 32-bit parts or a string wherever it can reach JSON (header, dump-save, SL-2); native int64 is also accepted exact in the binary payload (ADR-0006)
     added: 2026-10-26
-    revised: 2026-10-28
+    revised: 2026-10-29
+    # was: output 'two 32-bit parts or a string at the serialisation boundary (SL-2)' before 2026-10-29 (ADR sync)
     # D.9. Pure read polled by Save/Load (SL-13); event names ASSEMBLY_WELD / ASSEMBLY_CUT fixed (2026-10-27). MVP ships both events enabled (D17).
     # was: consumer withhold NOT (event_kind = ASSEMBLY_CUT AND ragged_breach_open()), settle term omitted, before 2026-10-27 (re-review: a later weld bypassed the event_kind-keyed withhold). (2026-10-28: reconciled, G1 - Assembly conforms to Save/Load F-1; settle term withdrawn)
 
@@ -6082,8 +6093,9 @@ formulas:
       # was: 'epoch increments only while the effect amplitude is 0' (no per-lie epoch 0 rule) before 2026-10-27 (design review)
     # was: lie_key = start_run AND 0xFFFFFFFF; vector label 'masked overflow start_run 2^32+7' (every number unchanged) before 2026-10-28 (Req 2 item 7 and req 4: Sanity publishes lie_id and direction, G1; D.14 now keys on lie_id and retires tag 8)
     added: 2026-10-26
-    revised: 2026-10-28
-    # D.14; ADR candidate 4. LO-19 is the precedent for a presentation-local hash
+    revised: 2026-10-29
+    # was: comment 'D.14; ADR candidate 4. LO-19 is the precedent for a presentation-local hash' before 2026-10-29 (ADR-0005 sync)
+    # D.14 keeps its own masked 32-bit hash until ADR-0024 migrates it (ADR-0005 section 2.6). The ADR candidate is closed by the shared Ihash.h helper (ADR-0005 section 2.6); LO-19 now uses Ihash.h(LIGHT_HASH_SEED, emitter_id, k, 0, SALT_GUTTER) and Instruments u_i/phi_i use Ihash.h
 
   - name: lying_digit_tick_schedule
     status: active
@@ -6112,9 +6124,10 @@ formulas:
     attributes:
       expression: "L_max_ms = SANITY_DRIFT_DIVISOR*1000/TICK_RATE + frame_ms"
       variables: "SANITY_DRIFT_DIVISOR 12, TICK_RATE 60, frame_ms 6.9 (144 Hz) to 33.3 (30 fps)"
-      output: "200 ms plus one frame (216.7 ms at 60 Hz); applies to stage steps and entry appearance/removal only; the notification only marks dirty, the draw is in the render callback after the Avatar Presenter and before Lighting reads the decoy list"
+      output: "200 ms plus one frame (216.7 ms at 60 Hz); applies to stage steps and entry appearance/removal only; the notification only marks dirty, the draw is in the PresentationDriver's FILTER stage, after the AVATAR stage (Avatar Presenter) and before the LIGHTING stage reads the decoy list (ADR-0009 section 3)"
     added: 2026-10-26
-    revised: 2026-10-26
+    revised: 2026-10-29
+    # was: output 'the draw is in the render callback after the Avatar Presenter and before Lighting reads the decoy list' before 2026-10-29 (ADR sync)
     # D.16, PF-35
   - name: release_cue_relation
     status: active
@@ -6328,14 +6341,15 @@ formulas:
     attributes:
       expression: "S[ceil_div(99 * n, 100)] where S is the ascending sort of the last n = min(DIAG_HOOK_WINDOW_RUNS, samples seen) values of graph_hook_tick; n = samples held, one per hook tick keyed (T, epoch), budget compared per hook tick (0.5 P99 / 1.0 max); verdict = no verdict (dev template) if the template is DEV and DIAG_DEV_TEMPLATE_SCALE_PM == 0, insufficient if n < DIAG_P99_MIN_SAMPLES, WARN if P99 > GRAPH_HOOK_BUDGET_MS P99 (0.5) or runs_over_max >= DIAG_HOOK_MAX_BREACH_RUNS (runs_over_max = window samples above GRAPH_HOOK_BUDGET_MS max 1.0), NOTE '1 outlier' if runs_over_max == 1, else OK"
     # was: WARN if P99 > GRAPH_HOOK_BUDGET_MS P99 (0.5) or max > GRAPH_HOOK_BUDGET_MS max (1.0); all runs counted; no dev-template rule before 2026-10-27 (design review)
-      variables: "DIAG_HOOK_WINDOW_RUNS 600 [PLACEHOLDER 100..3600; counts hook-tick samples, 200 steps = 20 s], DIAG_P99_MIN_SAMPLES 100 [= 3.3 s of RUNNING; PLACEHOLDER 100..600, at most DIAG_HOOK_WINDOW_RUNS; DIAG_P99_MIN_SAMPLES <= DIAG_HOOK_WINDOW_RUNS is asserted at startup], DIAG_HOOK_MAX_BREACH_RUNS 2 [counts samples above the max budget; PLACEHOLDER 1..10], DIAG_DEV_TEMPLATE_SCALE_PM 0 [0 = no verdict on the dev template, or 500..20000 from the Graph S1 spike], GRAPH_HOOK_BUDGET_MS (registry, MVP column only)"
+      variables: "DIAG_HOOK_WINDOW_RUNS 600 [PLACEHOLDER 100..3600; counts hook-tick samples, 200 steps = 20 s], DIAG_P99_MIN_SAMPLES 100 [= 3.3 s of RUNNING; PLACEHOLDER 100..600, at most DIAG_HOOK_WINDOW_RUNS; DIAG_P99_MIN_SAMPLES <= DIAG_HOOK_WINDOW_RUNS is a CONTENT_INVARIANT schema invariant that refuses the load, ADR-0007 section 2.5; the ranges are guidance only], DIAG_HOOK_MAX_BREACH_RUNS 2 [counts samples above the max budget; PLACEHOLDER 1..10], DIAG_DEV_TEMPLATE_SCALE_PM 0 [0 = no verdict on the dev template, or 500..20000 from the Graph S1 spike], GRAPH_HOOK_BUDGET_MS (registry, MVP column only)"
     # was: variables without DIAG_HOOK_MAX_BREACH_RUNS, DIAG_DEV_TEMPLATE_SCALE_PM or the startup assertion before 2026-10-27 (design review)
       output: "microseconds, one of the window's own samples; verdict OK | WARN | NOTE (1 outlier) | no verdict (dev template) | insufficient samples (n/N); never DEFECT; the VS-A per-tick column is not used"
     # was: S the last n values of graph_hook_sum_run, complete runs only (all three hooks for the same T and epoch) before 2026-10-28 (follows the graph_hook_tick change, F-3)
     added: 2026-10-26
-    revised: 2026-10-28
+    revised: 2026-10-29
     # F-3
     # was: DIAG_P99_MIN_SAMPLES safe range 50..600 before 2026-10-27 (consistency pass)
+    # was: "DIAG_P99_MIN_SAMPLES <= DIAG_HOOK_WINDOW_RUNS is asserted at startup" (and clamped) before 2026-10-29 (ADR-0007 sync: a cross-knob invariant refuses the load with CONTENT_INVARIANT; nothing is clamped)
   - name: dirty_load_pm
     status: active
     source: design/gdd/debug-overlay-true-values.md
@@ -6648,11 +6662,12 @@ formulas:
       - design/gdd/perception-filter.md
     attributes:
       expression: "the numeral is formatted from the native-unit displayed_value, carried as the presentation-local prev_honest_native beside prev_honest_pm (pm is lossy: p_o2 3.33 pm per dkPa); step = floor_div(displayed_value + lsb/2, lsb); shown = step*lsb; t_grid(j) = j*HONEST_TICK_MS on present_time, then-current step at each boundary, never queued; HONEST_TICK_MS >= honest_tick_floor_ms (HUD-owned, HS-47; 375-500 over BEACON_SWEEP_TICKS, safe range 400-500; PF-18's 334 is the bound without the beacon share and is not used); rolling second = [t, t+1000 ms)"
-      variables: "displayed_value int; lsb per quantity (p_o2 1 dkPa, P 10 dkPa, T 1000 mC, load/stock 10 permille); floor_div explicit (GDScript integer division truncates toward zero [UNV]); HONEST_TICK_MS 500 (HUD-owned, cited); FLASH_MAX_PER_S 3 (cited)"
+      variables: "displayed_value int; lsb per quantity (p_o2 1 dkPa, P 10 dkPa, T 1000 mC, load/stock 10 permille); floor_div is IntMath.floor_div (src/shared/int_math.gd, ADR-0005 s1.4); GDScript integer division truncates toward zero (probed on 4.7.2, ADR-0010 P11); HONEST_TICK_MS 500 (HUD-owned, cited); FLASH_MAX_PER_S 3 (cited)"
       output: "integer-only fixed-width cells ('21.0', '101', '-22', '62'); at most 1000/HONEST_TICK_MS transitions per rolling second; a value beyond the span shows the clamped bound with no '<' mark; an integer zero carries no sign"
       lag_bound: at most HONEST_TICK_MS, or 2x with a skipped boundary; the numeral can lead the needle by the 400 ms reversal dwell plus one boundary (0.9 s, or 1.4 s with a skip)
     added: 2026-10-26
-    revised: 2026-10-27
+    revised: 2026-10-29
+    # was: variables 'floor_div explicit (GDScript integer division truncates toward zero [UNV])' before 2026-10-29 (ADR sync)
     # amends the locked 'one step per real change' wording by the hold grid (K-16; HS-14 amends the same rule for suit readings)
   - name: settle_response
     status: active
@@ -6938,14 +6953,15 @@ formulas:
       - design/gdd/save-load-and-versioned-format.md
       - design/gdd/derelict-authoring-handmade-kits.md
     attributes:
-      expression: "to_array(inst) = [def_id, count, condition_bp, cap_bp, patched_at_step, charge]; persisted, hashed and replicated bytes = var_to_bytes(inst.to_array(), false); from_array(a, graph_step_no) is the only decoder (the patched_at_step <= step_no invariant uses the Graph 10 Hz step) and rejects a wrong length, a wrong element type or a failed validate_instance with a reason code, never clamping"
+      expression: "to_array(inst) = [def_id, count, condition_bp, cap_bp, patched_at_step, charge]; persisted and replicated (size-checked) bytes = var_to_bytes(inst.to_array()); the hashed form is the canonical TLV encoding of the same array (9 bytes per int plus a 9-byte array header; ADR-0005 section 3.1), never var_to_bytes bytes; from_array(a, graph_step_no) is the only decoder (the patched_at_step <= step_no invariant uses the Graph 10 Hz step) and rejects a wrong length, a wrong element type or a failed validate_instance with a reason code, never clamping"
       variables: "def_id String; count, condition_bp, cap_bp, patched_at_step, charge int (always six elements, canonical zeros for non-module fields, never a float or StringName)"
-      output: "fixed-order array; measured on Godot 4.7.2: 68-80 B for roster ids, 96 B at ID_MAX_LEN 40, 956 B for a mixed-roster 12-instance holder block with an 8-int header; budget 96 B per instance and 1,024 B per mixed-roster block"
+      output: "fixed-order array; measured on Godot 4.7.2: 68-80 B for roster ids, 96 B at ID_MAX_LEN 40, 956 B for a mixed-roster 12-instance holder block with an 8-int header; budget 96 B per instance and 1,024 B per mixed-roster block, measured over var_to_bytes(inst.to_array()) only and never applied to the TLV hash input (ADR-0005 section 3.1)"
       binding: "IDB-16 binding clauses: Interaction (IA-28, IA-36), Suit & Equipment (SE-12, SE-13, SE-34, SE-38) and Save/Load (SL-2) adopt the positional encoding; conformed 2026-10-28"
       fresh_instance: "fresh_instance(def_id, count, condition_bp) -> ItemInstance or the validate_instance reason code (IDB-15, IDB-28): module -> count 1, condition_bp 1..HP_FULL, cap_bp HP_FULL, patched_at_step 0, charge 0; non-module -> condition_bp must be 0, count 1..stack_max, cap_bp, patched_at_step and charge 0; no id allocation, no clamp; the single authoring/seed constructor (DA-26), used by Derelict Authoring"
     # was: binding 'IDB-16 binding clauses (OQ 47): Interaction, Suit & Equipment and Save/Load must adopt the positional encoding' before 2026-10-28 (OQ 47 resolved by G6; holders conformed)
     added: 2026-10-27
-    revised: 2026-10-28
+    revised: 2026-10-29
+    # was: expression 'persisted, hashed and replicated bytes = var_to_bytes(...)'; output budgets stated without a form before 2026-10-29 (ADR sync)
     # IDB-15; Save/Load SL-2 accepts var_to_bytes(dict) unless the owner publishes a canonical form; a Dictionary form is not an accepted encoding (key insertion order changes the bytes and desyncs state_hash)
   - name: veto_radius
     status: active
@@ -7588,8 +7604,11 @@ constants:
       value: 60
       unit: Hz
       set_once: true
+      range: 15-120 (guidance; practically {30, 60, 120}; below 15 Hz fails the gameplay-programmer's floor, a boot assertion)
+      schema_bound: lo 1, hi 1000 (hard CONTENT_FIELD_RANGE bound on the field, ADR-0007 2.5; distinct from the 15-120 guidance range, which refuses no load)
     added: 2026-10-25
-    revised: 2026-10-25
+    revised: 2026-10-29
+    # schema bound recorded 2026-10-29 (sync knock-on fix, round 3)
     # Header-mismatch rule RATIFIED 2026-10-27 (user ruling X13 / D1, batch R-2/R-9/R-18/R-19/R-20); value unchanged
     # Changing it invalidates every tick-expressed value; confirmed by the weld spike
   - name: MAX_CMDS_PER_TICK
@@ -7678,8 +7697,9 @@ constants:
       value: 256
       unit: keys per block per tick
     added: 2026-10-25
-    revised: 2026-10-25
+    revised: 2026-10-29
     # Above this a notification collapses to ALL
+    # 2026-10-29 (ADR-0004 sync): a runtime change may only lower it (latched at the next P0); a raise above the sized capacity is refused as KNOB_REFUSED. Value 256 unchanged
   - name: MAX_TICKS_PER_FRAME
     status: active
     source: design/gdd/command-simulation-layer.md
@@ -9418,10 +9438,11 @@ constants:
       - design/gdd/save-load-and-versioned-format.md
     attributes:
       kind: pure derived read last_salvage_T() (IA-25, IA-36 States row; adopts Boarding ASK-BS-I4)
-      output: "int64 tick or NONE: the tick of the last begin_cut DONE; stored in interaction.state, persisted and kept at restore; never a JSON number (two 32-bit parts, as last_shape_change_T)"
+      output: "int64 tick or NONE: the tick of the last begin_cut DONE; stored in interaction.state, persisted and kept at restore; never a JSON number (two 32-bit parts or a string wherever it can reach JSON; native int64 is accepted in the binary payload, as last_shape_change_T)"
       rules: "the only public pure read Interaction publishes besides its Class B mutators and read views (AC-IA-75); survives restore (AC-IA-57)"
     added: 2026-10-27
-    revised: 2026-10-27
+    revised: 2026-10-29
+    # was: output 'never a JSON number (two 32-bit parts, as last_shape_change_T)' before 2026-10-29 (ADR sync)
   - name: admitted_while_carrying
     status: active
     source: design/gdd/interaction-system.md
@@ -10138,10 +10159,11 @@ constants:
       - design/gdd/adaptive-audio-and-tells.md
     attributes:
       value: 8
-      unit: ticks (+/- jitter from a pure integer hash of (tell_epoch, k, HASH_SEED); range 0..12)
+      unit: ticks (+/- jitter from a pure integer hash Ihash.h32(HASH_SEED, tell_epoch, k, 0, SALT_BEAT); range 0..12)
     added: 2026-10-26
-    revised: 2026-10-26
+    revised: 2026-10-29
     # [PLACEHOLDER] value awaits the tuning pass; see Tuning Knobs in design/gdd/attention-system.md
+    # was: unit "+/- jitter from a pure integer hash of (tell_epoch, k, HASH_SEED); range 0..12" (attention hash32(tell_epoch, k, HASH_SEED)) before 2026-10-29 (ADR-0005 sync: hash32 retired for the shared Ihash.h32). The tell draw is draw_epoch(attention.tell, rng_counter) on an epoch_keyed stream, no longer rng_derive(world_seed, "attention.tell", counter_eff); Attention computes no counter_eff and reads no restore_epoch
   - name: BEAT_MIN_GAP_TICKS
     status: active
     source: design/gdd/attention-system.md
@@ -10200,11 +10222,12 @@ constants:
       - design/gdd/adaptive-audio-and-tells.md
       - design/gdd/2d-lighting-and-occlusion.md
     attributes:
-      value: "a fixed constant (any value)"
-      unit: seed for the pure integer hash used by beat jitter and presentation (ADR candidate shared with Lighting)
+      value: "a fixed non-zero constant (value still to be fixed by the Attention owner)"
+      unit: "the variation_seed argument of Ihash.h32 (ADR-0005 section 2.6) used by beat jitter, Ihash.h32(HASH_SEED, tell_epoch, k, 0, SALT_BEAT); must be non-zero (the attention hash32 is retired)"
     added: 2026-10-26
-    revised: 2026-10-26
+    revised: 2026-10-29
     # [PLACEHOLDER] value awaits the tuning pass; see Tuning Knobs in design/gdd/attention-system.md
+    # was: value "a fixed constant (any value)" and unit "seed for the pure integer hash used by beat jitter and presentation (ADR candidate shared with Lighting)" before 2026-10-29 (ADR-0005 sync; ADR-0005 section 2.6 makes it the Ihash variation_seed, which must be non-zero)
   - name: BREACH_MIN_TICKS
     status: active
     source: design/gdd/attention-system.md
@@ -14619,11 +14642,12 @@ constants:
     attributes:
       value: 1048576
       # was: unit counter steps (fixed 2^20; the tell-draw key is rng_counter + RESTORE_KEY_STRIDE x restore_epoch; lint rng_counter < RESTORE_KEY_STRIDE) before 2026-10-27
-      unit: counter steps (fixed 2^20); the kernel's threat-draw derivation counter_eff = rng_counter + RESTORE_KEY_STRIDE x restore_epoch (formula rng_derive_epoch, KRN D.10), restore_epoch read from kernel.clock; lint rng_counter < RESTORE_KEY_STRIDE
+      unit: counter steps (fixed 2^20); formula home ADR-0005 section 2.1; the kernel's threat-draw derivation counter_eff = rng_counter + RESTORE_KEY_STRIDE x restore_epoch (formula rng_derive_epoch, KRN D.10), restore_epoch read from kernel.clock; the epoch term is applied inside RngFacet.draw_epoch only (attention.tell and horror.tell are epoch_keyed streams); lint rng_counter < RESTORE_KEY_STRIDE
     added: 2026-10-27
-    revised: 2026-10-27
+    revised: 2026-10-29
     # Fixed by construction, not a tuning knob (user rulings X8, D16: threat draws re-key per restore epoch); restore_epoch is supplied by the restore and never stored in attention.state
     # Source moved from attention-system.md to command-simulation-layer.md 2026-10-27 (delegated ruling R1: the kernel owns the one epoch-keyed derivation and its constant; Attention and Horror call it; Save/Load owns restore_epoch). Value 1048576 unchanged
+    # 2026-10-29 (ADR-0005 sync): value 1048576 unchanged and source stays the kernel GDD; ADR-0005 section 2.1 is the formula home, and no module (Attention included) computes counter_eff outside RngFacet.draw_epoch
   - name: DOCK_GLOW_TERM_MAX
     status: active
     source: design/gdd/attention-system.md
@@ -14868,11 +14892,12 @@ constants:
       - design/gdd/boarding-and-salvage.md
     attributes:
       value: 500
-      unit: "ms; monotonic timeout for the pre-restore slot_epoch.bin write (before request_restore, never inside LOADING); on expiry SL_EPOCH_NOT_DURABLE and save_status FAILED"
+      unit: "ms; monotonic timeout for the pre-restore slot_epoch_a/b.bin write (before request_restore, never inside LOADING); on expiry SL_EPOCH_NOT_DURABLE and save_status FAILED"
       range: 100-2000
     added: 2026-10-27
-    revised: 2026-10-28
-    # was: unit 'ms; durable header-only restore_epoch write before the first RUNNING tick' before 2026-10-28 (R14 moved the epoch write ahead of request_restore, into slot_epoch.bin)
+    revised: 2026-10-29
+    # was: unit naming slot_epoch.bin before 2026-10-29 (ADR sync)
+    # was: unit 'ms; durable header-only restore_epoch write before the first RUNNING tick' before 2026-10-28 (R14 moved the epoch write ahead of request_restore, into the slot_epoch_a/b.bin pair)
     # [PLACEHOLDER] introduced by the Save/Load re-review 2026-10-27; R12: measured on RM-DESKTOP / RM-DECK at the spike
   - name: SAVE_QUIT_TIMEOUT_MS
     status: active
@@ -15056,11 +15081,12 @@ constants:
     referenced_by: []
     attributes:
       value: "0x4845"
-      unit: fixed integer seed of he_hash; salts SALT_MARK 1, SALT_WP 2, SALT_L3_START 3, SALT_L3_STRENGTH 4, SALT_L3_DUR 5
+      unit: fixed integer seed of he_hash, passed as the first argument of Ihash.h; salts SALT_MARK 1, SALT_WP 2, SALT_L3_START 3, SALT_L3_STRENGTH 4, SALT_L3_DUR 5
       range: any fixed integer
     added: 2026-10-27
-    revised: 2026-10-27
-    # he_hash(k1, k2, k3, salt) = lsr(mix64(mix64(k1 xor seed) xor mix64(k2 xor salt) xor (k3 x GOLDEN)), 1) (HE-42); changing it re-rolls every mark seed, LURK waypoint and L3 timing; golden vectors in AC-HE-139
+    revised: 2026-10-29
+    # was: comment he_hash(k1, k2, k3, salt) = lsr(mix64(mix64(k1 xor seed) xor mix64(k2 xor salt) xor (k3 x GOLDEN)), 1) as a Horror-local formula (HE-42), and unit without the Ihash.h note, before 2026-10-29 (ADR-0005 section 2.6 sync)
+    # he_hash(k1, k2, k3, salt) = Ihash.h(HE_HASH_SEED, k1, k2, k3, salt), the shared pure-integer hash of ADR-0005 section 2.6, same formula and a non-negative 63-bit result (HE-42); golden vectors in AC-HE-139 include the three ADR-0005 Ihash.h vectors; changing it re-rolls every mark seed, LURK waypoint and L3 timing; golden vectors in AC-HE-139
   - name: LINK_ROOM_HOPS
     status: active
     source: design/gdd/horror-entities.md
@@ -15526,6 +15552,71 @@ constants:
     added: 2026-10-27
     revised: 2026-10-27
     # [PLACEHOLDER] the 12 % was an unnamed number; the HOP_FUEL_ML and BERTH_FUEL_ML ranges derive from it (re-review 2026-10-27)
+
+  - name: MAX_SUBSCRIPTIONS
+    status: active
+    source: design/gdd/command-simulation-layer.md
+    referenced_by: []
+    attributes:
+      value: 96
+      unit: subscriptions (size of the fixed subscription table and of each per-block subscriber list; a subscribe past it is refused SUBSCRIBE_REFUSED)
+      range: 32-256
+      tunability: Boot
+    added: 2026-10-29
+    # ADR-0004 sync (docs/architecture/adr-0004-change-notification-and-dirty-keys.md); sized once at the registry freeze
+
+  - name: MAX_EVENTS_PER_TICK
+    status: active
+    source: design/gdd/command-simulation-layer.md
+    referenced_by: []
+    attributes:
+      value: 64
+      unit: events per tick, global across all blocks (scope.emit_event limit; overflow drops the newest event and counts EVENT_OVERFLOW)
+      range: 16-256
+      tunability: Boot
+    added: 2026-10-29
+    # ADR-0004 sync; a frame is bounded by MAX_TICKS_PER_FRAME x this
+
+  - name: AUDIT_EVERY_TICK
+    status: active
+    source: design/gdd/command-simulation-layer.md
+    referenced_by: []
+    attributes:
+      value: "on in the test profile, off in release"
+      unit: build flag (the missed-dirty-mark audit sweep MISSED_DIRTY_MARK runs every tick instead of at the STRICT_DEBUG sample cadence)
+      tunability: Build flag (test profile); not a runtime knob
+    added: 2026-10-29
+    # ADR-0004 sync; must stay on in every integration and soak test
+
+  - name: SALT_BEAT
+    status: active
+    source: design/gdd/attention-system.md
+    referenced_by: []
+    attributes:
+      value: "a fixed non-zero constant (value still to be fixed by the Attention owner)"
+      unit: salt argument of Ihash.h32(HASH_SEED, tell_epoch, k, 0, SALT_BEAT) for the beat jitter (ADR-0005 section 2.6)
+    added: 2026-10-29
+    # [PLACEHOLDER] value awaits the Attention owner; companion of HASH_SEED
+
+  - name: TRAIL_VIS_SEED
+    status: active
+    source: design/gdd/failure-and-trail-system.md
+    referenced_by: []
+    attributes:
+      value: "a fixed non-zero integer constant (PLACEHOLDER in the GDD; not yet fixed)"
+      unit: variation_seed of Ihash.h(TRAIL_VIS_SEED, subject_id, stamp_index, world_seed, SALT_TRAIL_VIS) for the Trail stamp variant, drip phase and fan flip (ADR-0005 section 2.6)
+    added: 2026-10-29
+    # [PLACEHOLDER] the golden vectors for FT-20 and AC-134 regenerate once the value is set
+
+  - name: SALT_TRAIL_VIS
+    status: active
+    source: design/gdd/failure-and-trail-system.md
+    referenced_by: []
+    attributes:
+      value: "a fixed non-zero integer constant (PLACEHOLDER in the GDD; not yet fixed)"
+      unit: salt argument of Ihash.h(TRAIL_VIS_SEED, subject_id, stamp_index, world_seed, SALT_TRAIL_VIS)
+    added: 2026-10-29
+    # [PLACEHOLDER] companion of TRAIL_VIS_SEED; golden vectors for FT-20 and AC-134 regenerate once set
 
 # Example:
 #

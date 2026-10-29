@@ -174,3 +174,64 @@ Findings:
 - [RECOMMENDED] AC-WM-82b; Feel checklist: [main review] AC-WM-82b has a duplicated reference, and the Feel checklist still says 'a four-leg session' although AC-WM-82b now tests two scripts.
 Reviewed-Content-Hash: design/gdd/web-map-and-transit.md 3b784f45353c38d8d09bb315fa5e48d94f178ade
 Reviewed-Content-Hash: design/registry/entities.yaml c7c42b1a48216686518b8b47b2a01a34e276ab50
+
+
+## Review — 2026-10-29 — Foundation ADR sync (lean confirming)
+Verdict: NEEDS REVISION (previous: APPROVED, 2026-10-28)
+Scope: the diff only. WM-30 (restore baseline wording), WM-31 (event rule and table), AC-WM-57 and AC-WM-59, plus their knock-on rows inside the GDD. Checked against ADR-0004 (CR-10), ADR-0006 1.12 and ADR-0008 6.1 (snap_baseline). Read-only; no GDD edits. Rules, formulas, constants and tuning knobs are untouched by the sync.
+Verified: the snap_baseline replacement for `previous := current` is complete (2 occurrences, both changed). The ADR-0006 1.12 counter names and the ADR-0004 CR-10 citation are correct. Design intent is preserved: events remain in P5 for Audio, and the transit machine, leg and berth rules are unchanged.
+Blockers: 2
+1. Replacement reads undefined. Attention and Horror are told to read 'web.state's view' (departure, dormancy flags), but web.view (WM-36) has an exact field list pinned by AC-WM-60, and dormancy lives in graph.state. Fix: name the read, or extend WM-36 and AC-WM-60.
+2. pod_arrived_seq and berthed_seq are not in WM-3, the state_hash row, D.11 (125 B machine, 756 B total), WM-30's persisted/not-persisted split or AC-WM-75. Whether they are persisted, hashed or reset on restore is unspecified, and so is when they advance. Fix: one rule stating field type, persistence, advance point and the Save/Load last-seen re-read.
+Advisories: 5
+- The Attention, Horror and Save/Load dependency rows (L418, L429, L437, L953, L959, L973, L1437) still describe event subscription.
+- AC-WM-59 asserts kernel behaviour (snap_baseline); move it to a kernel or integration test.
+- Re-confirm the SL-15 item 11 citation after Save/Load's sync.
+- AC-WM-103, AC-WM-138 and AC-WM-82b should say 'presentation subscribers' for the event consumers.
+- FIRST_BOARDED still lists Save/Load as a consumer.
+Next: apply both blockers (one paragraph each) and the dependency-row sweep, then run a confirming pass that greps the referenced_by docs.
+
+## Review — 2026-10-29 — Foundation ADR sync (lean confirming, round 2)
+**Verdict: NEEDS REVISION** (one small blocker, both prior blockers resolved)
+**Scope.** The full working-tree diff of design/gdd/web-map-and-transit.md against HEAD (11 hunks): WM-3, WM-30, WM-31 plus the new counter block, the four event rows, WM-36, the Attention dependency row, D.11 Output Range, AC-WM-57, 59, 60 and 75. I checked these against ADR-0003, ADR-0004 and ADR-0006 1.12.
+**Blockers resolved.**
+- Blocker 1 (Attention/Horror read surface): WM-31 now names reads from existing web.view members only: pod_at, transit_state, leg_dir, leg_origin_id, leg_target_id and nodes[].loaded (dormancy derived from the Graph's section().dormant). These members exist in WM-36. AC-WM-60's exact list is unchanged, and it gains a testable dormancy equality. The WM-36 note and the event rows agree.
+- Blocker 2 (pod_arrived_seq / berthed_seq undefined): the counters are now defined as non-persisted host-local u32 values, read through the separate web.save_seq() (Save/Load facet only). WM-3, WM-30, D.11 (125 B and 756 B unchanged) and AC-WM-57, 59 and 75 state the same rule. The increment points are fixed to the pod_settle apply and the last berth_step apply. post_restore resets both counters to 0 and increments nothing. All of this is consistent with ADR-0006 1.12 (last-seen values re-read after load).
+**Remaining blockers.**
+1. The Horror Entities dependency row (L439) and the summary row (L975) still list the events as Horror's interface. WM-31 says Horror reads web.view and does not subscribe. Fix: rewrite them like the Attention row.
+**Advisories.**
+- The Save/Load rows (L420, L955, L1439) do not mention polling or web.save_seq().
+- The ADR naming mismatch is still open and ADR-side: ADR-0004 L487 writes web.view.pod_arrived_seq, while ADR-0006 and ADR-0004 L608 write web.state members. Reconcile it in the Web Map ADR (OQ-K).
+- The behaviour of the counter increment when an apply faults is unspecified.
+- The '360 ticks or more' argument rests on a content-lint range (guidance, not a refusing bound) and should say 'at least one tick'. Consumers' last-seen values after a load also need to be stated.
+- No AC pins the consumer-side level reads.
+**Checked and clean.** The D.11 byte arithmetic, dirty-key counts, the AC-WM-103 event list, the registry web_events rule and the TR/ADR references have no dangling targets.
+
+## Review — 2026-10-29 — Foundation ADR sync (lean confirming, round 3)
+
+Scope: `design/gdd/web-map-and-transit.md`. I read the diff (13 hunks) and the round-2 result for this file, and checked rules vs formulas vs edge cases vs ACs vs dependencies.
+
+Verdict: APPROVED. No blockers.
+
+Round-2 blocker (Horror rows still listed the DERELICT_LOADED / DERELICT_UNLOADED and POD_DEPARTED events as its interface): RESOLVED.
+- Dependencies row L439 and Bidirectional row L975 now match the Attention row (L431) and WM-31.
+- Horror gets `ring_of` plus `web.view` reads (`pod_at`, `transit_state`, `leg_dir`, `leg_origin_id`, `leg_target_id`, `nodes[].loaded`). It has no event subscription and no `web.save_seq()`.
+- The events remain Audio's presentation notifications. The HOR:369 quote and the confirmation text are retained.
+
+Internal consistency:
+- The Save/Load counters `pod_arrived_seq` and `berthed_seq` are non-persisted, host-local, reset to 0 at `post_restore`, and read through `web.save_seq()`.
+- This is stated consistently in WM-3 (L199), WM-30 (L297), WM-31, WM-36 (L331), D.11 (L744), AC-WM-57, AC-WM-59, AC-WM-60 and AC-WM-75.
+- Byte budget and dirty keys are unchanged (5 of 256).
+- The WM-36 field list is unchanged, so the Chart Table contract is intact.
+- The ACs are testable. They cover the late-apply count of exactly 1, the T5 reversal, no increment for `unberth`, `web_reconcile` or `post_restore`, the restore reading 0 with no autosave, no counter in the golden save or hash, and the `web.view` field-list negative assertion.
+- No dangling references. WM-30, WM-31, WM-34 and WM-36, CR-10, ASK-G1 and ADR-0006 § 1.12 all resolve.
+
+Advisories (non-blocking):
+- ADR-0004 (:487) and ADR-0006 (§ 1.12, OQ-K) still say `web.view.*` / `web.state` read-view members. The GDD uses the separate `web.save_seq()`. Record this in the Web Map ADR or in a Review Log bullet.
+- `entities.yaml` L1401 still has first-sync wording ('web.state view').
+- WM-30's 'POD_ARRIVED is the event that sets Save/Load's trigger' predates polling.
+- AC-WM-75 says about 735 B, but D.11 computes about 756 B.
+- WM-31's 'each state holds at least a leg' overstates the IDLE window. It is safe only if consumer hooks run every tick.
+- No AC covers the restore-then-settle case.
+Reviewed-Content-Hash: design/gdd/web-map-and-transit.md 41bcea154ef0a1769fc49f8f510d30868b92c587
+Reviewed-Content-Hash: design/registry/entities.yaml 4d9d9f7a469ff3c3aeb97b06fa6fa82c1b2dec16

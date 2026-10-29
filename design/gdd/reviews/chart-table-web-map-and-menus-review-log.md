@@ -156,3 +156,43 @@ Findings:
 - [RECOMMENDED] Dependencies - Save/Load row vs SL-21: [main review] Save/Load says playtime is read once, while this GDD re-reads it on every MAIN_MENU entry.
 Reviewed-Content-Hash: design/gdd/chart-table-web-map-and-menus.md c1fe36ee3ec068241dbf7d0f2d00336833d86e24
 Reviewed-Content-Hash: design/registry/entities.yaml cafe6d1169a1fe5dd043eae35c2c07a90c93b4c6
+
+
+## Review — 2026-10-29 — Foundation ADR sync (lean confirming)
+Verdict: NEEDS REVISION (1 blocker, 7 advisories)
+Scope: diff only, plus knock-on effects inside this GDD. Changes reviewed: CT-1 and CT-UI-8 (two sibling layers, pixel face on 3, reading face on 4, ADR-0008 s2.5); CT-45 MenuInput POINTER unit (window px, stretch disabled, ADR-0008 s5); the ADR-candidate (b) note; the Debug Overlay rows (layer 5); AC-CT-81 (injected Clock instead of Time.*, ADR-0010 SIM-02); AC-CT-102 (no clamp, ADR-0007 s2.5); AC-CT-135(f) (cursor unit now a confirmation).
+Checked: the ADR section references (ADR-0008 s2.5 and s5, ADR-0007 s2.5, ADR-0010 SIM-02), DO-5 and DO-26 in the Debug Overlay GDD, and CT-45(f). All resolve. The layer-3/4 split is consistent across CT-1, CT-UI-8, the ADR candidate note and the Dependencies rows.
+Blocker:
+- AC-CT-102 now forbids clamping out-of-range values. Only CONTENT_FIELD_RANGE or CONTENT_INVARIANT may refuse a load. Tuning Knobs 'Coupled constraints' (header and rows C-1, C-5 to C-9) and AC-CT-127 still prescribe load-time clamps with a log line. The two ACs cannot both pass. Fix: convert the coupled constraints to named schema invariants that refuse with CONTENT_INVARIANT, and update the AC-CT-127 expected outcomes.
+Advisories:
+- CT-2 and AC-CT-108 still say 'layer 3' and a single layer. Both menu layers must be exempt from the Filter and Sanity.
+- D_L3 and LAYER3_DRAW_CALL_BUDGET should state that they cover layers 3 and 4.
+- State how a layer-3 plate is sized from layer-4 text extents (screen px snapped to HUD px). Confirm there is no layer-3 overlay over reading text.
+- AC-CT-81 timing: the diagnostics timer is allow-listed in SIM-02, so say how UI code reaches it (injection or harness).
+- The header has no 2026-10-29 sync line. Close any remaining cursor-unit-open gap or OQ entries.
+Design intent preserved: the player-facing behaviour is unchanged. Reading face remains the only non-integer text and the chart table stays unlit, unfiltered and truthful.
+
+## Review — 2026-10-29 — Foundation ADR sync (lean confirming, round 2)
+
+**Verdict:** APPROVED (no blockers; 6 advisories).
+**Scope:** `design/gdd/chart-table-web-map-and-menus.md`, the working-tree diff (20 hunks): the ADR-0007/0008/0010 sync edits plus the knock-on fix round. Checked the Coupled-constraints header, C-1 to C-10, AC-CT-102, AC-CT-127, AC-CT-123, AC-CT-39, the knob rows, D.1c, D.10 and the F-E gap row. Searched the whole file for leftover clamp or assert wording.
+
+**Blockers resolved (1 of 1):** the previous blocker (AC-CT-102 vs the clamp wording in C-1/C-5 to C-9 and AC-CT-127) is cleared.
+- The header and intro now say constraints are named structural invariants refused at load as CONTENT_INVARIANT(table, name). Nothing is clamped. Published ranges are advisory (CI diff).
+- C-1, C-5, C-6, C-8 and C-9 are now refusals (CT_INV_RING_CHANNEL, CT_INV_L3_BUDGET, CT_INV_REOPEN_FLASH, CT_INV_VOLUME_WIDTH, CT_INV_DT_REPEAT). C-2 and C-3 are named. C-7 splits into the table invariant plus a FILAMENT_DRIFT_FRACTION ceiling of 1.0 as CONTENT_FIELD_RANGE, with the 0.25 floor as guidance.
+- AC-CT-127 now expects refused-or-loaded, never clamped (5 steps with a minimum of 6 is refused, not clamped to 3).
+- Knock-on edits agree: the LAYER3_DRAW_CALL_BUDGET knob row, D.10, the D.1c sentence, AC-CT-39 and the F-E line.
+- Arithmetic re-checked: C-1 5x3=15 <= 16; C-2 maxima 110 > 108; C-3 gap 6 gives 112 > 108; C-5 33 > 30 to 32.
+- The only clamps left are the runtime UI_DT_MAX_MS frame-delta clamp (CT-43, EC-CT-58, D.2, D.5), which is intended.
+
+**Remaining blockers:** none.
+
+**Advisories (details in the structured result):**
+1. AC-CT-123: the metronome case passes CT_INV_DRIFT_TABLE, so 'invariant / table lint rejects it' needs splitting into loader refusal and CI lint.
+2. AC-CT-127: the 'C-1 to C-10 satisfied or refused' wording does not fit C-4 (layout lint) or C-10 (by construction).
+3. C-10 still has a loader refusal on the 0.8 range maximum with no schema-bound or invariant name.
+4. The CT_INV_* names and the FILAMENT_DRIFT_FRACTION schema max are not yet in the schema file. Make them a named prerequisite story before AC-CT-127 runs.
+5. C-1 is checked both by the invariant and by the AC-CT-101 lint. State which is the oracle.
+6. The C-6 relation does not mention the CHART_REOPEN_MIN_MS_REDUCED variant (it holds trivially).
+Reviewed-Content-Hash: design/gdd/chart-table-web-map-and-menus.md 02128b336977e5f298fe78dd5cd94e71e387bdb3
+Reviewed-Content-Hash: design/registry/entities.yaml 4d9d9f7a469ff3c3aeb97b06fa6fa82c1b2dec16

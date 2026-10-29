@@ -177,3 +177,50 @@ Findings:
 - [RECOMMENDED] T-1 BOOTING row / SL-15 / AC-SL-75: [main review] The GDD does not say how Save/Load notices when the kernel's CR-6 validation takes BOOTING to FAULTED and the first-boot request goes unserved.
 Reviewed-Content-Hash: design/gdd/save-load-and-versioned-format.md a2a088f71ffbe6ca01bb469627060b9a5d043488
 Reviewed-Content-Hash: design/registry/entities.yaml c7c42b1a48216686518b8b47b2a01a34e276ab50
+
+
+## Review — 2026-10-29 — Foundation ADR sync (lean confirming)
+
+**Verdict: NEEDS REVISION** (3 narrow blockers; design intent preserved).
+
+**Scope:** The `git diff` of save-load-and-versioned-format.md only. That is 99 changed lines, all tagged "Amended 2026-10-29 — ADR-0005 / 0006 / 0007 / 0008 sync". It covers: the slot_epoch single file becoming an A/B pair with a seq counter; catalogue_version above the running build refused at T-5 step 12b (SL_PRECHECK_CATALOGUE_NEWER); `has_expected_hash` on request_restore; Hex64 and CampaignId; one Dictionary payload form with native int64 and typed containers legal; narrowed packed-array set; polling `SaveHost` / `poll_frame` with no subscriptions (OQ-7 closed); ctx.fault replacing the `(ok, reason, detail)` return; the knob-range boot refusal withdrawn (ADR-0007 2.5); PROFILE mechanism deferred; quarantine reason in the file name; retire path; bounded-polling quit; best-effort campaign.lock.
+
+**Checked and clean:** No stale `slot_epoch.bin` / `.tmp`, `SL_BOOT_TYPED_CONTAINER`, `SL_RESTORE_NONCONFORMING`, `quit()`, `hex64/unhex64` or `expected_state_hash)` remain outside withdrawal notes. AC-SL-15 / 96e / 145 / 147 / 148 / 96c / 95a match the changed rules. ADR section citations resolve.
+
+**Blockers:**
+1. SL-2's allowed-type sentence still allows "the packed arrays (H7 set)" and omits non-finite floats. AC-SL-07 and ADR-0006 1.2 item 3 now refuse PackedFloat32/64 and PackedStringArray. Fix: narrow SL-2 to Byte/Int32/Int64 packed arrays and finite floats, and add a NaN/inf case to AC-SL-07.
+2. AC-SL-38 / Tuning Knobs / OQ-28: the range check is now advisory, but RETRY_TICKS = 0 still "boots", so I3's modulo would divide by zero. The GDD declares no schema bounds. The 11 399 row still says "refused by the range check", and the AC title and Layer 1 label still say "ranges first". Fix: declare hard lo/hi schema bounds for divisor knobs and rewrite the fixtures.
+3. AC-SL-24 still demands profile.sav kill points though SL-9 defers the PROFILE writer. Fix: mark that clause deferred, as AC-SL-70 and AC-SL-116 are.
+
+**Advisories:** SL-12 `has_expected_hash` / verdict NONE wording is ambiguous. BLOCK_RECORD_BYTES 240 is tight now that `enc_len` is a field. "Names merge" wording remains at lines 35, 185 and 1468. SL-13 counters-versus-last_*_T rationale. slot_epoch tie and first-seq rule undefined. AC-SL-15 lists FORMAT_UNSUPPORTED twice (pre-existing). Line 477 Graph quote lacks an ADR-0005 note. SL-16 K-1 mitigation text is stale. AC-SL-46 pause clause depends on ADR-0003 / ADR-0030 (ADR-0006 OQ-J).
+
+## Review — 2026-10-29 — Foundation ADR sync (lean confirming, round 2)
+**Verdict:** APPROVED (no remaining blockers; 9 advisories)
+**Scope:** design/gdd/save-load-and-versioned-format.md, full uncommitted diff (about 44 hunks: header, SL-1/2/6/7/9/10/13/14/15/16/19/23, T-5 step 12b and T-6, interactions, formulas, edge cases, Tuning Knobs, Acceptance Criteria, Open Questions). Checked rules vs formulas vs edge cases vs ACs vs knobs, and grepped for dangling references to retired names. This is the file diff only; the ADRs and the kernel GDD were not re-read.
+**Blockers resolved (3 of 3):**
+1. SL-2 vs AC-SL-07: SL-2 now allows only null, bool, int64, finite float, String, Array, Dictionary (String or int keys) and PackedByte/Int32/Int64Array. PackedFloat32/64, PackedString and NaN/inf are forbidden. They are refused `SL_PRECHECK_BLOCK_TYPE_FORBIDDEN` at load and `SL_WRITE_UNENCODABLE` in VERIFYING. AC-SL-07 matches and adds NaN/inf bare, as a dictionary value and as an array element.
+2. Range check: a Schema bounds subsection now gives hard lo >= 1 for every divisor and modulus knob. The Invariants preamble, AC-SL-38 (title, Layer 1, Rows added), OQ-28 and the boot-assertions table row (`SL_BOOT_KNOB_RANGE` withdrawn) all agree. RETRY_TICKS 0 or -1 refuses `CONTENT_FIELD_RANGE` before any invariant runs. The guidance-range rows boot with an ADVISORY diff. The retuned fixtures check out against I1-I3, I7 and I9.
+3. AC-SL-24: the profile.sav kill-point clause is deferred with SL-9, AC-SL-70 and AC-SL-116. The WORLD-generation kill matrix stays at MVP.
+**Remaining blockers:** none.
+**Advisories (details in the structured result):**
+- The Schema bounds paragraph lists 901 and 11 399 as 'boots with advisory only', while AC-SL-38 says I3 and I9 refuse them.
+- The '901 is never a multiple' justification is literally false (901 is in the 240-1 200 range).
+- The TICK_RATE 0 fixture belongs to the kernel's table and depends on the pending registry request.
+- AC-SL-38 Layer 2 and I13 still say 'range check bypassed'.
+- The 'cannot go under 11 400' claim holds only within guidance ranges.
+- The I7 fixture should set MAX_BLOCKS 60, not 'a registry of 60 blocks'.
+- SL-15 item 3 and the 'Data Save/Load takes' paragraph still say 'packed arrays' unqualified.
+- SL-2 has a self-contradictory H7 provenance sentence and a stale canonical_bytes clause.
+- Registry and kernel follow-ups remain open: the TICK_RATE bound, separate hard-bound vs guidance marking, and narrowing kernel CR-14.
+
+## Review — 2026-10-29 — Foundation ADR sync (lean confirming, round 3)
+**Verdict:** APPROVED (no blockers; 5 advisories, 4 of them carried from round 2)
+**Scope:** design/gdd/save-load-and-versioned-format.md, full uncommitted diff (114 insertions, 99 deletions). Round-2 result for this file (APPROVED, 9 advisories) re-checked, plus the six round-3 hunks: SL-4, SL-13, the EVENT_TRIGGERS knob row, AC-SL-95a, AC-SL-96c and OQ-7. Cross-read against WM-31 "The Save/Load counters" in web-map-and-transit.md. ADRs and the kernel GDD were not re-read.
+**Round-2 blockers (3 of 3) still resolved:** SL-2 allowed-type set with AC-SL-07 (NaN/inf, PackedFloat/String refused); Schema bounds with AC-SL-38 and OQ-28 (CONTENT_FIELD_RANGE vs ADVISORY vs invariants); AC-SL-24 profile.sav kill clause deferred with SL-9. No regression found.
+**Round 3 checks, all consistent:**
+- Every reference to the Web Map counters now says the separate non-persisted `web.save_seq()` read (SL-4, SL-13, knob row, AC-SL-95a, AC-SL-96c, OQ-7). No stale `web.state` conditional-member wording remains. The remaining `web.state` hits are the block name.
+- Matches WM-31: u32, start at 0, +1 per event, reset to 0 in `post_restore`, not in the hash or golden save, facet `save_load` only.
+- The SL-13 re-read rule (overwrite after `post_restore`, before the next `poll_frame`, no comparison) agrees with SL-11's restore-then-`LOADING -> RUNNING` ordering. AC-SL-96c tests the (5,3) to (0,0) case, and AC-SL-95a lists the read set.
+**Advisories:** the SL-4 clause that still treats BERTHED as an event; 901 / 11 399 'advisory only' wording versus I3/I9; four stale AC-SL-38 phrasings; SL-2 provenance and canonical_bytes clauses; 'packed arrays' unqualified in SL-15; re-read AC covers one load path only; ADR-0004 L487 naming and the kernel H7 narrowing remain open outside this file.
+Reviewed-Content-Hash: design/gdd/save-load-and-versioned-format.md 416398a21d0c7e5e434b3b882e024949bc7a5067
+Reviewed-Content-Hash: design/registry/entities.yaml 4d9d9f7a469ff3c3aeb97b06fa6fa82c1b2dec16

@@ -1,0 +1,19 @@
+TR-cmd-023 | COVERED | §1,§2,§4,§5,§6 | P5 per-tick batch, no state payload, ALL past cap, five classes, block owner never subscribes all decided | -
+TR-cmd-024 | COVERED | §2,§6 | Catch-up merge for PRESENTATION/PROJECTOR/DIAGNOSTIC, every tick for INPUT_SURFACE/REPLICATION, snapshot and pruning decided | -
+TR-lsg-020 | PARTIAL | §3 | Int key encoding and 128 floor decided; quantum buckets and 38-key cascade stay with Graph (ADR-0011/0012) | -
+TR-emitter-026 | PARTIAL | §3,§4 | Key layout and explicit marking only; which events fire E/ keys and Lighting polling owned by ADR-0017/ADR-0009 | -
+TR-light-007 | PARTIAL | §2,§5 | Only batch delivery and accumulator supplied; Lighting wake, exact-value geometry, cadences owned by ADR-0009/0028 | -
+TR-interact-033 | PARTIAL | §4,§7 | Missed-mark audit and explicit marking cover dirty-key half; snapshot/replay byte-identity owned by ADR-0005 | -
+TR-ftrail-007 | PARTIAL | §5 | DirtyAccumulator unions and collapses to ALL; handler-stores-only and draw-next-callback discipline owned by ADR-0009 | -
+TR-ftrail-040 | NOT | - | No decision that a step's keys all apply in one render callback; handover-pair atomicity unaddressed (ADR-0009/Failure and Trail) | -
+TR-suit-013 | COVERED | §3,§4,§6 | Explicit S/ keys, manual marking for 4.7 setter rule, cap 256, restore delivers one ALL | -
+TR-suit-036 | PARTIAL | §2 | DIAGNOSTIC class exists and is dev-gated; suit event names and state_hash invariance on removal not decided here (ADR-0031/Suit) | -
+TR-section-022 | COVERED | §3,§4,§6 | Explicit in-mutator marks, SEC/BODY/SEAM int keys, PROJECTOR batching, ALL past 256 | -
+TR-shipbody-022 | COVERED | §3,§4 | Layout encoding with BODY/ACT kinds, explicit marks, per-block per-tick keys under 256 | -
+TR-shipbody-027 | PARTIAL | §5 | Dock/separation/transfer events published as P5 stateless events; no-force-on-actors clause belongs to Ship Body GDD/physics ADR | -
+TR-assembly-033 | NOT | - | Per-block key footprint (graph 4, body 3, assembly 1) and never-ALL budget not decided here; Assembly owner ADR | -
+TR-webmap-023 | PARTIAL | §5 | Events ride the P5 batch; Save/Load autosave triggers owned by ADR-0006, no sound clause not addressed | -
+TR-webmap-024 | PARTIAL | §3,§4 | Explicit WEB/ keys and no-setter rule decided; zero-keys-per-tick budget is the owner's (Web Map ADR) | -
+TR-attention-026 | PARTIAL | §4 | Explicit marking mechanism only; ATT/ keys and per-frame view polling owned by ADR-0022/ADR-0009 | -
+TR-horror-034 | PARTIAL | §3,§4,§7 | Explicit dirty declaration and missed-mark audit; 16 KiB state size and save-equivalence owned by ADR-0006 | -
+TR-audio-036 | PARTIAL | §2 | Unknown subscription block is boot failure (UNKNOWN_DEPENDENCY); key, view-field and event name matching owned by ADR-0029 | -

@@ -178,3 +178,79 @@ Findings:
 - [RECOMMENDED] States L166 / OQ 15: [main review] The BOOTING cell over-cites Chart Table TX-30/EC-CT-37. The path for applying the PROFILE image on a first boot is unstated (VS only).
 Reviewed-Content-Hash: design/gdd/command-simulation-layer.md c271251e84a0b4236b788cdb4c4c2e9caf08bbdf
 Reviewed-Content-Hash: design/registry/entities.yaml c7c42b1a48216686518b8b47b2a01a34e276ab50
+
+
+## Review — 2026-10-29 — Foundation ADR sync (lean confirming)
+Verdict: NEEDS REVISION (1 blocker, 11 advisories)
+Scope: diff only, 43 hunks (+50/-45) from the ADR-0001..0006, 0009 and 0010 syncs, plus knock-ons. Covered: CR-1a driver and priority table, CR-8/CR-10/CR-15, the States restore row, D.12 state_hash and TLV, the Tuning Knobs rows (MAX_SUBSCRIPTIONS, MAX_EVENTS_PER_TICK, AUDIT_EVERY_TICK, MAX_DIRTY_KEYS), the Dependencies rows and the new and amended ACs (KRN-FRAME-END, KRN-LOAD-SEQ, KRN-HASH-01/02, KRN-LAT-02, KRN-PERF-02). Cross-checked ADR-0001/0002/0004/0005/0006/0010 and the sync queue.
+Blockers:
+- [BLOCKING] KRN-LOAD-SEQ (L1093) and CR-1a step 6 (L60) vs CR-10 (L131): the AC tests `PresentationClock.load_seq` and `deliver_all`, and the driver gains `deliver_frame_end()`, but none of these is defined in the GDD body (they live only in ADR-0001 and ADR-0004). CR-10 still says merged delivery happens 'after the frame's last tick' and 'at the exit'. Fix: add a CR-10/CR-15 paragraph defining `deliver_frame_end` (deferred-subscription application, then FRAME_MERGED delivery), the `load_seq` increment on LOADING to RUNNING before `deliver_all` (never on PAUSED or SAVING), and where merged delivery sits relative to forgiveness and the result flush.
+Advisories:
+- The event channel (`scope.emit_event`, MAX_EVENTS_PER_TICK, EVENT_OVERFLOW) has no CR rule. Several new knobs and diagnostics have no AC (EVENT_OVERFLOW, MAX_SUBSCRIPTIONS cap, MAX_DIRTY_KEYS lower-only latch, AUDIT_EVERY_TICK/MISSED_DIRTY_MARK, DIRTY_KEY_*).
+- MAX_SUBSCRIPTIONS rationale lists Save/Load as a subscriber, contradicting CR-15 (poll only), and omits INPUT_SURFACE, Avatar Presenter and PROJECTOR subscribers.
+- ENC_MIXED_KEYS and ENC_DUP_KEY are not in the closed fault or diagnostics lists, so their disposition is unstated.
+- KRN-HASH-01 references a 'worked dictionary example' that D.12 does not contain. L613 ('goldens frozen at the spike') is out of step with the ADR golden cited at L603 and in the AC.
+- The snapshot outcome's `state_hash` scope (WORLD only) is ambiguous next to the PROFILE-inclusive arrays. `computed_hash` is unspecified when the verdict is NONE.
+- D.10, OQ 24 and KRN-EPO-03 still say Attention and Horror call `rng_derive_epoch`, but Attention now goes through `RngFacet.draw_epoch`.
+- Carried over: the kernel member allow-list AC (L1082) has no home for the tick and frame dirty buffers or event lists. OQ 24's Overlay counter list lacks the new counters. KRN-LAT-02's lint wording should say '> HOST_SERVICE'. The header has no 2026-10-29 sync line, and CD-GDD-ALIGN is still not re-run.
+Confirmed clean: `slot_epoch_a/b.bin` rename, the 4-argument `request_restore` and the `verdict` rename, touch-serial cache key, ADR section cites, priority values and KRN-FRAME-END.
+Reviewed-Content-Hash: not computed (read-only review; no git hash step permitted)
+
+## Review — 2026-10-29 — Foundation ADR sync (lean confirming, round 2)
+- **Verdict**: APPROVED. No blockers remain.
+- **Scope**: `git diff` of `design/gdd/command-simulation-layer.md` (43 hunks, almost all ADR-sync tags). Read in full: CR-1a, CR-10, the new "Frame-end delivery and the restore marker" paragraph, CR-15, CR-16, the States and Transitions tables, KRN-FRAME-END and KRN-LOAD-SEQ. Compared against ADR-0001 (frame diagram, `PresentationClock`, Must/Never rules) and ADR-0004 (§ 5 and § 6, `deliver_all`, `deliver_frame_end`, "no load marker").
+- **Blockers resolved**: b03 (KRN-LOAD-SEQ and CR-1a step 6 versus CR-10 catch-up delivery) is closed.
+  - The GDD body now defines `deliver_frame_end()`: it applies deferred subscription changes, sorts the frame buffers, delivers to the FRAME_MERGED classes, and runs once on every exit path. PER_TICK classes are still delivered from P5.
+  - It defines `PresentationClock.load_seq`: +1 on each `LOADING -> RUNNING` (restore and new game), never on `PAUSED` or `SAVING -> RUNNING`, incremented before `deliver_all`. `ChangeBatch` has no load flag.
+  - It defines `deliver_all()`: clears the buffers and events, delivers one `ALL` batch per block to every class, with tick = restored T, then `snap_baseline`.
+  - "After the frame's last tick" and "at the exit" are re-pointed to `deliver_frame_end`, and CR-1a step 6 cross-references the new paragraph.
+  - The text matches ADR-0001 and ADR-0004. KRN-LOAD-SEQ and KRN-FRAME-END now have rules to test and read as testable (auto, injected delta).
+- **Remaining blockers**: none.
+- **Advisories (4)**:
+  1. The "restore frame runs 0 ticks, deliver_all in the boundary service" sentence holds only for between-frame requests. A request from a P3 hook or P5 handler is served at P6 mid-loop, where LOADING is atomic and the kernel is back in RUNNING, so the CR-1a loop-stop test cannot see it. The ambiguity predates this round, but the new sentence asserts the narrow case as general. State that `deliver_all` runs at whichever boundary serves the restore, and have the driver also stop on a `load_seq` change.
+  2. Re-tag KRN-LOAD-SEQ to [CR-1a, CR-10] (CR-15 carries no `load_seq` text), and add CR-10 to KRN-FRAME-END.
+  3. CR-8 says the owner calls `snap_baseline` after a restore, but CR-10, the P4 row and ADR-0001 say the kernel runs it on entry to RUNNING. Reword CR-8 to match.
+  4. Optionally extend KRN-LOAD-SEQ to assert one `ALL` per block and no stale merged union after a restore.
+- No dangling references, no knob or formula conflicts, and no hard clamps introduced in this diff.
+
+## Review — 2026-10-29 — Foundation ADR sync (lean confirming, round 3)
+
+Scope: design/gdd/command-simulation-layer.md, working-tree diff against HEAD (about 70 changed lines) plus the r2-result.json items for this file. Rulings applied: the Proposed Foundation ADRs win over GDD text, and knob ranges are guidance only.
+
+Prior items:
+- The round-2 registry request (CR-8 / H7 / CR-14 allowed snapshot types, ADR-0006 section 1.2 item 3) is RESOLVED. CR-8, Edge Cases (line 725) and the snapshot AC (line 1002) now match the ADR set, with one fixture per refused type.
+- The release-export cite blocker (kern:916, pf:1846, at:1572 and others) is not a defect in this file. It targets sibling GDD cites, and this file's own cite (command-simulation-layer.md:1089) is current.
+
+Verdict: NEEDS REVISION (1 blocker, 10 advisories).
+
+Blocker:
+- B1: The PERCEPTION_OUT read-view AC (line 1022), clause (iii), still expects any PRESENTATION subscriber to receive the populated view. The ADR-0003 sync (lines 124, 136, 232) limits that to perception_access facets, and every other facet gets empty_view plus PERCEPTION_READ_BLOCKED. Fix: split (iii) into a perception face and a default face, and update the count of 2 to 3.
+
+Advisories (summary):
+- Stale signature: `subscribe(class, handler)` in the CR-10 lifetime sentence (line 132).
+- MAX_SUBSCRIPTIONS rationale lists Save/Load as a subscriber, but CR-15 says it only polls.
+- D.10, CR-8 and row 24 still say "kernel's rng_derive_epoch", while the sync says RngFacet.draw_epoch.
+- KRN-LOAD-SEQ is tagged CR-15, but the behaviour is specified in CR-10.
+- No ACs yet for MAX_SUBSCRIPTIONS and MAX_EVENTS_PER_TICK overflow, EVENT_OVERFLOW, DIRTY_KEY_INVALID, MISSED_DIRTY_MARK / AUDIT_EVERY_TICK, or a KNOB_REFUSED raise of MAX_DIRTY_KEYS.
+- Wording: the snapshot AC says "in each case FAULTED" next to accepted fixtures; D.12 "packed float state"; the row 24 counter list; the header date.
+
+Confirmed consistent: has_expected_hash and the MATCH/MISMATCH/NONE verdict, the slot_epoch_a/b.bin rename, the ADR-0001 priority table and its tests, the touch-serial hash cache, the lower-only MAX_DIRTY_KEYS rule, and the new knob rows.
+
+## Review — 2026-10-29 — Foundation ADR sync (lean confirming, round 4)
+
+Scope: design/gdd/command-simulation-layer.md, round-4 edit only (one AC at line 1022, marked "sync knock-on fix, round 4"), checked against CR-12 (136), the PRESENTATION and Perception Filter / Debug Overlay rows (124, 232), Edge Cases (719), CR-19(d) (156), the fault-domain and violation paragraph (834), and ADR-0003 section 7 and TD-07/08. Rulings applied: Proposed Foundation ADRs win; Tuning Knob ranges are guidance only; two-face PresentationViews.
+
+Round-3 blocker (AC clause iii said a PRESENTATION subscriber gets the populated view, and the counter incremented by 2): RESOLVED. The AC is now split into (iii-a) a facet issued with perception_access (the Filter's) gets the populated view and adds nothing to the counter, and (iii-b) a default-face PRESENTATION facet gets empty_view. The counter now increments by 3 (owner hook, validate, default face) and the recording violation_handler is called three times under STRICT_DEBUG and never under LENIENT_RELEASE. This matches ADR-0003 section 7 and the CR-12, PRESENTATION and Overlay rows. The amendment marker is present.
+
+Internal consistency of the round-4 edit: no defect that would mislead an implementer. The counter name, the violation set (PERCEPTION_READ_BLOCKED, SUBSCRIBE_REFUSED) and the profile behaviour (no state-machine outcome differs between profiles) agree with CR-19(d). No Formulas or Tuning Knobs are touched.
+
+Advisories (none block):
+- CR-12 line 136 first sentence still says presentation and the replication adapter obtain a read view. The two-face rule that follows narrows this.
+- The REPLICATION facet's perception_access status is unnamed, and the VS-B owner has to name it.
+- Edge Cases and CR-19(d) should mention the default-face read.
+- Tuning Knob constraints 1-3 and the MAX_DIRTY_KEYS floor of 128 (while the Graph is registered) are relational refusals with no stable names. Owner to name them.
+- Open ADR question: can an ADR-0007 section 2.5 invariant read another table? It currently says only 'post-cast integers' in the table's own schema file.
+
+Verdict: APPROVED. No blockers.
+Reviewed-Content-Hash: design/gdd/command-simulation-layer.md c85ce40f47ba49806bafc2f49e59856e7c7cb419
+Reviewed-Content-Hash: design/registry/entities.yaml 4d9d9f7a469ff3c3aeb97b06fa6fa82c1b2dec16

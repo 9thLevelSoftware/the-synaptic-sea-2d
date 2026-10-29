@@ -181,3 +181,48 @@ Findings:
 - [RECOMMENDED] OQ-49, sink/faucet table: [main review] [creative-director] This is a design-intent concern, not an edit defect. By the doc's own arithmetic the lamp cell never runs out within a sortie (about 4x margin). The 'go dark' lever in Pillar 3 is therefore unproven. Leave it open until playtest.
 Reviewed-Content-Hash: design/gdd/suit-and-equipment.md b4c2dd572d554c4806dabf5b3893e0ad16a8c106
 Reviewed-Content-Hash: design/registry/entities.yaml c7c42b1a48216686518b8b47b2a01a34e276ab50
+
+
+## Review — 2026-10-29 — Foundation ADR sync (lean confirming)
+
+Verdict: APPROVED (prior verdict: APPROVED, 2026-10-28 confirming review; resolved, no regression)
+Scope: lean confirming review of the 2026-10-29 diff only (7 lines changed: L40, L266, L304, L506, L1143, L1706, L1727). Checked internal consistency across rules, formulas, edge cases, acceptance criteria and tuning knobs, ADR section references, and design intent. No design intent changed.
+
+What changed and was checked:
+- ADR candidate 4 (negative-operand division) is closed by ADR-0005 s1.4 (L40, L506, L1143, AC-SE-83a). The ADR text matches: floor for every quotient, `trunc_div` named where truncation is intended, SIM-04 and SIM-05. No "NOT SOURCEABLE" claim remains for division. The remaining NOT SOURCEABLE claims (integer-math cost, RefCounted performance) are still true.
+- Restore failure goes through `ctx.fault(SUIT_RESTORE_*)`, not a return value (SE-34 L266, closed-reasons list L304, AC-SE-35 L1706), per ADR-0006 s2.2 and ADR-0003. No `(ok, reason, detail)` wording remains.
+- Snapshot types: String or int keys only, typed containers allowed, `StringName` and vectors banned (SE-34, AC-SE-35), per ADR-0006 s1.2.
+- References resolve: ADR-0005 s1.4, ADR-0006 s1.2 and s2.2, ADR-0010 SIM-04 and SIM-05, `IntMath.ceil_div`, and ADR-0027 (planned in architecture.md). No dangling rule ids or constants. Tuning knobs untouched.
+
+Blockers: none.
+
+Advisories:
+1. AC-SE-83a still prescribes "an `abs` or clamp" while SIM-04 bans untyped `abs` and `clamp` (use `absi` and `clampi`).
+2. L506 and AC-SE-83a keep the non-negative-operand rationale although ADR-0005 makes the floor helpers sign-safe. Label it a Suit-local hardening.
+3. AC-SE-35: the `StringName` rejection belongs to the Save/Load type walk, so state where it runs. Add "except StringName element types" to "typed containers allowed". Add a fault-capturing `ctx` stub to the test-infrastructure list.
+4. ADR-0027 is unwritten and the Foundation ADRs are Proposed. Re-verify SE-34, AC-SE-35 and AC-SE-83a when ADR-0027 is authored.
+5. Carried over: the AC-SE-35 fixture has a non-int `S` (2026-10-28 log).
+
+## Review — 2026-10-29 — Foundation ADR sync (lean confirming, round 3)
+
+**Verdict: NEEDS REVISION** (1 blocker, 6 advisories). Scope: git diff of design/gdd/suit-and-equipment.md (11 hunks) plus r2-result.json.
+
+- **Round-2 status:** no blocker was filed for this file. The carried request (HUD OQ-HS-80 item 3: Suit-owned RESERVE_WARN_S < RESERVE_S named invariant with an AC) is resolved by the new Tuning Knobs paragraph, the knob-row cross-reference, the D.8 note, the HUD Dependencies row and AC-SE-98. Remaining outside the file: TR-hud-026 trim and a Suit TR entry in tr-registry.yaml.
+- **ADR-0005 s1.4 sync (candidate 4 closed, IntMath floor_div/ceil_div/posmod_i, AC-SE-83a):** consistent with ADR-0005 and ADR-0010 SIM-04/05.
+- **ADR-0006 sync (ctx.fault, String/int keys, typed containers, SE-34, SE-38, AC-SE-35):** consistent. L1082 not updated to the ctx.fault wording (advisory).
+- **Blocker:** the Tuning Knobs intro (L1147) still says an out-of-range knob 'fails boot'. The new paragraph under it says ranges are guidance and that Suit registers exactly one named invariant. D.8 and AC-SE-44a still make A1-A15 blocking boot failures with no schema name. Fix: reword L1147 and declare what A1-A15 are (named invariants or a post-load boot-assertion pass), with the failure code AC-SE-44a expects.
+- **Advisories:** schema bounds for the AC-SE-98 fixtures are unstated; the AC-SE-98 sweep clause is vacuous; 'No ADR exists yet.' is stale at L1143; the '95 numbered criteria' count omits AC-SE-96 to 98; the non-negative-operand wording is redundant after ADR-0005.
+- Amendment markers use the '— sync knock-on fix, round 3' / 'ADR-0005 / ADR-0006 sync' convention dated 2026-10-29 throughout.
+
+## Review — 2026-10-29 — Foundation ADR sync (lean confirming, round 4)
+
+**Verdict: APPROVED** (0 blockers, 5 advisories). Scope: git diff of design/gdd/suit-and-equipment.md (round-4 hunks), r3-result.json blocker, ADR-0007 s2.5 and OQ-C.
+
+- **Round-3 blocker: resolved.** The Tuning Knobs intro (L1147) now says safe ranges are guidance only and that a schema bound (`CONTENT_FIELD_RANGE`) or a violated named invariant refuses a load. D.8 (L800) names A1-A16 as `SUIT_A<n>_...` structural invariants of `suit_tuning`, failing with `CONTENT_INVARIANT(suit_tuning, <NAME>)`. A11 at 2+ seats and A16 are warnings, and A12 is a registration error. L1149, L827, the knob row, AC-SE-44a and AC-SE-12c use the same names and codes. `RESERVE_WARN_BELOW_RESERVE` stays the separate, weaker ordering invariant (AC-SE-98).
+- **Internal consistency:** rules, formulas and the knob table agree. The only leftovers are wording stragglers (AC-SE-12b and L1078 do not use the invariant names), all advisory.
+- **Advisory, owner naming:** the A11 (2+ seats) and A16 warnings have no CONTENT_INVARIANT form, because ADR-0007 s2.5 has no warning severity. A11 runs at the bound seat count (session state, not table data), so the owner must say where it runs.
+- **Advisory, open ADR question:** whether a named invariant may read another table (ADR-0007 OQ-C) is open. It affects A1, A9, A11, A15 and A16. It is not a defect of this GDD, and the GDD's assumption matches the OQ-C proposed answer.
+- **Advisory, AC-SE-98:** 'exactly one CONTENT_INVARIANT' conflicts with A5 and A15 also firing on the 60/60 and 45/60 fixtures unless the loader stops at the first failure. That order is unspecified. The schema bounds for the reserve pair are still not stated.
+- **Carried advisories:** stale 'No ADR exists yet' (L1143); the AC count text '95' (L1530, L1760); the ctx.fault wording at L1082.
+Reviewed-Content-Hash: design/gdd/suit-and-equipment.md 52be6c2340231efd03a37bb6dd969ad464bcf00a
+Reviewed-Content-Hash: design/registry/entities.yaml 4d9d9f7a469ff3c3aeb97b06fa6fa82c1b2dec16

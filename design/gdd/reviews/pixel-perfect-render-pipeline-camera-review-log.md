@@ -181,3 +181,25 @@ Findings:
 - [RECOMMENDED] D.6 prose L441, L783: [main review, confirmed by grep] 'settles in the same 0.54 s' can be read as a claim about the settled pose.
 Reviewed-Content-Hash: design/gdd/pixel-perfect-render-pipeline-camera.md d6d0f000f954793bfc08d097a7f3a2cd958a7985
 Reviewed-Content-Hash: design/registry/entities.yaml c7c42b1a48216686518b8b47b2a01a34e276ab50
+
+
+## Review — 2026-10-29 — Foundation ADR sync (lean confirming)
+Verdict: APPROVED (no blockers; 6 advisories)
+Scope: lean confirming re-review of the 39 diff hunks (42 insertions, 41 deletions) made by the ADR-0008 and ADR-0009 sync, plus knock-on text inside this GDD. Also checked: ADR-0008 s1, s2.5, s3.3, s5.1, s5.4, s6.1, s6.2, s7.1 and ADR-0009 s3 and s5 exist and say what the GDD cites. No other sections were re-reviewed.
+Checked and consistent:
+- Layer stack: chart table split into pixel layer 3 (scale H) and reading layer 4 (scale 1,1); debug overlay moved to layer 5; the States row 274 and the Dependencies rows 303 and 307 agree with ADR-0008 s2.
+- Wiring (i) adoption: PR-7 pass B now sizes the viewport at the picture (logical size x k_z), so the lit-pixel figures hold; PR-15, the mouse-unit rule (C11, D.14b, AC L1064, OQ 18) and the readback chain (PR-7, AC L1008) match ADR-0008 s3.3, s5.1 and s5.4.
+- Restore and presentation: snap_baseline on entry to RUNNING replaces the post_restore rule in C5, States row 313, D.7, Edge Cases, the AC and Dependencies, with the camera CUT on load_seq (ADR-0001 s4). A single PipelineRoot._process with named stages, plus the CameraHost frame_pre_draw handler, replaces the pipeline-root hook in C2 and PR-8 item 3. The physics_interpolation_mode rewording agrees across rule 8, Edge Cases and both ACs.
+- Draw budget: D_composite = 1; D_root 63 (62 expected), 93 with the chart open; D_world caps 937/938; the rho_max example moves 5.03x to 5.02x. Arithmetic re-derived and it matches ADR-0008 s7.1.
+- Design intent preserved: no pillar, rule or tuning-knob change; every edit is a wiring or citation substitution.
+Blockers: none.
+Advisories (all editorial, none mislead an implementer):
+- L209 'Layers 3-4 run on engine process time' no longer covers the debug overlay (now layer 5); 'D_L3' row still says layer-3 only.
+- OQ 1, AC Gaps L1189 and PR-7 still describe wiring (i)/(ii) as open although ADR-0008 s2 adopted (i).
+- C2 'if the ADR rejects the direct write' is stale; the 'release export' wording is repeated.
+- L227 (D3D12 vs Vulkan, process-priority order) is stale against ADR-0008 s1 and ADR-0009 s3.
+- AC L1158 omits the fallback_to_opengl3 and fallback_to_d3d12 keys that ADR-0008 s5.1 makes required in project.godot.
+- The header has no entry for the 2026-10-29 sync; the D.16 lower bound of 22 assumes D_filter = 1.
+Reviewed-Content-Hash: not recomputed by this review (the working tree was not hashed; see git for the current hash)
+Reviewed-Content-Hash: design/gdd/pixel-perfect-render-pipeline-camera.md 7eb814598cdcf604031117c3c95719dbd6c0b140
+Reviewed-Content-Hash: design/registry/entities.yaml 4d9d9f7a469ff3c3aeb97b06fa6fa82c1b2dec16

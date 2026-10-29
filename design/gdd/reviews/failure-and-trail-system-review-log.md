@@ -128,3 +128,32 @@ Findings:
 Return "ok".
 Reviewed-Content-Hash: design/gdd/failure-and-trail-system.md 0496221baa9e226b541fe805fc01f3d9edfc8992
 Reviewed-Content-Hash: design/registry/entities.yaml 259f2c28b21a009ca35000d94fe3ef5b4d3ef301
+
+
+## Review — 2026-10-29 — Foundation ADR sync (lean confirming)
+
+**Verdict:** APPROVED (no blockers; prior APPROVED verdict stands)
+
+**Scope:** Diff-only review of the ADR-0005 sync (10 hunks, one theme). The stamp variation hash moved from `rng_derive(seed, "trail.vis", ...)` to `Ihash.h(TRAIL_VIS_SEED, subject_id, stamp_index, world_seed, SALT_TRAIL_VIS)`. Sections touched: FT-20, FT-39 (`hash_fn` default), Interactions row 3, D.6 (formula, value-keyed paragraph, example), Dependencies row 3, the FT-20 Cross-References row, the registry hand-off list, AC-134 and AC-48. Cross-checked against ADR-0005 sections 2.6/2.7 and TD-28, TR-ftrail-044 (tr-registry.yaml) and the registry entries for TRAIL_VIS_SEED and SALT_TRAIL_VIS.
+
+**Checks passed:**
+- Rule, formula, example and AC agree. The Ihash argument order matches ADR-0005 line 255.
+- The AC-134 arithmetic was re-derived: 713 gives variant 2, phase 2, flip 0; 2^63-1 gives variant 1, phase 1, flip 1; 0 gives all zeros.
+- The 63-bit mask was dropped correctly, because Ihash is non-negative. No negative index is possible.
+- The value-keyed hole choice is still unhashed.
+- No stale `rng_derive`, `KERN:470` or `mix64` use remains. The remaining `rng_derive` mentions are negative statements.
+- Design intent is preserved: P1 (two crewmates see the same frost fan) and restore-redraw (`LSG:829`) still hold.
+
+**Blockers:** none.
+
+**Advisories (6):**
+1. AC-164 still says "the kernel's pure hash" reachable only via `ctx.hash_fn`. Change it to the shared Ihash and say the default binding lives in the ctx builder.
+2. TRAIL_VIS_SEED and SALT_TRAIL_VIS are registered but missing from Tuning Knobs, the D.6 Variables table and "Cited". Their non-zero requirement (ADR-0005 2.6) has no AC or lint. Also add an `h63` row to Variables.
+3. `seed` in the D.6 formula means world_seed, next to the TRAIL_VIS_SEED variation seed. Rename it `world_seed`.
+4. No AC pins a real-hash golden vector despite the FT-20 "pinned by golden vectors" claim. The AC-134 phrase "stub vectors regenerated" is vague. Resolve after ADR-0005 open item 15 fixes the constants.
+5. The mix of `IntMath.posmod_i` and `floori`/`posmod` in the integer-semantics paragraph is unspecific. Say which applies to the presentation resolver.
+6. The AC-48 lint forbids randf and randi only, not `rng_derive` or `DetRng.derive` calls (TD-28). Optional if the ADR-0010 lint covers it.
+
+Log hash line to be re-stamped by the caller.
+Reviewed-Content-Hash: design/gdd/failure-and-trail-system.md dea2d23bce6845a21aee47277528ed464ce7debd
+Reviewed-Content-Hash: design/registry/entities.yaml 4d9d9f7a469ff3c3aeb97b06fa6fa82c1b2dec16

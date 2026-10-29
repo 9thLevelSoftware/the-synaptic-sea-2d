@@ -141,3 +141,28 @@ Findings:
 - [RECOMMENDED] Process: [creative-director] Two fix passes have left the same 16 RECOMMENDED items untouched while new edits introduce regressions (line 422). Approving repeatedly with an unchanged backlog wears down the value of the verdict.
 Reviewed-Content-Hash: design/gdd/item-and-module-database.md 3fc4816117d0cfcdb32a965fdc6ea960a8103e3d
 Reviewed-Content-Hash: design/registry/entities.yaml cafe6d1169a1fe5dd043eae35c2c07a90c93b4c6
+
+
+## Review — 2026-10-29 — Foundation ADR sync (lean confirming)
+
+**Verdict:** APPROVED (no blockers)
+
+**Scope:** The 2026-10-29 diff only, 7 hunks, plus knock-on checks inside the GDD: IDB-15 (canonical positional encoding and size budget), the Graph-encoder sentence, AC-28, AC-104, AC-116(c), the higher-`catalogue_version` edge case (line 891), the Save/Load S-1 dependency row (line 1207) and Open Question row 7. Cross-checked against ADR-0005 section 3.1, ADR-0006 and the Save/Load GDD (T-5 step 12b, `SL_PRECHECK_CATALOGUE_NEWER`, AC-SL-96e).
+
+**Checks passed:**
+- Encoder form: `var_to_bytes(inst.to_array())` is used identically in IDB-15, AC-28, AC-104 and AC-116(c). The dropped `false` was the default, so behaviour is unchanged.
+- Byte budget: the 96-byte and 1,024-byte bounds are now explicitly over `var_to_bytes`, never the 9-bytes-per-int TLV hash input. This matches ADR-0005 section 3.1 and open question 6. AC-28 carries the same clarification.
+- `catalogue_version`: a higher header version is now refused `SL_PRECHECK_CATALOGUE_NEWER`, and only a lower or equal version proceeds to holder `restore()`. Line 891 and Open Question row 7 agree with each other and with the Save/Load GDD (header table, T-5 step 12b, AC-SL-96e).
+- S-1 row (line 1207) matches ADR-0006: payload uses `var_to_bytes`, JSON only in the header and dev dump. The JSON 2^53 refusal for catalogue data (IDB-26) is unaffected.
+- No dangling references: ADR-0005 section 3.1, ADR-0007 section 3.4, T-5 step 12b and the Graph LS-21 payload-form wording all resolve.
+- Design intent is preserved: one byte form per instance, canonical zeros, merge rule, `catalogue_hash` diagnostic only.
+
+**Blockers:** none.
+
+**Advisories:**
+1. AC-28's 'every integer is at most 2^53' bound has a stale S-1 rationale. It is harmless; reword or drop it together with ADR-0005's TR-itemdb-029 row.
+2. The line 318 note still says 'kernel `canonical_bytes`'; ADR-0005 calls the encoder `CanonicalEncoder.encode`. Name it consistently on the next touch.
+3. Open Question 43 (holder-block share of `MAX_PAYLOAD`) is still open and pre-existing. `MAX_PAYLOAD` is ADR-0002's per-command bound, so clarify which limit the 25 percent share is measured against when Save/Load answers.
+4. Optional: add a one-line pointer in the AC list that the Item DB only supplies `catalogue_version` and that the refusal is covered by AC-SL-96e.
+Reviewed-Content-Hash: design/gdd/item-and-module-database.md e5a5e6cf44d6f4563806d9e7d19d2b404413333c
+Reviewed-Content-Hash: design/registry/entities.yaml 4d9d9f7a469ff3c3aeb97b06fa6fa82c1b2dec16

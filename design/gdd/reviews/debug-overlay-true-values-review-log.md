@@ -135,3 +135,57 @@ Findings:
 - [RECOMMENDED] Creative alignment (DO-35 / playtest preset): [creative-director] The tool's purpose is to make the Filter's deliberate lies separable from engineering defects. It gives playtest observers a trustworthy truth channel and never reaches players in the public release. The design still serves that purpose, and none of the findings changes the player-facing experience. The two items that most threaten observer trust are the false DEFECT_UNCAUSED on the first fold and the empty pre-E3 readout being misread as 'no defects'.
 Reviewed-Content-Hash: design/gdd/debug-overlay-true-values.md af12130eddb9e833e3d99f90defc5af39f31733a
 Reviewed-Content-Hash: design/registry/entities.yaml 259f2c28b21a009ca35000d94fe3ef5b4d3ef301
+
+
+## Review — 2026-10-29 — Foundation ADR sync (lean confirming)
+
+Verdict: NEEDS REVISION (one mechanical blocker)
+Scope: the 2026-10-29 sync diff only (35 hunks, about 96 changed lines). It covers ADR-0008 (Debug Overlay moved to layer 5; chart table pixel face layer 3, reading face layer 4; IntMath.floor_div), ADR-0005 (K-1 adopted: the kernel's block_hash(block_id, uncached) replaces owner block_hash(); the per-block column is MVP; BLOCK_HASH_UNKNOWN / IN_WRITE / ENCODE_ERROR) and ADR-0007 2.5 (CONTENT_INVARIANT instead of clamp or boot assertion). Checked against ADR-0005 5.3-5.4, ADR-0008 and the current Pixel-Perfect GDD.
+Prior verdict: APPROVED 2026-10-28; design intent preserved (the per-block column is still the drift locator, and display stays read-only).
+Blockers: 1
+- Pipeline line cites are half-updated and one is wrong. pipe:1078 (five places) lands on a CameraSolver lint AC; the release-export AC is at pipe:1170. pipe:300 row 11 survives at lines 189, 420 and 1114, and line 850 mixes pipe:107 with :300 and :1028. Fix: re-anchor by id or heading; 1078 and 1028 become the export AC, 300 becomes 307.
+Advisories: 6
+- Other pipe: cites (224, 267, 373, 735, 779, 857, 1055) are stale against the current Pipeline GDD; cite by id or heading.
+- 'uncached' is written with no value in DO-16, DO-23, AC-DO-44a and AC-DO-109, but DO-17 says uncached = false; the SL-12 compare is a determinism check, which ADR-0005 5.4 requires to be uncached = true.
+- BLOCK_HASH_IN_WRITE and ENCODE_ERROR (DO-17) have no severity, no edge case and no AC; E-DO-33 and AC-DO-54 cover only UNKNOWN.
+- The DIAG_P99_MIN_SAMPLES invariant has no schema name; AC-DO-151 lists the range minimum (>= 100) as a cross-knob invariant.
+- The floor_div alias says 'no per-GDD helper' but is still defined locally, and ceil_div is unqualified and undefined.
+- OQ-DO-5 (iv) 'D.12 sync pending': re-sweep K-1 wording when ADR-0005 is Accepted.
+Verified clean: layer ordering, ADR-0005 / 0007 / 0008 section refs and constants, the knob and AC counts (50 / 198), no stale K-1 'if adopted' text. All 16 new Amended 2026-10-29 markers are placed correctly.
+
+## Review — 2026-10-29 — Foundation ADR sync (lean confirming, round 2)
+
+**Verdict**: NEEDS REVISION (one blocker, down from one; the Pipeline blocker is cleared and a sibling-cite blocker is surfaced).
+**Scope**: full diff of debug-overlay-true-values.md since HEAD, covering the ADR-0005, 0007 and 0008 sync plus the 2026-10-29 pipe-cite fix. The cites were checked line by line against pixel-perfect-render-pipeline-camera.md and the ADR sections against ADR-0005 5.3/5.4, ADR-0007 2.5 and ADR-0008 2.5.
+**Blockers resolved**:
+- b04 (Pipeline cites): resolved. pipe:1078 and :1028 became :1170 (release-export AC), :300 became :307 (row 11), and :107, :109 (note e), :225, :231, :274, :385, :832, :877, :972, :1042, :1130 and :1199 all resolve to the stated content. The file has no stale pipe:102, :104, :218, :224, :267, :300, :373, :735, :779, :857, :923, :991, :1028 or :1055 left, and the quoted row at 877 matches. Layer 5 and the layers 3 and 4 pixel and reading faces are consistent throughout.
+**Remaining blockers**:
+- B1: the other four release-export sibling cites in DO-2, the Overview, the AC intro, Table T and AC-DO-100 are stale: kern:916 (should be the AC at command-simulation-layer.md:1089), pf:1846 (AC-PF-79 at :2020), at:1572 (AC-AT-66 at :1761), player-controller-input.md:1071 (AC-PCI-216 at :1330) and AC-SN-85 (:1734). The amendment note implies all cites are current. Fix: cite by criterion ID.
+**Advisories**:
+- Other sibling line cites (kern:915 x12 and others) are stale too; convert them to ID cites in one pass.
+- AC-DO-151 mixes single-knob range floors with named invariants, against ADR-0007 2.5 and the guidance-only range in lines 650 and 908; enumerate the CONTENT_INVARIANT set.
+- The `uncached` argument is unspecified in DO-23 and AC-DO-44a, and HASH_DRIFT behaviour for BLOCK_HASH_IN_WRITE and ENCODE_ERROR is undefined.
+- There is no AC for the IN_WRITE and ENCODE_ERROR reason-name cells (AC-DO-54 covers UNKNOWN only).
+- Line 433 still presents layout_hash as a Layout-owned field; note that it is the kernel block_hash.
+Rules, formulas, edge cases and knobs are otherwise consistent after the ADR-0005, 0007 and 0008 edits: no stale clamp, assert-at-startup, K-1-absent or layer-4 text remains.
+
+## Review — 2026-10-29 — Foundation ADR sync (lean confirming, round 3)
+
+**Verdict**: APPROVED (no blockers; the round-2 blocker is resolved).
+**Scope**: the full diff of debug-overlay-true-values.md against HEAD (ADR-0005, 0007 and 0008 sync plus the round-3 sibling-cite re-anchor), checked against the sibling GDDs at the cited lines.
+**Blockers resolved**:
+- B1 (five-sibling release-export cites): resolved. kern:1089, pipe:1170, pf:2020 (AC-PF-79), player-controller-input.md:1330 (AC-PCI-216), at:1761 (AC-AT-66) and sn:1734 (AC-SN-85) each land on the release-export file-list criterion. DO-2, the Overview, the AC intro, Table T and AC-DO-100 agree, and the rule or AC id is now the cite with the line as a hint.
+**Verification**:
+- About 90 other sibling line cites were read at their target lines (kernel, Filter, Sanity, Attention, Graph, Save/Load, Suit, Controller, Art Bible, concept, index and the neighbour interaction rows) and resolved to the stated content.
+- No stale pre-sync cite remains except the historical pipe:1078 amendment notes.
+- Layer 5 with the pixel (3) and reading (4) faces is consistent in rules, tables, ACs and dependencies.
+- The per-block hash text (kernel block_hash, n/a for BLOCK_HASH_UNKNOWN, no Overlay-side hashing) agrees across DO-17, DO-23, Table 280, P-10, E-DO-33 and AC-DO-54.
+- CONTENT_INVARIANT, never a clamp, agrees across the knob rows, AC-DO-19 and AC-DO-151. IntMath.floor_div is used in the formulas.
+**Advisories (carried, none misleading enough to block)**:
+- AC-DO-151 mixes range floors with cross-knob invariants under 'named invariants'; enumerate the CONTENT_INVARIANT set.
+- The uncached argument is unstated in DO-23 and AC-DO-44a (DO-17 says false).
+- No AC covers the BLOCK_HASH_IN_WRITE and BLOCK_HASH_ENCODE_ERROR reason-name cells.
+- Line 433 still presents layout_hash as a Layout field; add the kernel block_hash note.
+- Duplicate 'sn:591, sn:591' cites; dedupe.
+Reviewed-Content-Hash: design/gdd/debug-overlay-true-values.md 882f5a2511e521af2748196fb984aa195e80b51d
+Reviewed-Content-Hash: design/registry/entities.yaml 4d9d9f7a469ff3c3aeb97b06fa6fa82c1b2dec16

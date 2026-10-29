@@ -182,3 +182,22 @@ Findings:
 - [RECOMMENDED] Visual/Audio V4 / Game Feel REACH: [main review] '~30% of UNFOLD_TICKS' gives the hold stage a second definition alongside the exact HE-14 formula.
 Reviewed-Content-Hash: design/gdd/horror-entities.md d37dd7bdd23a21819562f2afb26a4e9938ff5034
 Reviewed-Content-Hash: design/registry/entities.yaml c7c42b1a48216686518b8b47b2a01a34e276ab50
+
+
+## Review — 2026-10-29 — Foundation ADR sync (lean confirming)
+Verdict: APPROVED (prior verdict 2026-10-28: APPROVED; intent unchanged)
+Scope: git diff of design/gdd/horror-entities.md, 9 hunks, all editorial syncs to ADR-0004, ADR-0005 and ADR-0006. No rule, formula, constant or tuning knob changed. Checked the diff against ADR-0004 section 5 (NotifyEvent, CR-10), ADR-0005 sections 2.3, 2.4 and 2.6, and ADR-0006 section 3.1.
+Checked:
+- `restore_epoch` storage: every mention (header note, HE-41, HE-42, Interactions rows, registry-lock rows, AC-HE-136, OQ 29 and OQ 31) now reads `slot_epoch_a/b.bin`. No `slot_epoch.bin` remains. The 12-byte layout in HE-42 matches ADR-0006 section 3.1, and the older file is overwritten in place with no rename, as in ADR-0006.
+- `he_hash` is now `Ihash.h(HE_HASH_SEED, k1, k2, k3, salt)`. The formula text matches ADR-0005 section 2.6. All eight golden values in HE-42 and AC-HE-139 were recomputed independently with `mix64` and GOLDEN and reproduced exactly, including the three ADR-0005 vectors and the five salt-keyed ones. The salts (1 to 5) and `HE_HASH_SEED` (0x4845) are non-zero, as ADR-0005 requires. ADR candidate (4) and OQ 26 are marked closed.
+- Web Map coupling: Horror now reads dormancy flags and pod state from web.state's view in its hook and does not subscribe to `DERELICT_LOADED`, `DERELICT_UNLOADED` or `POD_DEPARTED`. This matches ADR-0004 (the events are for presentation consumers only). HE-20, HE-21, HE-34 and E-HE-43 do not depend on those events. The WM:408 quote in the Interactions row is a verbatim citation and still correct as one.
+- Attention's AT-8 now draws via `RngFacet.draw_epoch` (HE-42, OQ 31), consistent with ADR-0005.
+- Acceptance criteria AC-HE-136 and AC-HE-139 still test the changed rules. There are no dangling rule ids, constants or section references.
+Blockers: none.
+Advisories (4):
+1. HE-42 and the AC-HE-136 lint still name direct `rng_derive_epoch` calls for Horror's own draw. Under ADR-0005 the call surface is `RngFacet.draw_epoch(horror.tell, counter)`. Non-contradictory, but worth conforming.
+2. The header Last Updated line has no 2026-10-29 sync note.
+3. ADR-0005 section 2.4 still says `slot_epoch.bin`. That is an ADR defect, not a Horror one.
+4. The slot-epoch file format appears in Horror only as an ADR-0006 citation, which is correct, and nothing depends on it.
+Reviewed-Content-Hash: design/gdd/horror-entities.md 1cc50f8d2bfe00d8f2a16424f6a62f84878762bd
+Reviewed-Content-Hash: design/registry/entities.yaml 4d9d9f7a469ff3c3aeb97b06fa6fa82c1b2dec16

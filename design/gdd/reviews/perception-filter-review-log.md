@@ -155,3 +155,21 @@ Findings:
 - [RECOMMENDED] Header L8: [main review] 'Last Verified' 2026-10-26 is stale.
 Reviewed-Content-Hash: design/gdd/perception-filter.md 7743c64ce653eaf74327c5ae5946e2604ebb03e2
 Reviewed-Content-Hash: design/registry/entities.yaml cafe6d1169a1fe5dd043eae35c2c07a90c93b4c6
+
+
+## Review — 2026-10-29 — Foundation ADR sync (lean confirming)
+Verdict: APPROVED (prior verdict APPROVED 2026-10-28 stands)
+Scope: git diff of design/gdd/perception-filter.md only. Seven hunks: PF-7 pull site, PF-35 frame order, PF-37 hash wording and Why, Dependencies row 11 (PERCEPTION_OUT through the perception face), the frame-order contract summary, the Input Responsiveness chain, and AC-PF-90. Checked against ADR-0009 s1 and s3, ADR-0005 s2.6 and ADR-0003.
+Checks passed:
+- Stage names and order (AVATAR 2, FILTER 3, INSTRUMENTS 4, LIGHTING 6) are used identically in PF-35, the summary, Input Responsiveness and AC-PF-90. AC-PF-90 is still testable, and the 12-tick-plus-one-frame latency numbers are unchanged.
+- The "render callback" token survives only in PF-35, where it is redefined as the driver's present step for the stage.
+- PF-37 cites ADR-0009 s1 (the TD-29 waiver) and ADR-0005 s2.6 (Ihash, non-zero seed); both exist and match. D.14, AC-PF-30, AC-PF-72 and AC-PF-91 stay valid because the masked hash is kept until ADR-0024 migrates it. No rule id, constant or tuning knob was added or removed. Design intent is preserved: presentation-only randomness, no rng_derive, restore-exact per-lie draws.
+- The Dependencies row 11 amendment is consistent with PF-1 and PF-41.
+Blockers: 0
+Advisories (4):
+1. X-6 item (4) and OQ-PF-28 still list the PRESENTATION-only hash stream as an ADR to write, and the X-6 header says "no ADR exists". PF-37 now says it is settled.
+2. The rim pose is sourced from "Lighting's published beam pose, same frame" (PF-23, AC-PF-61), but FILTER now precedes LIGHTING. ADR-0009 assumes the AVATAR stage publishes the pose (OQ-B). The "never reads another presenter's output" line needs a carve-out.
+3. PF-7 names the FILTER and INSTRUMENTS stages as pull sites but not the HUD stage, although the HUD consumes perceived values.
+4. PF-37 would read more clearly if it stated that the Ihash migration is a future ADR-0024 change and the D.14 vectors stay normative until then.
+Reviewed-Content-Hash: design/gdd/perception-filter.md 535db83694e1a223385e77a6b1d3d483b2d53edf
+Reviewed-Content-Hash: design/registry/entities.yaml 4d9d9f7a469ff3c3aeb97b06fa6fa82c1b2dec16

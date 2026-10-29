@@ -135,3 +135,19 @@ Findings:
 - [RECOMMENDED] Registry REPAIR_BIAS_W comment (entities.yaml ~L12869): [main review] The history comment 'the repaired_recent stamp is still written' reads as contradicting the live 'repaired_recent[] reserved, always empty at MVP'. The live value is correct.
 Reviewed-Content-Hash: design/gdd/sanity-and-hallucination-rules.md f79049d0a2706e8d3f72fdbe7555a121723107b3
 Reviewed-Content-Hash: design/registry/entities.yaml cafe6d1169a1fe5dd043eae35c2c07a90c93b4c6
+
+
+## Review — 2026-10-29 — Foundation ADR sync (lean confirming)
+
+**Verdict:** APPROVED (prior verdict APPROVED 2026-10-28; no blockers introduced).
+**Scope:** the 2026-10-29 diff only: 14 changed lines. ADR-0003/0006 restore reporting through `ctx.fault` (SN-1 L165, L174, L357, EC-SN-5 L954, AC-SN-119); ADR-0006 s1.3 binary ints exact and the JSON re-cast confined to dev fixtures (L174, L364 2^53 as a design bound, AC-SN-76); ADR-0006 `slot_epoch_a/b.bin` (L362); ADR-0010 `src/sim/sanity/` (AC-SN-30, 82, 130); ADR-0007 s2.5 boot assertions only for named structural invariants (AC-SN-160). Rules, formulas, knobs and design intent are untouched; verified against ADR-0003/0006/0007/0010 and the TR baseline (TR-sanity-001/020/025).
+**Blockers:** none.
+**Advisories:**
+- AC-SN-160 names the boot fault `CONTENT_INVARIANT` while L174 says SANITY_BOOT_* are ContentFaults codes 'under the same names'. State once that the code is CONTENT_INVARIANT and the SANITY_BOOT_* name is its detail (ADR-0007 s2.5).
+- AC-SN-160 still lists `WITNESS_HOPS_MAX` 2/3 as a boot-refusal endpoint, but no boot invariant covers it (bounded by AC-SN-134 and the L1151 row). Move it to AC-SN-176 / AC-SN-134 or add a named invariant.
+- L1578 gate-level note ('every endpoint is a boot test') is now partly stale against the narrowed AC-SN-160.
+- L174 10-27 re-cast sentence is superseded by the 10-29 note but stands unqualified; optionally prefix 'dev-fixture path only'.
+- Remaining 2^53 mentions (L170, L1086, L1589) read as container limits; they are design bounds (L364).
+**Confirmed clean:** no dangling rule ids, ADR sections or constants; restore wording identical across SN-1, EC-SN-5, L357 and AC-SN-119; AC-SN-76 has a testable binary-float SHAPE case; no stale `src/sanity/`.
+Reviewed-Content-Hash: design/gdd/sanity-and-hallucination-rules.md 401fb06f42bbf221f0db922474dd42f2e42a5772
+Reviewed-Content-Hash: design/registry/entities.yaml 4d9d9f7a469ff3c3aeb97b06fa6fa82c1b2dec16

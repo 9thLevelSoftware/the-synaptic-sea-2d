@@ -1,0 +1,42 @@
+TR-cmd-046 | PARTIAL | §4,§6 | Consumer half only (pair from view, snap_baseline); commit_baseline derived cache and flag exposure owned by ADR-0001/0003 | -
+TR-pxl-005 | COVERED | §4 | Placement.at/put/floor_v, one floor function, lint, snap flags safety net; zoom stays (1,1) | -
+TR-pxl-006 | NOT | - | Y-sort key explicitly deferred to ADR-0034 (not yet written) | -
+TR-pxl-007 | NOT | - | Door sort origin deferred to ADR-0034 | -
+TR-pxl-008 | NOT | - | z-band contract deferred to ADR-0034 | -
+TR-pxl-009 | NOT | - | Y-sort fallback deferred to ADR-0034 with ADR-0008 draw table | -
+TR-pxl-015 | PARTIAL | §6 | Rebase-not-discontinuity and restore reset touched; camera CUT/solver/lag rules owned by ADR-0008 | -
+TR-pxl-017 | PARTIAL | §1 | PROJECTOR publishes limits, only camera host writes camera; limits rect, clamping, jolt rules owned by ADR-0008 | -
+TR-pxl-018 | PARTIAL | §4 | Body-frame placement covered; parallax offsets, rotation 0, follow target owned by ADR-0008 | -
+TR-pxl-020 | COVERED | §1,§2,§3,§4 | Subscriber class, dirty-mark-then-draw, write allow-list, clamped alpha, DIAGNOSTIC exception all decided | -
+TR-pxl-034 | COVERED | §1 | No sim callable reads settings; two-run hash/tick comparison test | -
+TR-light-001 | COVERED | §1,§2,§3 | Lighting reads views and Filter decoy list, handlers dirty-mark, draw in render | -
+TR-light-003 | PARTIAL | §1 | Write allow-list covered; Lighting-specific layer-0 viewport ownership owned by ADR-0008/ADR-0028 | -
+TR-pc-026 | COVERED | §1,§4 | Presenter allow-list, floored lerp, no HOST/MIRROR branch | -
+TR-pc-039 | PARTIAL | §3,§4 | Per-tick identical only, not every frame; input-trace replay format owned by ADR-0019/ADR-0001 | CONFLICT: TR says outputs byte-identical across cadences incl. Presenter position logs; ADR says per-frame placements vary with alpha, identity only for per-tick samples
+TR-pc-040 | PARTIAL | §3,§2 | Pose-before-apply stage order covered; Lighting enabled/energy/texture/color writes owned by ADR-0028 | -
+TR-ftrail-017 | NOT | - | Draw bands deferred to ADR-0034 | -
+TR-suit-041 | COVERED | §3,§6 | Sequence-counter edge detection; instruments and audio in one driver pass | -
+TR-section-024 | PARTIAL | §1 | PROJECTOR class rights covered; entity_id namespace and 453-tile build rate owned by ADR-0034/ADR-0013 | -
+TR-section-025 | NOT | - | PROJECTOR scene shape/SP-YSORT-1 deferred to ADR-0034 | -
+TR-shipbody-032 | NOT | - | Scene shape and reparent deferred to ADR-0034; only dependency lint stated | -
+TR-shipbody-033 | COVERED | §4,§5 | Offsets via Placement.at, physics_interpolation off, tick_alpha sole interpolator | -
+TR-shipbody-044 | PARTIAL | §1 | Lint on zoom/k_auto/field_h outside presentation; zoom ladder and byte-identity owned by ADR-0008 | -
+TR-shipbody-049 | PARTIAL | §2,§6 | Rebase not a discontinuity; camera math and 0 px delta owned by ADR-0008 | -
+TR-assembly-030 | COVERED | §2 | Post-commit, writes disabled, coalesced once-per-frame delivery | -
+TR-assembly-045 | PARTIAL | §2 | Same-frame mark and draw covered; bead scene shape owned by ADR-0034 | -
+TR-boarding-026 | NOT | - | Carried-module art deferred to art bible/asset specs; no architectural decision | -
+TR-webmap-039 | PARTIAL | §6 | Pure-function exterior and ALL rebuild; pod-local camera offset and no-cut owned by ADR-0008 | -
+TR-attention-047 | COVERED | §6 | ALL plus on_discontinuity, last-seen sequence comparison; end state without transition | -
+TR-horror-041 | PARTIAL | §6,§4 | Pure-function presenters and alpha_n covered; alpha 0/255 only and 0 percent ambient draw rule not decided | -
+TR-percfilter-025 | COVERED | §3,§2 | Stage order and latency stated | -
+TR-percfilter-043 | PARTIAL | §3 | Fringe reads Avatar-stage pose; Lighting-published pose conflict open, art/width owned by ADR-0028 | -
+TR-hud-022 | COVERED | §3 | Stage order camera, Avatar, Filter, HUD, Lighting fixed | -
+TR-hud-037 | PARTIAL | §3,§4 | Floor snapping and order covered; zoom re-projection and H layout recompute owned by ADR-0008/ADR-0030 | -
+TR-instr-001 | COVERED | §1 | Class table, allow-list, one PresenterDescriptor | -
+TR-instr-002 | COVERED | §6 | Scalar rule, on_discontinuity reset on restore/camera cut/hard_start | -
+TR-instr-005 | COVERED | §2 | Bulk reads only when dirty; Graph dirties keys once per step | -
+TR-instr-010 | NOT | - | Needle frames/NEAREST deferred to ADR-0030/ADR-0028; only no-draw-placement rule | -
+TR-instr-012 | PARTIAL | §4,§5,§6 | Interpolator and settle exemption covered; ramp/settle numbers owned by ADR-0030/Instruments GDD | -
+TR-instr-013 | NOT | - | Reversal dwell rule left to Instruments GDD; only presentation-scalar allowance | -
+TR-instr-014 | PARTIAL | §6 | Tremor envelope allowed as presentation scalar; start predicate and blend rules left to Instruments GDD | -
+TR-audio-042 | PARTIAL | §1,§3 | No stage declares Audio read; shader symbol/visual-parameter ban and audio architecture owned by ADR-0029 | -

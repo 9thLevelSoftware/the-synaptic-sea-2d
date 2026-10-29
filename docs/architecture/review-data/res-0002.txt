@@ -1,0 +1,27 @@
+TR-cmd-008 | COVERED | §2, §1 | Only _admit stamps issuer_peer/origin/seq/submission_id; payload keys rejected; no issuer_peer constructor parameter. | -
+TR-cmd-009 | PARTIAL | §2, §7 | Fire-and-forget, flush at P5 and per frame, reason codes covered; five terminal result kinds not enumerated; no display-string rule. | -
+TR-cmd-010 | COVERED | §2, §3 | Whitelist walk, finite floats, depth 8, key-type uniformity, var_to_bytes size, MALFORMED all specified. | -
+TR-cmd-012 | COVERED | §4 | P2 origin and OWNED_BY_ISSUER half (b) check; single-player host peer 1 to PlayerId 1. | -
+TR-cmd-013 | PARTIAL | §4 | Rebuild as last LOADING step in ascending block_id stated; fault on conflicts not decided; rebuild order owned by ADR-0016. | -
+TR-cmd-027 | PARTIAL | §5, §6, §9 | Apply order covered; apply_tick >= queued_tick+1 and determinism/replay hash clause deferred to ADR-0005. | -
+TR-cmd-028 | COVERED | §6 | Host-local, next boundary in arrival order, expected hash verdict MATCH/MISMATCH/NONE without changing restore result. | -
+TR-cmd-030 | PARTIAL | §6 | Single-player pause, allowed_when_paused, PAUSED rejection covered; paused service cycle phases and frozen T owned by ADR-0003. | -
+TR-cmd-031 | PARTIAL | §5, Constraints, Performance | Bounds named, QUEUE_FULL covered; max_age_ticks and memory-budget formula only referenced, not stated as boot assertions. | -
+TR-cmd-034 | PARTIAL | §8 | HOST/MIRROR identical API covered; repl_hint block declaration deferred to ADR-0003; replication shape ADR-0032. | -
+TR-cmd-042 | PARTIAL | §5 | Coalescing key, supersession, accounting, COALESCE_DUAL_ORIGIN covered; P0 compaction and rejected-newer-supersedes-nothing not stated. | -
+TR-cmd-043 | PARTIAL | §2, §4, §6 | Per-(peer,origin) seq, supplied_seq test/remote, DUPLICATE_SEQ covered; correlation hash exclusion, host_order monotonic, 64-bit boot assertion missing. | -
+TR-cmd-044 | PARTIAL | §2, §5 | Fixed order, RATE_LIMITED, SYSTEM_RESERVE stated; rate window pause behaviour and local-never-limited unstated; VS-B owned by ADR-0032. | -
+TR-cmd-045 | PARTIAL | §4, §6 | ACTOR_NOT_OWNED for unbound peer stated; T+1 effect timing, pending-command rejection and seq reset on rebind absent. | -
+TR-cmd-048 | PARTIAL | §9 | Bounded ring with command, result, replay purpose stated; capacity value, eviction order, one-per-result_id absent. | -
+TR-emitter-035 | NOT | - | Emitter same-state no-op and WriteScope rejection not addressed; owned by Emitter ADR/ADR-0017. | -
+TR-light-033 | NOT | - | Emitter commit-path flash spacing not addressed; owned by ADR-0017. | -
+TR-pc-024 | PARTIAL | §4, §7 | ACTOR_NOT_OWNED at P2 and correlation echo covered; pre-play token keying and no-shared-control rule owned by ADR-0019. | -
+TR-pc-044 | PARTIAL | §1, §6 | PauseGate holds ControlHandle and request_pause path; Adapter silence/timer hold while PAUSED owned by ADR-0019/ADR-0030. | -
+TR-interact-029 | PARTIAL | §6 | No diegetic verb admitted while PAUSED, never queued; channel, TTL, stagger/downed/pod_hop clauses owned by ADR-0020. | -
+TR-interact-031 | NOT | - | Fifteen Interaction command descriptors and public surface not addressed; owned by ADR-0020. | -
+TR-interact-043 | PARTIAL | §5 | Same-tick ordering by host_order covered; second-validate-sees-first, ACTION_BUFFER_TICKS 0, cancel precedence owned by ADR-0003/ADR-0020. | -
+TR-suit-034 | NOT | - | equip_tool descriptor and validate-implies-apply invariant not addressed; owned by Suit ADR. | -
+TR-webmap-034 | NOT | - | queue_drain_ticks publication and CI lint of derived timing constants not addressed; ADR-0026. | -
+TR-charttable-003 | PARTIAL | §1, §6, Guidelines | PauseGate holds ControlHandle, only caller of request_pause/resume; SOLO/OVERLAY modes and PAUSED-read ban owned by ADR-0030. | -
+TR-charttable-004 | COVERED | §6 | Same-boundary pair pairs in order; PauseGate re-issues latest desired state until kernel matches. | -
+TR-saveload-037 | PARTIAL | §4, §6 | Peer id never in persistent state, half (b) rebuilt, never saved; header seats list rules owned by ADR-0006/ADR-0016. | -

@@ -431,11 +431,12 @@ interfaces:
       - horror-entities
       - sanity-and-hallucination-rules
     adr: docs/architecture/adr-0005-determinism-keyed-rng-canonical-encoding-and-hashing.md
-    signal_signature: "RngFacet.register_stream(name: StringName, epoch_keyed: bool = false) -> RngStream (BOOTING only); dynamic_stream(name: String, epoch_keyed) -> RngStream (memoised, bounded); draw(stream, counter) -> int (plain streams); draw_epoch(stream, rng_counter) -> int (epoch-keyed streams: attention.tell, horror.tell); int_in(raw, lo, hi) -> int; pure statics DetRng.mix64/fnv64/stream_key/derive(world_seed, key, counter) and DetRngFloat.unit/int_in; Ihash.h(variation_seed, k1, k2, k3, salt) -> non-negative 63-bit int for presentation and non-RNG variation (the Trail's trail.vis included: Ihash keyed by world_seed and a fixed per-system seed)"
+    # was (signal_signature, before 2026-10-29): Ihash.h only listed; no Ihash.h32 caller named
+    signal_signature: "RngFacet.register_stream(name: StringName, epoch_keyed: bool = false) -> RngStream (BOOTING only); dynamic_stream(name: String, epoch_keyed) -> RngStream (memoised, bounded); draw(stream, counter) -> int (plain streams); draw_epoch(stream, rng_counter) -> int (epoch-keyed streams: attention.tell, horror.tell); int_in(raw, lo, hi) -> int; pure statics DetRng.mix64/fnv64/stream_key/derive(world_seed, key, counter) and DetRngFloat.unit/int_in; Ihash.h(variation_seed, k1, k2, k3, salt) -> non-negative 63-bit int for presentation and non-RNG variation (the Trail's trail.vis included: Ihash keyed by world_seed and a fixed per-system seed); Ihash.h32 = Ihash.h & 0xFFFFFFFF (Attention beat jitter: Ihash.h32(HASH_SEED, tell_epoch, k, 0, SALT_BEAT) with HASH_SEED a fixed non-zero constant; the attention hash32 is retired)"
     referenced_by:
       - docs/architecture/adr-0005-determinism-keyed-rng-canonical-encoding-and-hashing.md
     added: 2026-10-28
-    revised: ""
+    revised: 2026-10-29
   - contract: save_host_api
     status: active           # ADR-0006 is Proposed
     pattern: direct_call     # host-local reads and calls, never commands
@@ -657,13 +658,13 @@ performance_budgets:
     added: 2026-10-28
     revised: ""
   - target_fps: 60
-    total_frame_budget_ms: 14.9   # 90 % of the 16.6 ms ceiling (ruling R12); P99 CPU frame time, release export, warm-up discarded
+    total_frame_budget_ms: 14.9   # 90 % of the 16.6 ms ceiling (ruling R12); P99 CPU frame time, release export, warm-up discarded; excludes frames in which the kernel is in SAVING (autosave capture is bounded by ADR-0006 SNAPSHOT_BUDGET_MS and SAVE-WRK-1 (f))
     platform: PC                  # RM-DESKTOP
     adr: docs/architecture/adr-0008-render-pipeline-wiring-and-integer-scaling.md   # ADR-0008 is Proposed; figure pending spike
     added: 2026-10-28
     revised: ""
   - target_fps: 30
-    total_frame_budget_ms: 30.0   # 90 % of the 33.3 ms ceiling (ruling R12); RM-DECK handheld, 30 fps target
+    total_frame_budget_ms: 30.0   # 90 % of the 33.3 ms ceiling (ruling R12); RM-DECK handheld, 30 fps target; excludes frames in which the kernel is in SAVING (autosave capture is bounded by ADR-0006 SNAPSHOT_BUDGET_MS and SAVE-WRK-1 (f))
     platform: Console             # nearest registry platform value; this is the Steam Deck
     adr: docs/architecture/adr-0008-render-pipeline-wiring-and-integer-scaling.md   # ADR-0008 is Proposed; figure pending spike
     added: 2026-10-28
@@ -742,7 +743,7 @@ api_decisions:
     revised: 2026-10-28
   - purpose: payload_size_check
     status: active
-    api: "whitelist walk (type, depth 8, finite floats, running byte estimate) then var_to_bytes(payload, false).size() <= MAX_PAYLOAD, then compiled payload_schema"
+    api: "whitelist walk (type, depth 8, finite floats, running byte estimate) then var_to_bytes(payload).size() <= MAX_PAYLOAD, then compiled payload_schema"
     not: "serialising a payload before the walk; using var_to_bytes bytes as hash input; String payload keys"
     adr: docs/architecture/adr-0002-authority-model-and-command-pipeline.md
     reason: "A cyclic or very wide container must be rejected before serialisation; payload keys are StringName so schema lookup is exact"
@@ -786,23 +787,25 @@ api_decisions:
   - purpose: dirty_key_encoding
     status: active           # ADR-0004 is Proposed
     api: "int key = (KIND << 32) | id, KIND 1..0x7FFF declared per block (bits 32..46 used, 47..62 reserved), id 0..0xFFFFFFFF; PackedInt64Array buffers filled with NO_KEY = 0x7FFFFFFFFFFFFFFF; ALL is the batch flag is_all, never a key value; buffers allocated at the MAX_DIRTY_KEYS value of the registry freeze, the active collapse cap (KeyBuf.cap) latched at P0 and lowered only; ChangeBatch.has = bsearch bounded by count"
-    not: "String, StringName, float or Variant keys; PackedInt32Array key buffers; a Dictionary used as the dirty set; ALL as a reserved key value; raising MAX_DIRTY_KEYS above the sized capacity at run time; testing count against buf.size() instead of cap"
+    # was (not, before 2026-10-29): raising MAX_DIRTY_KEYS above the sized capacity at run time;
+    not: "String, StringName, float or Variant keys; PackedInt32Array key buffers; a Dictionary used as the dirty set; ALL as a reserved key value; raising MAX_DIRTY_KEYS above the sized capacity at run time (refused as KNOB_REFUSED; a runtime change may only lower it, latched at the next P0); testing count against buf.size() instead of cap"
     adr: docs/architecture/adr-0004-change-notification-and-dirty-keys.md
     reason: "Every owner GDD already writes (KIND << 32) | id; 47 bits need 64-bit storage; a native has() scan on a preallocated array dedupes without allocating (probed 2026-10-28: 160-230 ns per mark, 52 us for 256 distinct keys, OBJECT_COUNT flat)"
     referenced_by:
       - docs/architecture/adr-0004-change-notification-and-dirty-keys.md
     added: 2026-10-28
-    revised: ""
+    revised: 2026-10-29
   - purpose: state_hash_function
     status: active           # ADR-0005 is Proposed; S0-d confirms release-export cost
-    api: "H64 = digest.decode_s64(0) of SHA-256 computed by one reusable HashingContext (allowed only in src/shared/det/hash64.gd and src/kernel/state_hasher.gd for state hashing) over canonical_encode bytes; state_hash folds s64(T) || s64(world_seed) || records(u64 len(id), id, u64 schema_version, u64 len(bytes), s64 block_hash) sorted by block_id; hash_algo 2; no H64 value is reserved (0 is a legal hash); 'no verdict' is a separate bool"
+    # was (api, before 2026-10-29): no golden value recorded
+    api: "H64 = digest.decode_s64(0) of SHA-256 computed by one reusable HashingContext (allowed only in src/shared/det/hash64.gd and src/kernel/state_hasher.gd for state hashing) over canonical_encode bytes; state_hash folds s64(T) || s64(world_seed) || records(u64 len(id), id, u64 schema_version, u64 len(bytes), s64 block_hash) sorted by block_id; hash_algo 2; golden state_hash(PERSIST, 5000) = 0x81AB3842EF1E8DEF for the ADR-0005 4.5 two-block fixture (kernel GDD KRN-HASH-03 cites it); no H64 value is reserved (0 is a legal hash); 'no verdict' is a separate bool"
     not: "var_to_bytes bytes as hash input; a scripted per-byte 64-bit hash (xxHash, FNV); the built-in hash(); an owner-written byte layout; a hash value used as a sentinel"
     adr: docs/architecture/adr-0005-determinism-keyed-rng-canonical-encoding-and-hashing.md
     reason: "Native SHA-256 is 0.33 ms for 150 KB (probed 2026-10-28, editor binary); the encoder is injective after normalisation, var_to_bytes is not a documented byte contract, hash() is not stable across versions"
     referenced_by:
       - docs/architecture/adr-0005-determinism-keyed-rng-canonical-encoding-and-hashing.md
     added: 2026-10-28
-    revised: ""
+    revised: 2026-10-29
   - purpose: canonical_encoding
     status: active           # ADR-0005 is Proposed
     api: "CanonicalEncoder TLV (src/shared/det/canonical_encoder.gd, the float- and Variant-allow-listed file): one tag byte (NIL 0, BOOL 1, INT 2, FLOAT 3, STRING 4, VECTOR2 5, VECTOR2I 6, ARRAY 7, DICT 8, PACKED 9) then a self-delimiting body, u64 LE counts, DICT keys sorted by value (ints signed ascending, String(key) by code point), StringName encoded as STRING, floats normalised (NaN to 0x7FF8000000000000, -0.0 to +0.0), packed arrays as raw LE bytes; Variants unpacked by typeof plus typed assignment, never 'as'; encode returns a fresh exactly-sized array and never exposes its scratch buffer"
@@ -995,7 +998,7 @@ api_decisions:
     revised: ""
   - purpose: presentation_visible_kernel_api
     status: active           # ADR-0010 is Proposed
-    api: "Presentation, debug and observer code may name only these kernel classes, all under src/kernel/facets/: PresentationClock, SurfaceHandle, ControlHandle, ModuleFacet, BlockRegistrar, ChangeBatch, NotifyContext, CompletionToken, NotifyEvent, DirtyAccumulator, KeyBuf, NotifyFacet, SubscriptionHandle, SubscriberClass, DirtyKey, PresentationFacet, PresentationViews; NotifyFacet is named only by src/game and PresentationFacet; ARCH-08 denies Kernel, KernelHost, TickDriver, SimViews, WriteScope, Command, BlockDescriptor, CallContext, ValidateContext, ApplyContext, HookContext, SnapshotContext; the list is data in tools/lint/config/edges.json"
+    api: "Presentation, debug and observer code may name only these kernel classes, all under src/kernel/facets/: PresentationClock, SurfaceHandle, ControlHandle, ModuleFacet, BlockRegistrar, ChangeBatch, NotifyContext, CompletionToken, NotifyEvent, DirtyAccumulator, KeyBuf, SubscriptionHandle, SubscriberClass, DirtyKey, PresentationFacet, PresentationViews; NotifyFacet is named only by src/game and PresentationFacet; ARCH-08 denies Kernel, KernelHost, TickDriver, SimViews, WriteScope, Command, BlockDescriptor, CallContext, ValidateContext, ApplyContext, HookContext, SnapshotContext; the list is data in tools/lint/config/edges.json"
     not: "a *Context glob ban (NotifyContext is a legal facets type); KernelStateView (state is PresentationClock.state, the restore marker PresentationClock.load_seq); presentation holding NotifyFacet"
     adr: docs/architecture/adr-0010-source-layout-static-typing-and-lint-enforcement.md
     reason: "Presenter handlers must name NotifyContext and CompletionToken (ADR-0003, ADR-0004, ADR-0009); the deny list names only tick-phase types"
@@ -1464,7 +1467,7 @@ forbidden_patterns:
     added: 2026-10-28
   - pattern: thread_or_deferred_call_outside_save
     status: active           # ADR-0010 is Proposed
-    description: "Thread, WorkerThreadPool, Mutex and Semaphore only under src/save/ (IO-02); call_deferred, set_deferred, call_thread_safe and Engine.get_main_loop absent from src/shared, kernel, sim, data and save (SIM-12); the only cross-thread payload is a PackedByteArray or PackedInt64Array handed over by value and never mutated afterwards."
+    description: "Thread, WorkerThreadPool, Mutex and Semaphore only under src/save/ (IO-02); call_deferred, set_deferred, call_thread_safe and Engine.get_main_loop absent from src/shared, kernel, sim, data and save (SIM-12); the only cross-thread payload is a PackedByteArray or PackedInt64Array handed over by ownership transfer (sender keeps no alias, never mutates it afterwards) or as a .duplicate(); packed arrays are shared by reference in 4.7.2 (ADR-0006 probe 16)."
     why: "Threads are confined to the one legal user; deferred calls reorder work outside the tick."
     adr: docs/architecture/adr-0010-source-layout-static-typing-and-lint-enforcement.md
     added: 2026-10-28

@@ -1,0 +1,42 @@
+TR-cmd-032 | PARTIAL | §6 HOT-01,§7 | Only a deferred function-scoped alloc lint; budgets, encode counts, release-export measurement owned by ADR-0005 | -
+TR-cmd-033 | COVERED | §4.1,§4.2,SIM-01,SIM-08 | Tree-free kernel, injected profile, networking symbols banned | -
+TR-cmd-050 | PARTIAL | §4.3,ARCH-09 | Release exclusion and file-list scan (unverified); next-tick knob semantics left to ADR-0031 | -
+TR-cmd-051 | COVERED | §6.8,KRN-01,SIM-08,ARCH-02,ARCH-08 | Blocking gdUnit4 wrappers; named rules cover each structural check | -
+TR-cmd-052 | PARTIAL | §4.2,ARCH-04,CNT-01 | No static state and leak checks; BLOCK_ALREADY_BOUND and dispose idempotence are ADR-0003 | -
+TR-lsg-025 | PARTIAL | §6 HOT-01,§7 | Only allocation lint for zero-allocation clause; P99 spike budgets owned by ADR-0012 | -
+TR-itemdb-002 | PARTIAL | ARCH-04,Registry | No static/singleton state lint; constructor signature ItemCatalog.new(data, graph_tables) is ADR-0007 | -
+TR-itemdb-035 | PARTIAL | §1.3,§6.1,§8.5 | Supplies finding format/severity column; item-DB rule packs themselves owned by ADR-0007 | -
+TR-pxl-031 | COVERED | §3,SIM-02,Key Interfaces | Clock port, MonotonicClock, SIM-02 token ban, FakeClock | -
+TR-pxl-037 | COVERED | §8.2 | Lane W windowed render suites; headless limited to pure/tree/lint | -
+TR-emitter-031 | PARTIAL | SIM-11 | Only bans assert( in src; fault-code convention and Release smoke are ADR-0007 | -
+TR-emitter-032 | PARTIAL | §3,§4.4,CNT-04 | Seams injected, but D.14 work-counter equality not addressed | CONFLICT: req says counter compiled in only under EM_WORK_COUNTER flag; ADR uses injection with NullWorkCounter in shipped builds, not conditional compilation
+TR-emitter-034 | COVERED | §5.4,SIM-04,SIM-05,FIX-01 | Operators banned across src with IntMath helpers and bad/good fixtures per token | -
+TR-light-031 | PARTIAL | §3 | Only clock/stub injection; plan/apply split and incremental==full reconcile owned by ADR-0028 | -
+TR-pc-027 | COVERED | SIM-02,§4.5 | Unified time/RNG token list banned across src; scope covers Controller and Body | CONFLICT: req allow-lists render-time timers in Adapter/Presenter; ADR allow-list is four files and states no render-timer exemption
+TR-pc-032 | PARTIAL | READ-01 | Lint mechanism and _input tokens; Adapter file allow-list and pipeline-root rule are ADR-0019 | -
+TR-pc-045 | COVERED | §8.3,§8.5,§6.4 | Exit 101 failure, fixtures dirs, ContractCheck against recorded contracts | -
+TR-ftrail-033 | COVERED | §8.2,§8.5,§1.2 | Headless lane H unit tests, windowed ft-render job in lane W | -
+TR-suit-006 | COVERED | SIM-01,SIM-10 | Tree-free lint over src/sim/suit with wrapper tests | -
+TR-suit-033 | PARTIAL | §6.6 READ-01..03,SIM-04 | Generic read-lint mechanism; band-constant literal and retired-token rules not named | -
+TR-suit-037 | COVERED | §8.5 | fixtures.sha256 verified before assertions | -
+TR-section-002 | COVERED | SIM-01,SIM-03,SIM-10 | Tree-free and float-free lint over src/sim/layout with wrapper test | -
+TR-section-043 | PARTIAL | §6 LINT-SPIKE-1 | Probes run on editor binary only; release-export repeat pending; JSON/packed-array parts ADR-0005/0007 | -
+TR-shipbody-002 | COVERED | §5.1,§5.4,SIM-05 | Directory warning-as-error rules; trunc_div sole annotated division site | -
+TR-shipbody-038 | PARTIAL | §5.1,P6,P11,LINT-SPIKE-1 | Editor-binary probes only; canvas float32 bound and WORLD_COORD_LIMIT fallback in ADR-0008/0015 | -
+TR-shipbody-046 | PARTIAL | §7 CNT-04,§8.2 lane P | Counting gate mechanism and lane P; instrumented wrappers and bounds owned by ADR-0015 | -
+TR-assembly-044 | COVERED | §6.1,§6.2,§8.4 | msa_lint.gd pack, LINT-MSA-n format, exit codes, CI ordering, assets/data read | -
+TR-derelict-026 | COVERED | §4.2,§8.2,SIM-01 | Headless integration lane via kernel harness; sim tree-free | -
+TR-derelict-032 | COVERED | §8.3,§8.4,CNT-01 | Suite time budget, exit 101, leak checks | -
+TR-boarding-030 | COVERED | §4.2,§8.5,READ-03 | Headless harness, pinned fixtures, golden constants read from owners not restated | -
+TR-boarding-031 | COVERED | §6.4 | Generated build/lint/published.json from registry dump and reflection | -
+TR-webmap-031 | PARTIAL | SIM-01..04 | Tree/clock/RNG/float/division covered; 8-byte seed and rng_derive rules are ADR-0005 | -
+TR-attention-037 | COVERED | §3,§4.2 | Injected ports and test stubs for headless testing | -
+TR-horror-042 | PARTIAL | §3,§6.4,§4.2 | Stubs and contract checks; 600-tick state_hash replay runner is ADR-0005 | -
+TR-percfilter-033 | COVERED | §8.2 | RenderGuard nonzero requirement and SKIPPED reporting; separate windowed lane | -
+TR-hud-031 | PARTIAL | §3 | Ports and PresentationClock double; scripted pinner and scene-state hash owned by ADR-0030 | -
+TR-charttable-038 | PARTIAL | §3,§6.4,§8.2 | Injection, contract tests, non-headless lane; draw-list/forced-H/force_stage hooks owned by module ADR | -
+TR-audio-031 | PARTIAL | §4.3,ARCH-09 | Release exclusion of testing dirs; capture harness and tap bus are ADR-0029 | -
+TR-debug-037 | PARTIAL | ARCH-03,ARCH-10,ARCH-07 | Guarded load and no-reference lints; release export gating is ADR-0031 | -
+TR-debug-038 | PARTIAL | §6.6 READ-01 | Lint mechanism only; actual reader allow-lists supplied by ADR-0022/0024/0031 | -
+TR-debug-039 | PARTIAL | §3,§4.4 | Ports and injection convention; kernel-side seams (subscriber id, state_hash forcing, ObserverSink) ADR-0003/0031 | -
+TR-debug-045 | COVERED | §8.2 | Lane W named job, SKIPPED on headless, RenderGuard nonzero assertion | -

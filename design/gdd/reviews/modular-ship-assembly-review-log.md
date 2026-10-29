@@ -181,3 +181,27 @@ Findings:
 - [RECOMMENDED] Registry L10402; BM4 naming; AC-MSA-151; L1601; systems-index; accessibility file: [main review] Small leftovers: an old 'P5 escape verb' comment, the rects[]/cap_rects[] naming mismatch, a stray minus sign in AC-151, warm-up windows not mapped to AC classes, systems-index row 13 status, and the missing accessibility-requirements.md.
 Reviewed-Content-Hash: design/gdd/modular-ship-assembly.md dd8159734c332aaac9ee2a117343da198ded106d
 Reviewed-Content-Hash: design/registry/entities.yaml c7c42b1a48216686518b8b47b2a01a34e276ab50
+
+
+## Review — 2026-10-29 — Foundation ADR sync (lean confirming)
+
+Verdict: APPROVED (0 blockers, 5 advisories)
+
+Scope: the diff only (17 hunks, 17 lines, all amendments tagged "2026-10-29 — ADR-0006 sync" or "ADR-0009 sync"), plus knock-on effects inside the GDD.
+- ADR-0006 sync: int64 `T` values (MSA-4, MSA-33, D.9 `Tb` and `last_shape_change_T`, FB-6, AC-MSA-06, AC-MSA-54). Native int64 is accepted in the binary payload. The halves-or-string form is mandatory only where a value can reach JSON (header, dump-save). Save/Load frame-polls `last_shape_change_T()` with no tick-boundary poll and no subscription; Layout's `S/<seam_id>` key is no longer described as the trigger.
+- ADR-0009 sync: the PROJECTOR, Lighting and Trail rebuilds are dirty-marked at P5 and drawn in the driver's stages. The Emitter is the simulation hook `emitter.place`, not a subscriber (MSA-39, dependency rows, D.15, tuning-knob note, E-46, AC-MSA-62/63, AC-MSA-101).
+
+Checks: the changes agree with ADR-0006 (§ 1.3 and the container notes, and the frame poll), ADR-0009 § 2 (which cites MSA-39) and Save/Load SL-2 and SL-13. No dangling rule ids, ADR sections or constants. Every affected acceptance criterion is still testable and matches the changed rule. The weld and cut event autosaves (D17), "Assembly never calls Save/Load" and the 2^53+1 exactness test are all preserved.
+
+Blockers: none.
+
+Advisories:
+1. L249 still says the Emitter "rebuilds from dirty keys"; reword to the `emitter.place` hook.
+2. L353 and AC-MSA-100 say "P5 subscribers <= 8 ms"; state that the budgets cover both the dirty-mark handlers and the driver-stage draws.
+3. AC-MSA-101 tests only the dirty-mark handler; add a draw-once assertion for the coalescing claim.
+4. AC-MSA-06 should name the header form (hex64 string, ADR-0006) so a decimal string cannot pass.
+5. L351 "snapshot only at a tick boundary" and the L504 quoted Save/Load wording are consistent but could cross-reference the ADR-0006 boundary service.
+
+Prior carry-over recommendations from the 2026-10-28 review are unchanged by this sync.
+Reviewed-Content-Hash: design/gdd/modular-ship-assembly.md 4b70bff46eb6b02dc83f4ffabd6cbca8a5ea93d7
+Reviewed-Content-Hash: design/registry/entities.yaml 4d9d9f7a469ff3c3aeb97b06fa6fa82c1b2dec16

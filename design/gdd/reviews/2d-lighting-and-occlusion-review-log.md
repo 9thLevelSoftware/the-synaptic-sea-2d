@@ -141,3 +141,35 @@ Findings:
 - [RECOMMENDED] LO-15; D.15/AC-LO-28; Tuning Knobs: [main review] Confirmed at line 232: the 'tight box ... memory option' sentence appears twice. The gutter 'epoch' term collides with the kernel's restore_epoch. The Tuning Knobs texture-size row is stale.
 Reviewed-Content-Hash: design/gdd/2d-lighting-and-occlusion.md b8f78b686f4b41f32fbd630652bb3e42eda0282d
 Reviewed-Content-Hash: design/registry/entities.yaml cafe6d1169a1fe5dd043eae35c2c07a90c93b4c6
+
+
+## Review — 2026-10-29 — Foundation ADR sync (lean confirming)
+Verdict: NEEDS REVISION (prior verdict 2026-10-28: APPROVED)
+Scope: the 15 hunks of `git diff` on this GDD (~90 KB of diff, 25 word-level edits). They cover ADR-0008 § 1 (Forward+ provisional, Vulkan pinned), ADR-0009 § 3 (render callback becomes the LIGHTING present step), ADR-0005 § 2.6 (the gutter `Ihash`), and the closed or open ADR-candidate list. I checked each edit against the ADR text, then against the rules, edge cases, ACs and knobs in this GDD.
+Blockers: 2
+- B1 (LO-1 L162, LO-2 L166, LO-11 L223, Edge Cases L908-910, AC-LO-1 and AC-LO-15): the sync turned 'render callback' into 'LIGHTING present step' for the occluder rebuild too. ADR-0009 puts Lighting's occluder builder in a separate PROJECTOR at stage 0 (PROJECT), with chunked rebuilds and the sole right to create `LightOccluder2D`. The GDD now has the builder running in the stage-6 present step, in one atomic apply step. LO-1 still calls the PROJECTOR class 'provisional pending a TD ruling' and the candidate is still listed open at L1038. 'No `after:` entry' now collides with the ADR-0009 `after` field. Fix: split PROJECT from LIGHTING wording, restate the 'no half-written set' guarantee as ordering across stages, close the candidate, and clarify what `after:` means.
+- B2 (L1038): the driver candidate is marked 'closed by ADR-0009 § 3'. It belongs to ADR-0008 § 1 (provisional; spike steps 1, 2, 9).
+Advisories:
+- `LIGHT_HASH_SEED` and `SALT_GUTTER` are not defined in ADR-0005, Tuning Knobs or the registry, and have no golden vector. AC-LO-28 does not pin them.
+- `k` (gutter index) collides with the `k_z` and `k_auto` notation and with 'gutter epoch' versus `restore_epoch` (carried over from 2026-10-28).
+- LO-1 cites 'stage 6' as a literal. Cite `PresentationStage.LIGHTING`.
+- AC-LO-72 hard-names Vulkan. If the pin reverses, the AC targets the wrong driver.
+- ADR-0008 has `use_hdr_2d` false at MVP with an HDR contingency. The Engine posture does not state which framebuffer the glow and ambient-floor model assumes at MVP.
+Checked and consistent: the Vulkan pin text and its reversibility (L29, L39, L1018, L1032), the stage order (PROJECT 0 through DEBUG 9), the ADR-0005 `Ihash.h` argument shape, the beam-pose and decoy-list stage dependencies, and design intent (the 'picture of the truth' framing is untouched).
+
+## Review — 2026-10-29 — Foundation ADR sync (lean confirming, round 2)
+**Verdict: APPROVED** (no blockers remain; 5 advisories).
+**Scope:** design/gdd/2d-lighting-and-occlusion.md, diff against HEAD (20 hunks: ADR-0005, 0008 and 0009 sync plus the knock-on fix round). Checked against ADR-0009 §§ 1-3, the stage table, the PresenterDescriptor and OQ-I. Grep confirmed no stale 'render callback', 'same callback' or 'Forward+ pinned' text remains.
+**Blockers resolved (previous round):**
+1. Builder placement: LO-1, LO-2, LO-3, LO-11, the S.5 REBUILDING row, the Edge Cases bump entry, AC-LO-1, AC-LO-2, AC-LO-5 and AC-LO-17 now agree. The builder is a separate PROJECTOR registrant at stage 0 and alone creates, frees and writes polygons. The LIGHTING present step (stage 6) draws lights and writes only `occluder_light_mask`. The chunking decision and the no-half-written-set intent are reconciled: chunks bound work per frame, and polygons go onto the pooled nodes in one apply at the end of the last chunk. The PROJECTOR-class candidate is marked closed by ADR-0009 § 1 in LO-1, the candidates list and OQ 5. 'No kernel `after:`' is separated from `PresenterDescriptor.after`.
+2. Wrong ADR citation: the renderer-and-driver candidate now cites ADR-0008 § 1 (provisional Vulkan, reversible at spike steps 1, 2, 9) and says ADR-0009 § 3 owns only the driver and stage order. D3D12 and Forward+ wording is consistent in L29, L39, the S.5 spike row, L1018, L1035 and AC-LO-53.
+**Remaining blockers:** none.
+**Advisories:**
+- L31 Overview still says the PROJECTOR duty is 'by default / Open Question 5' (stale; now closed).
+- The single-chunk in-reach rebuild (LO-11, AC-LO-17) rests on a pending ADR-0009 ask, and the fallback permits multi-frame stale shadows. Tag it as pending.
+- The CPU budget and AC-LO-53 counter wording does not say whether the stage-0 builder run is counted.
+- L315 and L442 'no `after:` entry' lack the 'kernel' qualifier.
+- LO-2 keeps a stale 'ADR candidate: presentation frame order' tail (closed by ADR-0009 § 3).
+**Consistency check:** rules, edge cases, state table and ACs (LO-1/2/3/11, S.5, AC-LO-1/2/5/17) agree; tuning knobs OCCLUDER_NODE_POOL and OCCLUDER_SYNC_BUDGET_US are unchanged and still consistent. AC-LO-15 needed no change.
+Reviewed-Content-Hash: design/gdd/2d-lighting-and-occlusion.md f3540a3e926f3ccb6aaaf6b3a4126279d75e3d6b
+Reviewed-Content-Hash: design/registry/entities.yaml 4d9d9f7a469ff3c3aeb97b06fa6fa82c1b2dec16

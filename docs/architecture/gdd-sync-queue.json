@@ -1,0 +1,1592 @@
+{
+ "_readme": "GDD-sync queue for the Foundation ADRs. 'queue' = ADR-mandated text edits (old -> new) from the foundation-adrs workflow run 2; 'check' was measured 2026-10-28: OLD_PRESENT = still to apply, old_absent = re-anchor before applying, nofile = target not a single file. 'contradictions' = requirements whose GDD text contradicts a Proposed ADR (architecture review 2026-10-28); user ruling 2026-10-29: ADR wins, GDD-intent objections go to the user first. Consumed by plan .claude/plans/agile-dancing-snail.md Phase 2.",
+ "generated": "2026-10-29",
+ "queue": [
+  {
+   "adr": "ADR-0002",
+   "file": "design/gdd/command-simulation-layer.md (CR-15 / States and Transitions, control-plane outcomes)",
+   "old": "snapshot outcome: the captured payload (deep copy); restore outcome: K-4 verdict {T, computed_hash, match}",
+   "new": "snapshot outcome: the captured payload (deep copy) plus T, world_seed, state_hash, hash_algo, block_ids, schema_versions, block_state_hashes, enc_lens (every persist block, uncached in SAVING; ADR-0002 section 6). Restore: request_restore(payload, restore_epoch, expected_state_hash, has_expected_hash); K-4 verdict MATCH, MISMATCH or NONE (NONE and no compare when has_expected_hash is false).",
+   "i": 0,
+   "path": "design/gdd/command-simulation-layer.md",
+   "check": "old_absent",
+   "source": "foundation-adrs run 2 (2026-10-28)"
+  },
+  {
+   "adr": "ADR-0002",
+   "file": "design/gdd/save-load-and-versioned-format.md (wherever request_restore's expected hash is described)",
+   "old": "expected_state_hash may be null for a pre-K-4 file",
+   "new": "pass has_expected_hash = false for a pre-K-4 file; no H64 value is a sentinel (ADR-0002 section 6)",
+   "i": 1,
+   "path": "design/gdd/save-load-and-versioned-format.md",
+   "check": "old_absent",
+   "source": "foundation-adrs run 2 (2026-10-28)"
+  },
+  {
+   "adr": "ADR-0003",
+   "file": "design/gdd/command-simulation-layer.md",
+   "old": "kernel.clock described without a restore_epoch field; violation set and registries as of the first ADR-0003 sync; CR-10 PERCEPTION_OUT read row lets PRESENTATION read PERCEPTION_OUT views",
+   "new": "kernel.clock carries (T, world_seed, restore_epoch): world_seed set before INIT, restore_epoch a u32, read-only, non-persisted, non-hashed, set before the first restore()/init_world and read only inside RngFacet.draw_epoch. Violation set gains SUBSCRIBE_REFUSED, DIRTY_KEY_INVALID, DIRTY_KEY_KIND_UNDECLARED, EVENT_OVERFLOW, MISSED_DIRTY_MARK; UNKNOWN_DEPENDENCY also covers a subscription to an unknown block; registries gain touch_serial and the hash-cache arrays. CR-10 PERCEPTION_OUT row matches the two-face PresentationViews rule (default face empty_view plus PERCEPTION_READ_BLOCKED; perception face only with perception_access).",
+   "i": 2,
+   "path": "design/gdd/command-simulation-layer.md",
+   "check": "old_absent",
+   "source": "foundation-adrs run 2 (2026-10-28)"
+  },
+  {
+   "adr": "ADR-0001",
+   "file": "design/gdd/command-simulation-layer.md (CR-1a priority table, L60)",
+   "old": "(0) input adapter; (1) TickDriver node ...; (2) presentation nodes; \"that conversion plus the diagnostics timer are the only wall-clock reads in the project (H9)\"; driver steps end at (5) paused service",
+   "new": "Add a host-service slot (HOST_SERVICE -40, SaveHost) between the driver and presentation; add Kernel.deliver_frame_end() as the unconditional last step of the driver frame (frame() = _frame_body then deliver_frame_end); wall-clock clause reads 'reach the simulation', with the allow-list owned by ADR-0010 SIM-02",
+   "i": 3,
+   "path": "design/gdd/command-simulation-layer.md",
+   "check": "old_absent",
+   "source": "foundation-adrs run 2 (2026-10-28)"
+  },
+  {
+   "adr": "ADR-0001",
+   "file": "design/gdd/command-simulation-layer.md (KRN-LAT-02, L1088)",
+   "old": "the recorded call order is adapter -> driver -> presentation",
+   "new": "the recorded call order is adapter -> driver -> SaveHost (HOST_SERVICE) -> presentation host; add KRN-FRAME-END and KRN-LOAD-SEQ from ADR-0001",
+   "i": 4,
+   "path": "design/gdd/command-simulation-layer.md",
+   "check": "old_absent",
+   "source": "foundation-adrs run 2 (2026-10-28)"
+  },
+  {
+   "adr": "ADR-0001",
+   "file": "docs/architecture/architecture.md (Data Flow 1, around L257-279)",
+   "old": "TICK_DRIVER (-50) KernelHost -> TickDriver ... then presentation nodes at 0, with per-node presentation _process and the camera write in frame_pre_draw",
+   "new": "Add HOST_SERVICE (-40) SaveHost between the driver and presentation; redraw the presentation half as the single PipelineRoot PresentationHost (advance present_time, zoom cooldown, RESCALING re-derive, driver.frame) running ADR-0009's stage list with CAMERA_SOLVE as stage 1 and frame_pre_draw writing canvas_transform only (shared with ADR-0008, ADR-0009; TD-03, TD-22)",
+   "i": 5,
+   "path": "docs/architecture/architecture.md",
+   "check": "old_absent",
+   "source": "foundation-adrs run 2 (2026-10-28)"
+  },
+  {
+   "adr": "ADR-0001",
+   "file": "docs/architecture/architecture.md (L150 and L718 OQ-1 text citing 'presentation runs at the engine default 0')",
+   "old": "presentation runs at the engine default 0 (ADR-0001)",
+   "new": "the single presentation host runs at ProcessPriority.PRESENTATION (0); SaveHost at HOST_SERVICE (-40) between the driver and presentation (ADR-0001)",
+   "i": 6,
+   "path": "docs/architecture/architecture.md",
+   "check": "OLD_PRESENT",
+   "source": "foundation-adrs run 2 (2026-10-28)"
+  },
+  {
+   "adr": "ADR-0004",
+   "file": "docs/architecture/architecture.md (L441)",
+   "old": "func subscribe(cls: SubscriberClass, handler: Callable) -> SubscriptionHandle",
+   "new": "func subscribe(block_id: StringName, handler: Callable, name: StringName) -> SubscriptionHandle   # on a class-bound facet: NotifyFacet held by the composition root (class fixed at issue), PresentationFacet (ADR-0009) for presenters; handler(batch: ChangeBatch, ctx: NotifyContext) -> CompletionToken (ADR-0004)",
+   "i": 7,
+   "path": "docs/architecture/architecture.md",
+   "check": "OLD_PRESENT",
+   "source": "foundation-adrs run 2 (2026-10-28)"
+  },
+  {
+   "adr": "ADR-0004",
+   "file": "docs/architecture/architecture.md (L516-526, Presentation subscriber contract example)",
+   "new": "func _on_kernel_changes(batch: ChangeBatch, ctx: NotifyContext) -> CompletionToken:  # marks dirty only, never awaits\n\t_dirty.absorb(batch)   # DirtyAccumulator\n\treturn ctx.complete()   (a Dictionary.merge of a packed array was never valid)",
+   "old": "func _on_kernel_changes(batch: ChangeBatch) -> void:   # marks dirty only ... _dirty.merge(batch.change_keys)",
+   "i": 8,
+   "path": "docs/architecture/architecture.md",
+   "check": "OLD_PRESENT",
+   "source": "foundation-adrs run 2 (2026-10-28)"
+  },
+  {
+   "adr": "ADR-0004",
+   "file": "docs/architecture/architecture.md (L351 and OQ-4 row)",
+   "old": "The kernel's observer registry is not built on engine signals (decision for ADR-0004).",
+   "new": "The kernel's observer registry is not built on engine signals (ADR-0004, Proposed; acceptance gated on KRN-LAT-02 notify cost). OQ-4: decided on semantics, cost gate recorded.",
+   "i": 9,
+   "path": "docs/architecture/architecture.md",
+   "check": "OLD_PRESENT",
+   "source": "foundation-adrs run 2 (2026-10-28)"
+  },
+  {
+   "adr": "ADR-0004",
+   "file": "docs/architecture/architecture.md (L549, Interface types still to define)",
+   "old": "| `ChangeBatch` and the container type of `change_keys` | ADR-0004 |",
+   "new": "| `ChangeBatch` (kernel-held PackedInt64Array behind key(i)/has(key)), `NotifyEvent`, `DirtyAccumulator`, `KeyBuf`, `KeySpaceDescriptor`, `SubscriptionHandle`, `NotifyFacet` (src/kernel/facets/ except KeySpaceDescriptor) | ADR-0004 (Proposed) |",
+   "i": 10,
+   "path": "docs/architecture/architecture.md",
+   "check": "OLD_PRESENT",
+   "source": "foundation-adrs run 2 (2026-10-28)"
+  },
+  {
+   "adr": "ADR-0004",
+   "file": "design/gdd/command-simulation-layer.md (CR-10 L131 and Open Question 8 L1151)",
+   "old": "-> ADR for transport (signals vs registry). / Notification transport (signals vs kernel-owned observer registry) -- open",
+   "new": "Transport decided in ADR-0004 (kernel-owned registry; subscribe is per block on a class-bound facet: subscribe(block_id, handler, name)); Open Question 8 resolved, acceptance gated on KRN-LAT-02.",
+   "i": 11,
+   "path": "design/gdd/command-simulation-layer.md",
+   "check": "old_absent",
+   "source": "foundation-adrs run 2 (2026-10-28)"
+  },
+  {
+   "adr": "ADR-0004",
+   "file": "design/gdd/command-simulation-layer.md (Notifications AC ~L1014)",
+   "old": "only INPUT_SURFACE receives a submit handle; the handle stamps issuer_peer to the local seat",
+   "new": "subscribing as INPUT_SURFACE confers no submit right (ADR-0002 registry presentation_submit_without_handle); the SurfaceHandle is issued separately by the composition root. Keep: a subscribe by an object that owns a block or hook is refused (SUBSCRIBE_REFUSED), which ADR-0003's closed violation set must now include.",
+   "i": 12,
+   "path": "design/gdd/command-simulation-layer.md",
+   "check": "old_absent",
+   "source": "foundation-adrs run 2 (2026-10-28)"
+  },
+  {
+   "adr": "ADR-0004",
+   "file": "design/gdd/command-simulation-layer.md (D.12, L597) - UNCONDITIONAL (ADR-0005 5.2 adopts the touch serial)",
+   "old": "cached per block and invalidated by the block's dirty bit** (any write in P2/P3 clears it; `restore` clears it)",
+   "new": "cached per block and invalidated by the block's touch serial (every granted open_for; restore also advances it), not by a dirty key, because quantised blocks write without marking",
+   "i": 13,
+   "path": "design/gdd/command-simulation-layer.md",
+   "check": "OLD_PRESENT",
+   "source": "foundation-adrs run 2 (2026-10-28)"
+  },
+  {
+   "adr": "ADR-0004",
+   "file": "design/gdd/command-simulation-layer.md (Tuning Knobs)",
+   "old": "(no entry)",
+   "new": "Add MAX_SUBSCRIPTIONS (96, 32-256, Boot), MAX_EVENTS_PER_TICK (64, 16-256, Boot, global across blocks), build flag AUDIT_EVERY_TICK (test profile), with safe ranges and failure modes; MAX_DIRTY_KEYS: runtime changes may only lower it (the active cap is latched at the next tick's P0; raising above the sized capacity is KNOB_REFUSED).",
+   "i": 14,
+   "path": "design/gdd/command-simulation-layer.md",
+   "check": "old_absent",
+   "source": "foundation-adrs run 2 (2026-10-28)"
+  },
+  {
+   "adr": "ADR-0004",
+   "file": "design/gdd/life-support-graph.md (LS-20)",
+   "old": "[UNV that the kernel's key type is Variant; if it is String, the family strings are the encoding and nothing else changes]",
+   "new": "The kernel's key type is a 64-bit int (ADR-0004); composite family ids such as L/<loop>/<anchor> are packed by the Graph into the 32-bit id.",
+   "i": 15,
+   "path": "design/gdd/life-support-graph.md",
+   "check": "OLD_PRESENT",
+   "source": "foundation-adrs run 2 (2026-10-28)"
+  },
+  {
+   "adr": "ADR-0004",
+   "file": "design/gdd/web-map-and-transit.md (WM-31 consumers column)",
+   "old": "Audio, Attention, Horror (event consumers)",
+   "new": "Attention and Horror read web.state's view in their hooks (a block or hook owner never subscribes, CR-10); events reach presentation subscribers and are not a sim input. Save/Load polls monotonic counters pod_arrived_seq and berthed_seq in the web.state read view (ADR-0006 1.12; requirement on the Web Map ADR).",
+   "i": 16,
+   "path": "design/gdd/web-map-and-transit.md",
+   "check": "old_absent",
+   "source": "foundation-adrs run 2 (2026-10-28)"
+  },
+  {
+   "adr": "ADR-0004",
+   "file": "docs/architecture/tr-baseline.md (TR-webmap-023)",
+   "old": "TR-webmap-023 tagged to ADR-0004 as a whole",
+   "new": "Re-tag the Save/Load half (autosave on POD_ARRIVED and BERTHED) to ADR-0006; ADR-0004 keeps only the events-in-batch half.",
+   "i": 17,
+   "path": "docs/architecture/tr-baseline.md",
+   "check": "old_absent",
+   "source": "foundation-adrs run 2 (2026-10-28)"
+  },
+  {
+   "adr": "ADR-0004",
+   "file": "docs/architecture/adr-0003-state-block-registry-and-owner-contract.md (Proposed; amend in the joint pass, TD-07)",
+   "old": "WriteScope: open_for, mark_dirty, fault; BlockRegistrar: register_block/command/hook/fault_domain/diagnostics_channel; closed violation set without SUBSCRIBE_REFUSED",
+   "new": "WriteScope gains emit_event and has_opened; BlockRegistrar gains register_key_space; violation set gains SUBSCRIBE_REFUSED, DIRTY_KEY_INVALID, DIRTY_KEY_KIND_UNDECLARED, EVENT_OVERFLOW, MISSED_DIRTY_MARK; UNKNOWN_DEPENDENCY also covers an unknown subscription block; touch_serial joins the H1 registries group; the 'hash each block before and after a tick' sentence points to ADR-0004 section 7; line-162 comment 'key layout: ADR-0004 3'; PresentationViews two faces by perception_access; NotifyContext placed in src/kernel/facets/.",
+   "i": 18,
+   "path": "docs/architecture/adr-0003-state-block-registry-and-owner-contract.md",
+   "check": "old_absent",
+   "source": "foundation-adrs run 2 (2026-10-28)"
+  },
+  {
+   "adr": "ADR-0004",
+   "file": "docs/architecture/adr-0001-kernel-tick-driver-and-frame-order.md (Proposed; amend in the joint pass, TD-04)",
+   "old": "frame(): boundary service, tick loop, forgiveness, result flush, paused service",
+   "new": "frame() becomes a two-statement wrapper: _frame_body(...) (may return early) then an unconditional _kernel.deliver_frame_end(); one return in frame(); test KRN-FRAME-END; Key Interfaces: composition root issues NotifyFacet binding the subscriber class at issue; PresentationClock gains state and load_seq; ProcessPriority HOST_SERVICE = -40.",
+   "i": 19,
+   "path": "docs/architecture/adr-0001-kernel-tick-driver-and-frame-order.md",
+   "check": "old_absent",
+   "source": "foundation-adrs run 2 (2026-10-28)"
+  },
+  {
+   "adr": "ADR-0009",
+   "file": "docs/architecture/architecture.md",
+   "old": "func _on_kernel_changes(batch: ChangeBatch) -> void:   # marks dirty only; no draw, no read of other blocks",
+   "new": "func _on_changes(batch: ChangeBatch, ctx: NotifyContext) -> CompletionToken:   # _dirty.absorb(batch) (ADR-0004 DirtyAccumulator); marks dirty only; ends in return ctx.complete() (ADR-0003 callable contract, ADR-0009 § 2)",
+   "i": 20,
+   "path": "docs/architecture/architecture.md",
+   "check": "OLD_PRESENT",
+   "source": "foundation-adrs run 2 (2026-10-28)"
+  },
+  {
+   "adr": "ADR-0009",
+   "file": "docs/architecture/architecture.md",
+   "old": "_redraw(Kernel.tick_alpha)",
+   "new": "present(frame) called by the PresentationDriver once per frame from PipelineRoot's single _process; early-out only when both dirty and animating are empty; alpha is frame.alpha (ADR-0009 § 2, § 3)",
+   "i": 21,
+   "path": "docs/architecture/architecture.md",
+   "check": "OLD_PRESENT",
+   "source": "foundation-adrs run 2 (2026-10-28)"
+  },
+  {
+   "adr": "ADR-0009",
+   "file": "docs/architecture/architecture.md",
+   "old": "Avatar Presenter → Lighting → Trail → Instruments (perceived()) → HUD (perceived()) → Audio",
+   "new": "PipelineRoot (single PresentationHost) _process: present_time, zoom cooldown, RESCALING re-derive, then driver.frame with stages: Projector (layout, body.projector, occluders), Camera solve, Avatar Presenter, Filter, Instruments (perceived()), HUD (perceived()), Lighting, Trail, Audio, Debug (ADR-0009 § 3; ADR-0008 § 6.1); frame_pre_draw only writes canvas_transform and parallax offsets",
+   "i": 22,
+   "path": "docs/architecture/architecture.md",
+   "check": "OLD_PRESENT",
+   "source": "foundation-adrs run 2 (2026-10-28)"
+  },
+  {
+   "adr": "ADR-0009",
+   "file": "design/gdd/pixel-perfect-render-pipeline-camera.md",
+   "old": "the pipeline root's `frame_pre_draw` handler, C2 `[UNV]`",
+   "new": "the PresentationDriver's present step, run from the single _process of the Pipeline root at PRESENTATION; only the canvas_transform and parallax-offset write is in frame_pre_draw (ADR-0009 § 3, ADR-0008 § 6.2)",
+   "i": 23,
+   "path": "design/gdd/pixel-perfect-render-pipeline-camera.md",
+   "check": "OLD_PRESENT",
+   "source": "foundation-adrs run 2 (2026-10-28)"
+  },
+  {
+   "adr": "ADR-0009",
+   "file": "design/gdd/pixel-perfect-render-pipeline-camera.md",
+   "old": "every presentation node `physics_interpolation_mode = OFF`",
+   "new": "the presentation roots are Node.PHYSICS_INTERPOLATION_MODE_OFF and children inherit; the post-first-process_frame boot walk and the tree-flag test are the checks (ADR-0009 § 5)",
+   "i": 24,
+   "path": "design/gdd/pixel-perfect-render-pipeline-camera.md",
+   "check": "OLD_PRESENT",
+   "source": "foundation-adrs run 2 (2026-10-28)"
+  },
+  {
+   "adr": "ADR-0009",
+   "file": "design/gdd/pixel-perfect-render-pipeline-camera.md",
+   "old": "with `Node.process_priority` ordering it after the actor",
+   "new": "with the camera and the Avatar Presenter both calling Placement.at on the same PresentFrame values, so they cannot disagree regardless of order (ADR-0009 § 3)",
+   "i": 25,
+   "path": "design/gdd/pixel-perfect-render-pipeline-camera.md",
+   "check": "OLD_PRESENT",
+   "source": "foundation-adrs run 2 (2026-10-28)"
+  },
+  {
+   "adr": "ADR-0009",
+   "file": "design/gdd/command-simulation-layer.md",
+   "old": "Read `SIM` and `PERCEPTION_OUT` views; write only CanvasItem / Material / Light2D / particle / audio nodes",
+   "new": "Read `SIM` views; read PERCEPTION_OUT only through a facet issued with perception_access (the Filter's and DIAGNOSTIC facets; subscribe refused by ADR-0004 check 6, read gated by ADR-0003 § 7); write only CanvasItem / Material / Light2D / particle / audio nodes (ADR-0009 § 1)",
+   "i": 26,
+   "path": "design/gdd/command-simulation-layer.md",
+   "check": "OLD_PRESENT",
+   "source": "foundation-adrs run 2 (2026-10-28)"
+  },
+  {
+   "adr": "ADR-0009",
+   "file": "design/gdd/hud-and-suit-layer.md",
+   "old": "presenter order (camera solver, Avatar Presenter, Filter, HUD, Lighting) with an explicit driver (ADR candidate F)",
+   "new": "closed by ADR-0009 § 3: PresentationDriver stage order PROJECT, CAMERA_SOLVE, AVATAR, FILTER, INSTRUMENTS, HUD, LIGHTING, TRAIL, AUDIO, DEBUG, hosted by PipelineRoot; AC-HS-89 becomes the driver order test (TD-22: this order stands; HUD GDD owner confirms the order half)",
+   "i": 27,
+   "path": "design/gdd/hud-and-suit-layer.md",
+   "check": "OLD_PRESENT",
+   "source": "foundation-adrs run 2 (2026-10-28)"
+  },
+  {
+   "adr": "ADR-0009",
+   "file": "design/gdd/2d-lighting-and-occlusion.md",
+   "old": "all drawing happens in the render callback",
+   "new": "all drawing happens in the LIGHTING stage's present step of the PresentationDriver (ADR-0009 § 3)",
+   "i": 28,
+   "path": "design/gdd/2d-lighting-and-occlusion.md",
+   "check": "OLD_PRESENT",
+   "source": "foundation-adrs run 2 (2026-10-28)"
+  },
+  {
+   "adr": "ADR-0009",
+   "file": "design/gdd/perception-filter.md",
+   "old": "In the render callback the Filter runs **after** the Avatar Presenter",
+   "new": "In the PresentationDriver the FILTER stage runs after the AVATAR stage (ADR-0009 § 3)",
+   "i": 29,
+   "path": "design/gdd/perception-filter.md",
+   "check": "OLD_PRESENT",
+   "source": "foundation-adrs run 2 (2026-10-28)"
+  },
+  {
+   "adr": "ADR-0009",
+   "file": "design/gdd/perception-filter.md",
+   "old": "PF-37 pure integer hash with explicit 32-bit masking and no dependence on GDScript integer overflow",
+   "new": "PF-37 no-overflow wording waived for presentation hashes, which use Ihash or Ihash.h32 (ADR-0005 § 2.6) with a fixed non-zero per-system seed; PF D.14 keeps its masked hash until ADR-0024 migrates it (ADR-0009 § 1, TD-29)",
+   "i": 30,
+   "path": "design/gdd/perception-filter.md",
+   "check": "old_absent",
+   "source": "foundation-adrs run 2 (2026-10-28)"
+  },
+  {
+   "adr": "ADR-0009",
+   "file": "design/gdd/modular-ship-assembly.md",
+   "old": "The PROJECTOR / Emitter rebuild / Lighting / Trail rebuilds run as P5 subscribers after commit (TR-assembly-030 text; the GDD line MSA-39 must be read before editing)",
+   "new": "The PROJECTOR / Lighting / Trail rebuilds are dirty-marked at P5 and performed in the driver's stages; the Emitter's re-derivation is the simulation hook emitter.place, not a subscriber (ADR-0009 § 2)",
+   "i": 31,
+   "path": "design/gdd/modular-ship-assembly.md",
+   "check": "old_absent",
+   "source": "foundation-adrs run 2 (2026-10-28)"
+  },
+  {
+   "adr": "ADR-0009",
+   "file": "design/gdd/ship-body-and-interior-physics.md",
+   "old": "the loaded body's `Camera2D.limit_*` (TR-shipbody-032 text; BDY-33 line must be read before editing)",
+   "new": "the loaded body's camera-limits rectangle, published to the Pipeline solver; body.projector never writes Camera2D.limit_* (ADR-0009 OQ-C, confirm with ADR-0008 and ADR-0034)",
+   "i": 32,
+   "path": "design/gdd/ship-body-and-interior-physics.md",
+   "check": "old_absent",
+   "source": "foundation-adrs run 2 (2026-10-28)"
+  },
+  {
+   "adr": "ADR-0009",
+   "file": "design/gdd/player-controller-input.md",
+   "old": "Presenter frame/position/light logs (TR-pc-039 text; the GDD line AC must be read before editing)",
+   "new": "Presenter per-tick samples of frame/position/light (per-frame placements vary with alpha by design); blocking for the cadence story, owner: Player Controller GDD (ADR-0009 Migration Plan)",
+   "i": 33,
+   "path": "design/gdd/player-controller-input.md",
+   "check": "old_absent",
+   "source": "foundation-adrs run 2 (2026-10-28)"
+  },
+  {
+   "adr": "ADR-0009",
+   "file": "docs/architecture/architecture.md",
+   "old": "## Spikes that gate ADRs (table)",
+   "new": "ADR-0009 is gated only on KRN-LAT-02's order result (host _process after TickDriver) on a desktop release export; the former PRES-SPIKE-1 is story-level evidence: frame_pre_draw ordering -> ADR-0008 pipeline spike steps 11 and 12, speed_scale freezing -> first story that freezes a particle or animation, driver overhead -> Pipeline story perf check on RM-DESKTOP and RM-DECK",
+   "i": 34,
+   "path": "docs/architecture/architecture.md",
+   "check": "old_absent",
+   "source": "foundation-adrs run 2 (2026-10-28)"
+  },
+  {
+   "adr": "ADR-0006",
+   "file": "design/gdd/save-load-and-versioned-format.md (SL-2)",
+   "old": "encoded with `var_to_bytes(dict)` (the form that does not encode objects)",
+   "new": "var_to_bytes DOES encode an Object, as an EncodedObjectAsID (probed 2026-10-28); the defence is the bounded type walk rejecting TYPE_OBJECT plus the write-side VERIFYING decode and walk, not the encoder",
+   "i": 35,
+   "path": "design/gdd/save-load-and-versioned-format.md",
+   "check": "OLD_PRESENT",
+   "source": "foundation-adrs run 2 (2026-10-28)"
+  },
+  {
+   "adr": "ADR-0006",
+   "file": "design/gdd/save-load-and-versioned-format.md (SL-2)",
+   "old": "`snapshot()` uses untyped containers until the spike resolves typed-container encoding [UNV]",
+   "new": "typed Array[T] and Dictionary[K, V] values round-trip through var_to_bytes / bytes_to_var (probed; type preservation is not asserted); snapshots may use typed or untyped containers and the walk checks decoded element types",
+   "i": 36,
+   "path": "design/gdd/save-load-and-versioned-format.md",
+   "check": "OLD_PRESENT",
+   "source": "foundation-adrs run 2 (2026-10-28)"
+  },
+  {
+   "adr": "ADR-0006",
+   "file": "design/gdd/save-load-and-versioned-format.md (SL-2)",
+   "old": "or the owner's own canonical byte form where it publishes one (the Graph's `canonical_bytes()`, LS-21), as raw bytes inside the container",
+   "new": "delete the clause: there is one payload form, a Dictionary; canonical bytes are produced by the kernel (ADR-0005 section 3.1) and never stored; the Graph's snapshot payload is a Dictionary of named packed arrays",
+   "i": 37,
+   "path": "design/gdd/save-load-and-versioned-format.md",
+   "check": "OLD_PRESENT",
+   "source": "foundation-adrs run 2 (2026-10-28)"
+  },
+  {
+   "adr": "ADR-0006",
+   "file": "design/gdd/save-load-and-versioned-format.md (SL-2, SL-15, S-1)",
+   "old": "numeric values below 2^53 (S-1) for every block payload",
+   "new": "payload ints may be native int64 (var_to_bytes is exact, probed with 2^53+1); the strict-below-2^53 rule and the string convention apply to the JSON header and dump-save; a field that may reach 2^53 is declared int64 in the owner schema; two 32-bit halves remain legal",
+   "i": 38,
+   "path": "design/gdd/save-load-and-versioned-format.md",
+   "check": "old_absent",
+   "source": "foundation-adrs run 2 (2026-10-28)"
+  },
+  {
+   "adr": "ADR-0006",
+   "file": "design/gdd/save-load-and-versioned-format.md (SL-1, F-10)",
+   "old": "hex decoding is exact-width ... no general string-to-int parse",
+   "new": "64-bit hex is ADR-0005 Hex64.encode / Hex64.decode (exact 16 lowercase [0-9a-f] checked by a loop, then hex_decode + decode_s64); campaign_id is an opaque 32-char lowercase hex String never converted to an int; String.hex_to_int is banned (saturates, probed)",
+   "i": 39,
+   "path": "design/gdd/save-load-and-versioned-format.md",
+   "check": "old_absent",
+   "source": "foundation-adrs run 2 (2026-10-28)"
+  },
+  {
+   "adr": "ADR-0006",
+   "file": "design/gdd/save-load-and-versioned-format.md (SL-10)",
+   "old": "`campaign.lock`, created with an exclusive open and holding the process id",
+   "new": "FileAccess.open(WRITE) is not exclusive (probed); the lock is a FileAccess handle held as a SaveService member for the campaign lifetime, tested by a rename probe run only when the file exists (missing = not held); pid is diagnostic; the probe/startup race is an accepted exposure; Windows-only best effort, deferrable to Alpha; Linux/Deck unverified",
+   "i": 40,
+   "path": "design/gdd/save-load-and-versioned-format.md",
+   "check": "OLD_PRESENT",
+   "source": "foundation-adrs run 2 (2026-10-28)"
+  },
+  {
+   "adr": "ADR-0006",
+   "file": "design/gdd/save-load-and-versioned-format.md (T-5, SL-1)",
+   "old": "T-5 steps 1 to 23 (no catalogue check)",
+   "new": "add SL_PRECHECK_CATALOGUE_NEWER after step 12 (tick_rate) and before step 13: header catalogue_version above the build's is INCOMPATIBLE, no quarantine; catalogue_hash never gates",
+   "i": 41,
+   "path": "design/gdd/save-load-and-versioned-format.md",
+   "check": "old_absent",
+   "source": "foundation-adrs run 2 (2026-10-28)"
+  },
+  {
+   "adr": "ADR-0006",
+   "file": "design/gdd/save-load-and-versioned-format.md (SL-19, OQ-27)",
+   "old": "the physical reason encoding stays OQ-27",
+   "new": "quarantine reason is in the file name quarantine/g<generation>_<REASON>_<k>.sav; retire_campaign moves the directory to user://saves_retired/<campaign_id>/; OQ-27 closed",
+   "i": 42,
+   "path": "design/gdd/save-load-and-versioned-format.md",
+   "check": "OLD_PRESENT",
+   "source": "foundation-adrs run 2 (2026-10-28)"
+  },
+  {
+   "adr": "ADR-0006",
+   "file": "design/gdd/save-load-and-versioned-format.md (OQ-14 and F-5)",
+   "old": "OQ-14 / SAVE_HITCH_BUDGET_MS open",
+   "new": "annotate: atomic SAVING kept, one over-budget frame per autosave accepted pending SAVE-WRK-1-ACCEPT f (synthetic) and SAVE-WRK-1-SLICE (real blocks); rungs: (1) deferred and off by default, kernel skips snapshot() for a block whose ADR-0005 cache entry is valid by touch serial, needs a TD ruling and an ADR-0005 5.4 amendment, no dirty-key dependency; (2) encode on the worker; (3) split capture only with a kernel amendment",
+   "i": 43,
+   "path": "design/gdd/save-load-and-versioned-format.md",
+   "check": "old_absent",
+   "source": "foundation-adrs run 2 (2026-10-28)"
+  },
+  {
+   "adr": "ADR-0006",
+   "file": "design/gdd/save-load-and-versioned-format.md (SL-10, SL-13)",
+   "old": "`Thread.wait_to_finish` ... a join at the DEAD boundary; Save & Quit wait",
+   "new": "record the probed result: a live thread does not delay process exit (0.68 s with an 8 s sleeping worker; ~Thread WARNING and ObjectDB leak report); Save & Quit is bounded polling under SAVE_QUIT_TIMEOUT_MS, never a join; the window close button, Alt+F4 and OS shutdown take the same path (auto_accept_quit false, SaveHost, request_shutdown is the only quit)",
+   "i": 44,
+   "path": "design/gdd/save-load-and-versioned-format.md",
+   "check": "old_absent",
+   "source": "foundation-adrs run 2 (2026-10-28)"
+  },
+  {
+   "adr": "ADR-0006",
+   "file": "design/gdd/life-support-graph.md (LS-21) and tr-baseline TR-lsg-022",
+   "old": "never uses `var_to_bytes` or a Resource for saves",
+   "new": "never uses Resource for saves and never uses var_to_bytes bytes as hash input; the Graph's snapshot payload is a Dictionary of named packed arrays, storage is var_to_bytes, hash input is ADR-0005's TLV of the same payload (ADR-0005 Migration item 2; no canonical_bytes embedding)",
+   "i": 45,
+   "path": "design/gdd/life-support-graph.md",
+   "check": "old_absent",
+   "source": "foundation-adrs run 2 (2026-10-28)"
+  },
+  {
+   "adr": "ADR-0006",
+   "file": "design/gdd/command-simulation-layer.md (CR-8) and tr-baseline TR-cmd-018",
+   "old": "excluded from the snapshot header and all hashes",
+   "new": "excluded from the kernel snapshot payload and every hash; the container header carries a read-only write-time recovery copy covered only by the file trailer",
+   "i": 46,
+   "path": "design/gdd/command-simulation-layer.md",
+   "check": "old_absent",
+   "source": "foundation-adrs run 2 (2026-10-28)"
+  },
+  {
+   "adr": "ADR-0006",
+   "file": "design/gdd/player-controller-input.md PC-17; ship-section-and-layout-data-model.md LY-26 a; tr-baseline TR-cmd-016, TR-pc-020, TR-section-007",
+   "old": "restore() is a whole-block replace / swaps whole tables from scratch",
+   "new": "restore validates into scratch, then replaces the block's contents in place (copy into the existing block object, never replace the object); root rule ADR-0003 section 2",
+   "i": 47,
+   "path": "design/gdd/player-controller-input.md PC-17; ship-section-and-layout-data-model.md LY-26 a; tr-baseline TR-cmd-016",
+   "check": "nofile",
+   "source": "foundation-adrs run 2 (2026-10-28)"
+  },
+  {
+   "adr": "ADR-0006",
+   "file": "design/gdd/suit-and-equipment.md SE-34 / AC-SE-35 and tr-baseline TR-suit-009",
+   "old": "plain-data `snapshot()` (no Vector2i, StringName keys, typed containers)",
+   "new": "String or int keys only; StringName keys and values are banned from files by the type walk; typed containers are allowed (their values round-trip)",
+   "i": 48,
+   "path": "design/gdd/suit-and-equipment.md SE-34 / AC-SE-35 and tr-baseline TR-suit-009",
+   "check": "nofile",
+   "source": "foundation-adrs run 2 (2026-10-28)"
+  },
+  {
+   "adr": "ADR-0006",
+   "file": "owner GDDs describing restore() returning (ok, reason, detail) (ADR-0003 sync; TR-saveload-033)",
+   "old": "two-phase `restore` returning `(ok, reason, detail)`",
+   "new": "failure is reported through ctx.fault(<OWNER>_RESTORE_*) with the owner's domain code; Save/Load maps the kernel load_failed trigger to the RESTORE_FAILED class",
+   "i": 49,
+   "path": "owner GDDs describing restore() returning",
+   "check": "nofile",
+   "source": "foundation-adrs run 2 (2026-10-28)"
+  },
+  {
+   "adr": "ADR-0006",
+   "file": "design/gdd/ship-section-and-layout-data-model.md TR-section-006; modular-ship-assembly.md TR-assembly-013; ship-body-and-interior-physics.md TR-shipbody-007",
+   "old": "64-bit values as two 32-bit halves or strings, never as JSON numbers",
+   "new": "halves or strings remain legal; native int64 is also accepted in the binary payload (exact); the convention is mandatory only where a value can reach JSON (header, dump-save)",
+   "i": 50,
+   "path": "design/gdd/ship-section-and-layout-data-model.md TR-section-006; modular-ship-assembly.md TR-assembly-013; ship-body-and-interior-physics.md TR-shipbody-007",
+   "check": "nofile",
+   "source": "foundation-adrs run 2 (2026-10-28)"
+  },
+  {
+   "adr": "ADR-0006",
+   "file": "design/gdd/sanity-and-hallucination-rules.md TR-sanity-020",
+   "old": "JSON-parsed integer-valued floats are accepted and re-cast to int",
+   "new": "binary payload ints are exact, so a float where an int is expected is a SHAPE failure; the re-cast clause applies only to dev JSON fixtures",
+   "i": 51,
+   "path": "design/gdd/sanity-and-hallucination-rules.md TR-sanity-020",
+   "check": "nofile",
+   "source": "foundation-adrs run 2 (2026-10-28)"
+  },
+  {
+   "adr": "ADR-0006",
+   "file": "docs/architecture/architecture.md (Spikes that gate ADRs, Save worker row; Data Flow 6 and 7)",
+   "old": "Save worker (DirAccess.rename over an existing file on Windows ... snapshot hitch size)",
+   "new": "split into SAVE-WRK-1-ACCEPT (a, b, c, d, e, h, i on a Windows template_release; g on any Linux build; f with a synthetic 14-block fixture) and SAVE-WRK-1-SLICE (f on real owner blocks, RM-DESKTOP and RM-DECK; gates the Vertical Slice, not Accept); add the probe results; Save & Quit polls rather than joins and the window-close request takes the same path",
+   "i": 52,
+   "path": "docs/architecture/architecture.md",
+   "check": "old_absent",
+   "source": "foundation-adrs run 2 (2026-10-28)"
+  },
+  {
+   "adr": "ADR-0006",
+   "file": "design/gdd/save-load-and-versioned-format.md (SL-18) and tr-baseline/tr-registry TR-saveload-020",
+   "old": "`slot_epoch.bin` (8 bytes: u32 epoch + u32 CRC32), temp, flush, rename over the live name; a leftover `slot_epoch.tmp` is deleted",
+   "new": "the pair slot_epoch_a.bin / slot_epoch_b.bin (12 bytes: u32 epoch, u32 seq, u32 CRC32 of the first 8), reader takes the valid file with the higher seq, writer overwrites the older file in place with flush, close and CRC re-read; no rename, no remove, no .tmp; rebuild from the generation header copy only when both files are invalid",
+   "i": 53,
+   "path": "design/gdd/save-load-and-versioned-format.md",
+   "check": "old_absent",
+   "source": "foundation-adrs run 2 (2026-10-28)"
+  },
+  {
+   "adr": "ADR-0006",
+   "file": "design/gdd/save-load-and-versioned-format.md (SL-1, SL-16, Tuning Knobs)",
+   "old": "per-block hash field (unnamed or cached-hash wording); MAX_DECODE_NODES 250 000; created_unix",
+   "new": "the per-block hash field is named block_state_hash beside enc_len and is the kernel's uncached capture value; header seats list (non-empty, unique, in range, covers every PER_PLAYER key; no peer id; TR-saveload-037); MAX_DECODE_NODES provisional 100 000 until SAVE-WRK-1 f measures the walk (250 000 kept as the ceiling); created_unix is display metadata from the WallClock port, never an ordering, gate or hash input",
+   "i": 54,
+   "path": "design/gdd/save-load-and-versioned-format.md",
+   "check": "old_absent",
+   "source": "foundation-adrs run 2 (2026-10-28)"
+  },
+  {
+   "adr": "ADR-0006",
+   "file": "design/gdd/save-load-and-versioned-format.md (SL-13, SL-17, EVENT_TRIGGERS)",
+   "old": "provisional end-of-tick callback channel for the observation set",
+   "new": "Save/Load polls monotonic counters and read views once per frame in poll_frame (SaveHost at HOST_SERVICE), no subscription and no end-of-tick callback; add conditional web.state members pod_arrived_seq and berthed_seq (required of the Web Map ADR); an event whose owner read is absent never fires; last-seen copies are re-read after a load",
+   "i": 55,
+   "path": "design/gdd/save-load-and-versioned-format.md",
+   "check": "old_absent",
+   "source": "foundation-adrs run 2 (2026-10-28)"
+  },
+  {
+   "adr": "ADR-0006",
+   "file": "design/gdd/save-load-and-versioned-format.md (SL-11, death stub)",
+   "old": "a `restore_pending` latch refuses every capture and pause request",
+   "new": "the restore_pending latch refuses Save/Load's own capture requests and further restore triggers (SL_LOAD_REENTRANT); pause suppression while a seat is DEAD belongs to PauseGate or the Chart Table (ADR-0030), or request_restore is legal from PAUSED (ADR-0003); a test pauses during the epoch wait",
+   "i": 56,
+   "path": "design/gdd/save-load-and-versioned-format.md",
+   "check": "OLD_PRESENT",
+   "source": "foundation-adrs run 2 (2026-10-28)"
+  },
+  {
+   "adr": "ADR-0006",
+   "file": "design/gdd/save-load-and-versioned-format.md (SL-9, SL-10)",
+   "old": "PROFILE file mechanism and campaign.lock built at MVP",
+   "new": "the PROFILE file mechanism (ring of one, .bak, change-detection trigger on uncached block_state_hash) is deferred to the first PROFILE block (not before Alpha) with file_kind and persist_scope reserved; campaign.lock is Windows-only best effort and deferrable to Alpha; settings persistence is out of scope (host-local, ADR-0030)",
+   "i": 57,
+   "path": "design/gdd/save-load-and-versioned-format.md",
+   "check": "old_absent",
+   "source": "foundation-adrs run 2 (2026-10-28)"
+  },
+  {
+   "adr": "ADR-0010",
+   "file": "design/gdd/ship-body-and-interior-physics.md",
+   "old": "the project-setting scope is global or per-script in Godot, **[UNV]** whether a directory scope exists; the CI step filters the warning output by path in either case",
+   "new": "`debug/gdscript/warnings/directory_rules` exists on 4.7.2 with include/exclude decisions and one global severity per warning (probed 2026-10-28); ADR-0010 section 5 promotes every warning to an error for all of `src/` and `tools/`, which subsumes the Body and Layout directories, and the CI gate is that every script loads",
+   "i": 58,
+   "path": "design/gdd/ship-body-and-interior-physics.md",
+   "check": "OLD_PRESENT",
+   "source": "foundation-adrs run 2 (2026-10-28)"
+  },
+  {
+   "adr": "ADR-0010",
+   "file": "design/gdd/ship-body-and-interior-physics.md",
+   "old": "the PROJECTOR script is the only Body script allowed to name `Node2D`, `Camera2D` or `Viewport`",
+   "new": "no script under `src/sim/body/` names `Node2D`, `Camera2D` or `Viewport`; the PROJECTOR lives in `src/presentation/projector/` (ADR-0010 section 1.2)",
+   "i": 59,
+   "path": "design/gdd/ship-body-and-interior-physics.md",
+   "check": "OLD_PRESENT",
+   "source": "foundation-adrs run 2 (2026-10-28)"
+  },
+  {
+   "adr": "ADR-0010",
+   "file": "design/gdd/ship-body-and-interior-physics.md",
+   "old": "the PROJECTOR script is the only Body script naming `Node2D`, `Camera2D` or `Viewport`",
+   "new": "no script under `src/sim/body/` names `Node2D`, `Camera2D` or `Viewport` (the PROJECTOR lives in `src/presentation/projector/`, ADR-0010 section 1.2)",
+   "i": 60,
+   "path": "design/gdd/ship-body-and-interior-physics.md",
+   "check": "OLD_PRESENT",
+   "source": "foundation-adrs run 2 (2026-10-28)"
+  },
+  {
+   "adr": "ADR-0010",
+   "file": "design/gdd/ship-body-and-interior-physics.md",
+   "old": "`Time.`, `OS.get_ticks`, `Engine.get_physics_frames`",
+   "new": "`Time.`, `OS.get_ticks`, `Engine.get_physics_frames` (the one forbidden-token list for clock, frame-counter and RNG calls is ADR-0010 SIM-02, section 4.5; ADR-0001 and ADR-0005 point at it)",
+   "i": 61,
+   "path": "design/gdd/ship-body-and-interior-physics.md",
+   "check": "OLD_PRESENT",
+   "source": "foundation-adrs run 2 (2026-10-28)"
+  },
+  {
+   "adr": "ADR-0010",
+   "file": "design/gdd/ship-body-and-interior-physics.md",
+   "old": "Each is a single named helper in the Body module (`trunc_div`, `floor_div`) so they cannot be confused.",
+   "new": "Each is a single named static helper in `IntMath` (`src/shared/int_math.gd`), shared by Body, Layout and Emitter, so they cannot be confused; the function list and divisor guard are owned by ADR-0005 section 1.4 and 1.7, and ADR-0010 section 5.4 fixes only the path and the single annotated site.",
+   "i": 62,
+   "path": "design/gdd/ship-body-and-interior-physics.md",
+   "check": "OLD_PRESENT",
+   "source": "foundation-adrs run 2 (2026-10-28)"
+  },
+  {
+   "adr": "ADR-0010",
+   "file": "design/gdd/ship-body-and-interior-physics.md",
+   "old": "is the ONE annotated (`@warning_ignore(\"integer_division\")`) `/` site in the Body and Layout directories",
+   "new": "is the ONE annotated (`@warning_ignore(\"integer_division\")`) `/` site in `src/` (ADR-0010 SIM-05, PRJ-04)",
+   "i": 63,
+   "path": "design/gdd/ship-body-and-interior-physics.md",
+   "check": "OLD_PRESENT",
+   "source": "foundation-adrs run 2 (2026-10-28)"
+  },
+  {
+   "adr": "ADR-0010",
+   "file": "design/gdd/ship-body-and-interior-physics.md",
+   "old": "**[UNV: engine semantics, spike S2]**",
+   "new": "(truncation toward zero and signed `%` probed 2026-10-28 on the 4.7.2 editor binary, ADR-0010 P11; the release-export repeat is LINT-SPIKE-1)",
+   "i": 64,
+   "path": "design/gdd/ship-body-and-interior-physics.md",
+   "check": "OLD_PRESENT",
+   "source": "foundation-adrs run 2 (2026-10-28)"
+  },
+  {
+   "adr": "ADR-0010",
+   "file": "design/gdd/ship-body-and-interior-physics.md",
+   "old": "directory-scoped warning levels",
+   "new": "directory-scoped warning levels (settled: `directory_rules`, ADR-0010 section 5)",
+   "i": 65,
+   "path": "design/gdd/ship-body-and-interior-physics.md",
+   "check": "OLD_PRESENT",
+   "source": "foundation-adrs run 2 (2026-10-28)"
+  },
+  {
+   "adr": "ADR-0010",
+   "file": "design/gdd/sanity-and-hallucination-rules.md",
+   "old": "GIVEN `src/sanity/`",
+   "new": "GIVEN `src/sim/sanity/` (occurs in AC-SN-30, AC-SN-82 and AC-SN-130; ADR-0010 section 1.1, IC-10)",
+   "i": 66,
+   "path": "design/gdd/sanity-and-hallucination-rules.md",
+   "check": "OLD_PRESENT",
+   "source": "foundation-adrs run 2 (2026-10-28)"
+  },
+  {
+   "adr": "ADR-0010",
+   "file": "design/gdd/emitter-state-and-light-exposure-query.md",
+   "old": "compiled in only under the `EM_WORK_COUNTER` test flag",
+   "new": "injected through a `WorkCounter` port (a counting double in `tests/support/`; `NullWorkCounter` in every shipped and benchmarked build; GDScript has no conditional compilation, ADR-0010 section 4.4)",
+   "i": 67,
+   "path": "design/gdd/emitter-state-and-light-exposure-query.md",
+   "check": "OLD_PRESENT",
+   "source": "foundation-adrs run 2 (2026-10-28)"
+  },
+  {
+   "adr": "ADR-0010",
+   "file": "design/gdd/emitter-state-and-light-exposure-query.md",
+   "old": "compiled in only under the test flag `EM_WORK_COUNTER`",
+   "new": "injected through a `WorkCounter` port, with `NullWorkCounter` in every shipped and benchmarked build (ADR-0010 section 4.4)",
+   "i": 68,
+   "path": "design/gdd/emitter-state-and-light-exposure-query.md",
+   "check": "OLD_PRESENT",
+   "source": "foundation-adrs run 2 (2026-10-28)"
+  },
+  {
+   "adr": "ADR-0010",
+   "file": "design/gdd/emitter-state-and-light-exposure-query.md",
+   "old": "the benchmark runs on a build without the `EM_WORK_COUNTER` flag",
+   "new": "the benchmark runs with `NullWorkCounter` injected",
+   "i": 69,
+   "path": "design/gdd/emitter-state-and-light-exposure-query.md",
+   "check": "OLD_PRESENT",
+   "source": "foundation-adrs run 2 (2026-10-28)"
+  },
+  {
+   "adr": "ADR-0010",
+   "file": "design/gdd/emitter-state-and-light-exposure-query.md",
+   "old": "outside the two named helpers `floor_div` (non-negative operands, checked) and `posmod_i`",
+   "new": "outside the two named helpers `IntMath.floor_div` (non-negative operands, checked) and `IntMath.posmod_i` (`src/shared/int_math.gd`; ADR-0005 owns the list, ADR-0010 section 5.4 the path and the single site)",
+   "i": 70,
+   "path": "design/gdd/emitter-state-and-light-exposure-query.md",
+   "check": "OLD_PRESENT",
+   "source": "foundation-adrs run 2 (2026-10-28)"
+  },
+  {
+   "adr": "ADR-0010",
+   "file": "design/gdd/ship-section-and-layout-data-model.md",
+   "old": "builds engine-side derived objects from `layout.state` and the templates;",
+   "new": "builds engine-side derived objects from `layout.state` and the templates (its scripts live in `src/presentation/projector/`, never in `src/sim/layout/`; ADR-0010 section 1.2);",
+   "i": 71,
+   "path": "design/gdd/ship-section-and-layout-data-model.md",
+   "check": "OLD_PRESENT",
+   "source": "foundation-adrs run 2 (2026-10-28)"
+  },
+  {
+   "adr": "ADR-0010",
+   "file": "design/gdd/command-simulation-layer.md",
+   "old": "no block or kernel source references `Node`, `SceneTree`, `get_tree` or `Engine.get_main_loop`",
+   "new": "no block or kernel source references `Node`, `SceneTree`, `get_tree` or `Engine.get_main_loop` (rule `SIM-01`, ADR-0010 section 4.1; `KernelHost` is `src/game/kernel_host.gd`, outside the kernel directory)",
+   "i": 72,
+   "path": "design/gdd/command-simulation-layer.md",
+   "check": "OLD_PRESENT",
+   "source": "foundation-adrs run 2 (2026-10-28)"
+  },
+  {
+   "adr": "ADR-0010",
+   "file": "docs/architecture/architecture.md",
+   "old": "ADR-0010 fixes the tree; Sanity GDD path fix.",
+   "new": "Resolved by ADR-0010 section 1 (Proposed): `src/sim/sanity/`; Sanity GDD path fix in AC-SN-30, AC-SN-82, AC-SN-130.",
+   "i": 73,
+   "path": "docs/architecture/architecture.md",
+   "check": "OLD_PRESENT",
+   "source": "foundation-adrs run 2 (2026-10-28)"
+  },
+  {
+   "adr": "ADR-0010",
+   "file": "docs/architecture/architecture.md",
+   "old": "ADR-0010 records the GDExtension escape hatch policy",
+   "new": "ADR-0010 section 9 records the GDExtension escape hatch policy (Proposed)",
+   "i": 74,
+   "path": "docs/architecture/architecture.md",
+   "check": "OLD_PRESENT",
+   "source": "foundation-adrs run 2 (2026-10-28)"
+  },
+  {
+   "adr": "ADR-0010",
+   "file": "docs/architecture/architecture.md",
+   "old": "ADR-0010, then GDD AC wording passes",
+   "new": "ADR-0010 section 7 restates the checks as four tiers (Proposed); GDD AC wording passes remain",
+   "i": 75,
+   "path": "docs/architecture/architecture.md",
+   "check": "OLD_PRESENT",
+   "source": "foundation-adrs run 2 (2026-10-28)"
+  },
+  {
+   "adr": "ADR-0010",
+   "file": "docs/architecture/architecture.md",
+   "old": "ADR-0010 picks one mechanism for the seams: an `@abstract` base class (4.5+, HIGH, verify; fallback a plain base class whose methods `push_error`), or duck-typed contracts checked by a boot-time registry lint.",
+   "new": "ADR-0010 (Proposed) picks `@abstract` ports for injected seams (probed on the 4.7.2 editor binary; fallback a plain base class whose methods `push_error`); kernel-invoked owner callables stay registered Callables (ADR-0003); duck-typed checking survives only as `ContractCheck` for recorded stubs.",
+   "i": 76,
+   "path": "docs/architecture/architecture.md",
+   "check": "OLD_PRESENT",
+   "source": "foundation-adrs run 2 (2026-10-28)"
+  },
+  {
+   "adr": "ADR-0010",
+   "file": "docs/architecture/architecture.md",
+   "old": "### Spikes that gate ADRs",
+   "new": "### Spikes that gate ADRs\n\nLINT-SPIKE-1 (ADR-0010 Engine Compatibility (a) to (j): @abstract on a release export, promoted warnings and can_instantiate() on the editor binary, lexical scanner corpus run, IntMath divisor guard, export pack scan) gates ADR-0010 and runs beside KRN-LAT-02.",
+   "i": 77,
+   "path": "docs/architecture/architecture.md",
+   "check": "OLD_PRESENT",
+   "source": "foundation-adrs run 2 (2026-10-28)"
+  },
+  {
+   "adr": "ADR-0010",
+   "file": "docs/architecture/architecture.md",
+   "old": "`PackedByteArray` (HIGH: 4.7 element writes), `HashingContext`, `Marshalls.raw_to_base64`",
+   "new": "`PackedByteArray` (HIGH: 4.7 element writes), `Marshalls.raw_to_base64` (HashingContext is allowed only in src/save, src/data, src/shared/det/hash64.gd and src/kernel/state_hasher.gd; ADR-0010 IO-01)",
+   "i": 78,
+   "path": "docs/architecture/architecture.md",
+   "check": "OLD_PRESENT",
+   "source": "foundation-adrs run 2 (2026-10-28)"
+  },
+  {
+   "adr": "ADR-0010",
+   "file": "tests/README.md",
+   "old": "download the latest",
+   "new": "download v6.2.2 (the ADR-0010 pin)",
+   "i": 79,
+   "path": "tests/README.md",
+   "check": "OLD_PRESENT",
+   "source": "foundation-adrs run 2 (2026-10-28)"
+  },
+  {
+   "adr": "ADR-0005",
+   "file": "design/gdd/command-simulation-layer.md",
+   "old": "sorted bytewise by the **encoded key bytes**",
+   "new": "sorted by key value (int keys ascending as signed integers; String and StringName keys ascending by code point of String(key), which equals UTF-8 byte order; a StringName is converted to String before comparison and never compared directly); mixed key types are ENC_MIXED_KEYS (a String and a StringName key of equal text cannot coexist in a Dictionary, so ENC_DUP_KEY is a defence check only; ADR-0005 section 3.3). KRN-HASH-01's worked dictionary example and the golden canonical-byte vectors are regenerated to match",
+   "i": 80,
+   "path": "design/gdd/command-simulation-layer.md",
+   "check": "OLD_PRESENT",
+   "source": "foundation-adrs run 2 (2026-10-28)"
+  },
+  {
+   "adr": "ADR-0005",
+   "file": "design/gdd/command-simulation-layer.md",
+   "old": "cached per block and invalidated by the block's dirty bit** (any write in P2/P3 clears it; `restore` clears it)",
+   "new": "cached per block and invalidated by the block's touch serial (every granted open_for; restore also advances it; the kernel additionally resets the entry itself on restore, init_world and default_state), not by a dirty key, because quantised blocks write without marking. This is the same edit ADR-0004 returns conditionally on ADR-0005 adopting the serial; apply it once. TR-cmd-040's 'invalidated only by mark_dirty' and KRN-HASH-02 (re-targeted to a write made outside any WriteScope) change with it",
+   "i": 81,
+   "path": "design/gdd/command-simulation-layer.md",
+   "check": "OLD_PRESENT",
+   "source": "foundation-adrs run 2 (2026-10-28)"
+  },
+  {
+   "adr": "ADR-0005",
+   "file": "design/gdd/command-simulation-layer.md",
+   "old": "`state_hash(scope, T) = H64( T ‖ world_seed ‖ ⨁_{b ∈ scope, sorted by block_id} ( len(block_id) ‖ block_id ‖ schema_version ‖ len(canonical_bytes(b)) ‖ block_hash(b) ) )`",
+   "new": "`state_hash(scope, T) = H64( s64(T) ‖ s64(world_seed) ‖ record(b1) ‖ record(b2) ‖ … )` over blocks sorted ascending by code point of block_id, `record(b) = u64(len(block_id)) ‖ utf8(block_id) ‖ u64(schema_version) ‖ u64(len(canonical_bytes(b))) ‖ s64(block_hash(b))`, every u64/s64 being 8 little-endian bytes and block_hash the 8 digest bytes as H64 produced them (ADR-0005 section 4.4; worked golden state_hash 0x81AB3842EF1E8DEF for the two-block fixture); no H64 value is reserved, 0 is a legal hash; hash_algo 2 names this whole definition and section 3's encoder, so any change to either is a new hash_algo",
+   "i": 82,
+   "path": "design/gdd/command-simulation-layer.md",
+   "check": "OLD_PRESENT",
+   "source": "foundation-adrs run 2 (2026-10-28)"
+  },
+  {
+   "adr": "ADR-0005",
+   "file": "design/gdd/life-support-graph.md",
+   "old": "`canonical_bytes()` = the persisted fields in a fixed documented order, each as `[u32 tag][u32 length][field.to_byte_array()]`, raw slot arrays with tombstones — native memcpy, no interpreted loop.",
+   "new": "The Graph publishes no byte writer: its snapshot() payload is a Dictionary of named PackedInt64Array / PackedInt32Array / PackedByteArray fields (tombstones inside the arrays; the def_off/def_utf8 CSR pair) and the kernel's CanonicalEncoder encodes it (PACKED tag 0x09, one to_byte_array() copy per array, no interpreted loop); `canonical_bytes()` and `block_hash()` forward to the kernel's canonical_encode and block_hash reads; field order is the sorted payload-key order, so renaming a key needs a schema_version bump (ADR-0005 section 3.1). TR-lsg-021 is reworded to match",
+   "i": 83,
+   "path": "design/gdd/life-support-graph.md",
+   "check": "OLD_PRESENT",
+   "source": "foundation-adrs run 2 (2026-10-28)"
+  },
+  {
+   "adr": "ADR-0005",
+   "file": "design/gdd/attention-system.md",
+   "old": "drawn with `rng_derive(world_seed, \"attention.tell\", counter_eff)`, where `counter_eff = rng_counter + RESTORE_KEY_STRIDE × restore_epoch`",
+   "new": "drawn through the kernel's RngFacet as `draw_epoch(attention.tell, rng_counter)` (= rng_derive_epoch(world_seed, \"attention.tell\", rng_counter)); Attention computes no counter_eff, never reads restore_epoch and registers the stream with epoch_keyed = true (ADR-0005 section 2.4; closes OQ-6)",
+   "i": 84,
+   "path": "design/gdd/attention-system.md",
+   "check": "OLD_PRESENT",
+   "source": "foundation-adrs run 2 (2026-10-28)"
+  },
+  {
+   "adr": "ADR-0005",
+   "file": "design/gdd/attention-system.md",
+   "old": "`jit(k) = (hash32(tell_epoch, k, HASH_SEED) mod (2 × BEAT_JITTER_TICKS + 1)) − BEAT_JITTER_TICKS`",
+   "new": "`jit(k) = (Ihash.h32(HASH_SEED, tell_epoch, k, 0, SALT_BEAT) mod (2 × BEAT_JITTER_TICKS + 1)) − BEAT_JITTER_TICKS`, with HASH_SEED a fixed non-zero constant and Ihash the shared pure-integer hash of ADR-0005 section 2.6 (AT-28 and the 'hash is an ADR candidate' tuning-knob note are closed)",
+   "i": 85,
+   "path": "design/gdd/attention-system.md",
+   "check": "OLD_PRESENT",
+   "source": "foundation-adrs run 2 (2026-10-28)"
+  },
+  {
+   "adr": "ADR-0005",
+   "file": "design/gdd/horror-entities.md",
+   "old": "`he_hash(k1, k2, k3, salt) = lsr(mix64( mix64(k1 ⊕ HE_HASH_SEED) ⊕ mix64(k2 ⊕ salt) ⊕ (k3 × GOLDEN) ), 1)`",
+   "new": "`he_hash(k1, k2, k3, salt) = Ihash.h(HE_HASH_SEED, k1, k2, k3, salt)`, the shared pure-integer hash defined by ADR-0005 section 2.6 with the same formula, the same non-negative 63-bit result and HE_HASH_SEED 0x4845; AC-HE-139 golden vectors: Ihash.h(0x4845, 1, 0, 0, 1) = 0x2B1792AE18418A3E, (0x4845, 17, 3, 5, 2) = 0x31500F22473CCE18, (0x4845, -1, -1, -1, 5) = 0x0CA990E4614F7103",
+   "i": 86,
+   "path": "design/gdd/horror-entities.md",
+   "check": "OLD_PRESENT",
+   "source": "foundation-adrs run 2 (2026-10-28)"
+  },
+  {
+   "adr": "ADR-0005",
+   "file": "design/gdd/2d-lighting-and-occlusion.md",
+   "old": "**pure integer hash of (emitter id, epoch index)**",
+   "new": "**pure integer hash of (emitter id, epoch index)**, Ihash.h(LIGHT_HASH_SEED, emitter_id, k, 0, SALT_GUTTER) with a fixed non-zero seed (ADR-0005 section 2.6; closes the LO-19 'ADR candidate'; still never a sim rng_derive stream)",
+   "i": 87,
+   "path": "design/gdd/2d-lighting-and-occlusion.md",
+   "check": "OLD_PRESENT",
+   "source": "foundation-adrs run 2 (2026-10-28)"
+  },
+  {
+   "adr": "ADR-0005",
+   "file": "design/gdd/suit-and-equipment.md",
+   "old": "(→ ADR candidate 4; NOT SOURCEABLE)",
+   "new": "(ADR-0005 section 1.4: probed on 4.7.2 that integer division and modulus truncate toward zero; every quotient is a floor through IntMath.floor_div / posmod_i, and IntMath.trunc_div is used, and named, only where truncation toward zero is intended)",
+   "i": 88,
+   "path": "design/gdd/suit-and-equipment.md",
+   "check": "OLD_PRESENT",
+   "source": "foundation-adrs run 2 (2026-10-28)"
+  },
+  {
+   "adr": "ADR-0005",
+   "file": "design/gdd/debug-overlay-true-values.md",
+   "old": "Every state-block owner optionally publishes `block_hash()` and a `schema_version`",
+   "new": "The kernel publishes block_hash(block_id, uncached) for every persist block (ADR-0005 section 5.3) and each owner publishes its schema_version; the Overlay shows n/a for BLOCK_HASH_UNKNOWN and names a HASH_DRIFT block from the kernel read (exact sentence to be located by grep: TR-debug-033 paraphrases it)",
+   "i": 89,
+   "path": "design/gdd/debug-overlay-true-values.md",
+   "check": "old_absent",
+   "source": "foundation-adrs run 2 (2026-10-28)"
+  },
+  {
+   "adr": "ADR-0005",
+   "file": "design/gdd/item-and-module-database.md",
+   "old": "`var_to_bytes(inst.to_array(), false)`",
+   "new": "state which form the 96-byte bound in TR-itemdb-029 applies to: the bound is over var_to_bytes(inst.to_array(), false) (ADR-0002 size check, ADR-0006 storage); the canonical TLV hash input for the same array is 9 bytes per int plus a 9-byte array header and is never var_to_bytes bytes (ADR-0005 section 3.1)",
+   "i": 90,
+   "path": "design/gdd/item-and-module-database.md",
+   "check": "OLD_PRESENT",
+   "source": "foundation-adrs run 2 (2026-10-28)"
+  },
+  {
+   "adr": "ADR-0005",
+   "file": "design/gdd/failure-and-trail-system.md",
+   "old": "`rng_derive(world_seed, \"trail.vis\", (subject_id << 20) | stamp_index)` (D.6), the pure hash the kernel defines (`KERN:470`, D.10)",
+   "new": "`Ihash.h(TRAIL_VIS_SEED, subject_id, stamp_index, world_seed, SALT_TRAIL_VIS)` (D.6), the shared pure-integer hash of ADR-0005 section 2.6, keyed by world_seed and a fixed non-zero per-system seed; presentation never calls rng_derive or DetRng.derive (ADR-0005 TD-28), and the simulation never draws a trail.vis stream",
+   "i": 91,
+   "path": "design/gdd/failure-and-trail-system.md",
+   "check": "OLD_PRESENT",
+   "source": "foundation-adrs run 2 (2026-10-28)"
+  },
+  {
+   "adr": "ADR-0005",
+   "file": "design/gdd/failure-and-trail-system.md",
+   "old": "`h = rng_derive(seed, \"trail.vis\", (subject_id << 20) | stamp_index)` ; `h63 = h & 0x7FFFFFFFFFFFFFFF` ; `variant = h63 mod N_VARIANTS[behaviour][size_idx]` ; `phase_offset = (h63 >> 8) mod N_FRAMES[medium]`",
+   "new": "`h63 = Ihash.h(TRAIL_VIS_SEED, subject_id, stamp_index, seed, SALT_TRAIL_VIS)` (already a non-negative 63-bit int, so the 0x7FFFFFFFFFFFFFFF mask is dropped) ; `variant = IntMath.posmod_i(h63, N_VARIANTS[behaviour][size_idx])` ; `phase_offset = IntMath.posmod_i(h63 >> 8, N_FRAMES[medium])`",
+   "i": 92,
+   "path": "design/gdd/failure-and-trail-system.md",
+   "check": "OLD_PRESENT",
+   "source": "foundation-adrs run 2 (2026-10-28)"
+  },
+  {
+   "adr": "ADR-0005",
+   "file": "design/gdd/failure-and-trail-system.md",
+   "old": "GIVEN `rng_derive` stubbed to 713, `N_VARIANTS` 3, mist `N_FRAMES` 6, THEN variant 2, phase 2, flip 0; and the call is made with (\"trail.vis\", (`subject_id` << 20) | `stamp_index`); a different `world_seed` changes at least one variant",
+   "new": "GIVEN `Ihash.h` stubbed to 713, `N_VARIANTS` 3, mist `N_FRAMES` 6, THEN variant 2, phase 2, flip 0 (stub vectors regenerated from the Ihash form); and the call is made with (`TRAIL_VIS_SEED`, `subject_id`, `stamp_index`, `world_seed`, `SALT_TRAIL_VIS`); a different `world_seed` changes at least one variant; the all-ones and sign-bit stub cases become the Ihash range ends 0x7FFFFFFFFFFFFFFF and 0, since Ihash is non-negative (ADR-0005 section 2.6; TR-ftrail-044)",
+   "i": 93,
+   "path": "design/gdd/failure-and-trail-system.md",
+   "check": "OLD_PRESENT",
+   "source": "foundation-adrs run 2 (2026-10-28)"
+  },
+  {
+   "adr": "ADR-0008",
+   "file": "design/gdd/pixel-perfect-render-pipeline-camera.md",
+   "old": "**B** renders the world viewport at window size with `size_2d_override = logical size` and `size_2d_override_stretch = true` `[BIN]`",
+   "new": "**B** renders the world viewport at the picture size (`logical size x k_z`, never the window, so the override divides it exactly; probed 2026-10-28: a 1366x768 viewport over a 682x384 override gives a stretch of 2.0029, not an integer) with `size_2d_override = logical size` and `size_2d_override_stretch = true` `[BIN]` (ADR-0008 s4)",
+   "i": 94,
+   "path": "design/gdd/pixel-perfect-render-pipeline-camera.md",
+   "check": "OLD_PRESENT",
+   "source": "foundation-adrs run 2 (2026-10-28)"
+  },
+  {
+   "adr": "ADR-0008",
+   "file": "design/gdd/pixel-perfect-render-pipeline-camera.md",
+   "old": "Whichever wins, the acceptance test is `get_final_transform().get_scale()` exactly `(k, k)` for the world and `(H, H)` for the HUD at every window in PR-1's table.",
+   "new": "Whichever wins, the acceptance test is the mode-independent readback chain of ADR-0008 s5.4: world effective scale = root `get_final_transform` scale x `WorldContainer.get_global_transform` scale x `WorldViewport.get_stretch_transform` scale, exactly `(k_z, k_z)`; HUD effective scale = root `get_final_transform` scale x `HudLayer.transform` scale, exactly `(H, H)`, at every window in PR-1's table (a SubViewport's own `get_final_transform` is identity under pass A, so the literal wording measures different things in A and B).",
+   "i": 95,
+   "path": "design/gdd/pixel-perfect-render-pipeline-camera.md",
+   "check": "OLD_PRESENT",
+   "source": "foundation-adrs run 2 (2026-10-28)"
+  },
+  {
+   "adr": "ADR-0008",
+   "file": "design/gdd/pixel-perfect-render-pipeline-camera.md",
+   "old": "(`mode = canvas_items`, `aspect = keep` for the spike, `scale_mode = integer`, 640×360)",
+   "new": "(`mode = disabled` (wiring (i), ADR-0008 s2), `aspect = keep`, `scale_mode = integer` written explicitly because the built-in default is `fractional` (probed 2026-10-28), 640×360)",
+   "i": 96,
+   "path": "design/gdd/pixel-perfect-render-pipeline-camera.md",
+   "check": "OLD_PRESENT",
+   "source": "foundation-adrs run 2 (2026-10-28)"
+  },
+  {
+   "adr": "ADR-0008",
+   "file": "design/gdd/pixel-perfect-render-pipeline-camera.md",
+   "old": "it finds `display/window/stretch/mode = \"canvas_items\"`, `display/window/stretch/aspect = \"keep\"`, `display/window/stretch/scale_mode = \"integer\"`",
+   "new": "it finds `display/window/stretch/mode` effective `\"disabled\"` (the engine default, so absent from the file is correct), `display/window/stretch/aspect = \"keep\"`, `display/window/stretch/scale_mode = \"integer\"` (must be present: the default is `fractional`)",
+   "i": 97,
+   "path": "design/gdd/pixel-perfect-render-pipeline-camera.md",
+   "check": "OLD_PRESENT",
+   "source": "foundation-adrs run 2 (2026-10-28)"
+  },
+  {
+   "adr": "ADR-0008",
+   "file": "design/gdd/pixel-perfect-render-pipeline-camera.md",
+   "old": "it lists `content_scale_mode == CANVAS_ITEMS`, `content_scale_stretch == INTEGER`, `content_scale_size == (640, 360)`",
+   "new": "it lists `content_scale_mode == DISABLED`, `content_scale_factor == 1.0`, `Window.min_size == (1280, 720)`, the ADR-0008 s5.4 world and HUD scale readbacks, `use_hdr_2d == false` (MVP), `fallback_to_opengl3` and `fallback_to_d3d12` false, `thread_model == 1`, the rendering method and driver (live rows NOT ASSESSED under a headless display server, which reports gl_compatibility)",
+   "i": 98,
+   "path": "design/gdd/pixel-perfect-render-pipeline-camera.md",
+   "check": "OLD_PRESENT",
+   "source": "foundation-adrs run 2 (2026-10-28)"
+  },
+  {
+   "adr": "ADR-0008",
+   "file": "design/gdd/pixel-perfect-render-pipeline-camera.md",
+   "old": "the 4.7 **HDR-output flag explicitly off** (the ProjectSettings key name is NOT SOURCEABLE here",
+   "new": "the 4.7 **HDR-output flag explicitly off** (the ProjectSettings key is `display/window/hdr/request_hdr_output`, default false, probed 2026-10-28; the debanding key is `rendering/anti_aliasing/quality/use_debanding`; formerly NOT SOURCEABLE here",
+   "i": 99,
+   "path": "design/gdd/pixel-perfect-render-pipeline-camera.md",
+   "check": "OLD_PRESENT",
+   "source": "foundation-adrs run 2 (2026-10-28)"
+  },
+  {
+   "adr": "ADR-0008",
+   "file": "design/gdd/pixel-perfect-render-pipeline-camera.md",
+   "old": "in the render callback (the pipeline root's `frame_pre_draw` handler, C2 `[UNV]`)",
+   "new": "in the presenter's `present` callable, run by the `PresentationDriver` stage inside the single `PipelineRoot._process` (ADR-0009, ADR-0008 s6.2); `RenderingServer.frame_pre_draw` is reserved for the camera host's two canvas writes (C2, ADR-0008 s6.2), and the camera solve is the CAMERA_SOLVE stage",
+   "i": 100,
+   "path": "design/gdd/pixel-perfect-render-pipeline-camera.md",
+   "check": "OLD_PRESENT",
+   "source": "foundation-adrs run 2 (2026-10-28)"
+  },
+  {
+   "adr": "ADR-0008",
+   "file": "design/gdd/pixel-perfect-render-pipeline-camera.md",
+   "old": "| 3 | **Chart table / menus** | `CanvasLayer` | H (bitmap face), continuous (reading face) |",
+   "new": "| 3 | **Chart table / menus** | two sibling `CanvasLayer`s with distinct indices (ADR-0008 s2.5): pixel face at layer 3 scale H, reading face at layer 4 scale (1,1) with sizes in screen px | H (bitmap face), continuous (reading face) |",
+   "i": 101,
+   "path": "design/gdd/pixel-perfect-render-pipeline-camera.md",
+   "check": "OLD_PRESENT",
+   "source": "foundation-adrs run 2 (2026-10-28)"
+  },
+  {
+   "adr": "ADR-0008",
+   "file": "design/gdd/pixel-perfect-render-pipeline-camera.md",
+   "old": "| D_filter, D_hold | int | 1 (0 at MVP: route PER_ELEMENT, container slot `NOT_USED`), 0–1 | PR-10, PR-3 | Container material pass; hold quad |",
+   "new": "| D_filter, D_hold | int | 1 (0 at MVP: route PER_ELEMENT, container slot `NOT_USED`), 0–1 | PR-10, PR-3 | Container material pass; hold quad. The container composite is its own term `D_composite` = 1 (probed 2026-10-28: counted on the root, one per container; ADR-0008 s7.1); `D_root` cap 63 (62 expected with a null slot), 93 with the chart open, the latter holding only while the HUD is hidden under a full-bleed plate |",
+   "i": 102,
+   "path": "design/gdd/pixel-perfect-render-pipeline-camera.md",
+   "check": "OLD_PRESENT",
+   "source": "foundation-adrs run 2 (2026-10-28)"
+  },
+  {
+   "adr": "ADR-0008",
+   "file": "design/art/art-bible.md",
+   "old": "`rendering/viewport/hdr_2d = true` and `use_debanding = true` (both default `false` `[BIN]` — the glow the emissive media need, and the dark-floor remedy of 8.11 flag 1)",
+   "new": "`SubViewport.use_hdr_2d = false` on the world viewport and the root `rendering/viewport/hdr_2d` false at MVP (probed: an HDR viewport drawn through the container outputs unconverted linear colour; HDR is the gated contingency of ADR-0008 s2.4, decided by lighting spike steps 7 and 8) and `use_debanding = false` unless Pipeline PR-15's two-part test passes",
+   "i": 103,
+   "path": "design/art/art-bible.md",
+   "check": "OLD_PRESENT",
+   "source": "foundation-adrs run 2 (2026-10-28)"
+  },
+  {
+   "adr": "ADR-0008",
+   "file": "design/gdd/2d-lighting-and-occlusion.md",
+   "old": "Godot 4.7.2, Forward+ pinned, D3D12 the Windows default since 4.6 (verified from `docs/engine-reference/godot/`, but the installed binary reports `vulkan` in the art bible's class dump, so the driver is written explicitly and printed at spike step 1)",
+   "new": "Godot 4.7.2, Forward+ provisional and the Windows driver pinned explicitly to Vulkan with an effective-value assertion (ADR-0008 s1; reversible at spike steps 1, 2, 9; the reference says D3D12 is the 4.6 default but the installed 4.7.2 built-in default is `vulkan`, probed 2026-10-28)",
+   "i": 104,
+   "path": "design/gdd/2d-lighting-and-occlusion.md",
+   "check": "OLD_PRESENT",
+   "source": "foundation-adrs run 2 (2026-10-28)"
+  },
+  {
+   "adr": "ADR-0008",
+   "file": "docs/architecture/architecture.md",
+   "old": "│  Godot 4.7.2 (SceneTree, RenderingServer Forward+, AudioServer, Input,        │",
+   "new": "│  Godot 4.7.2 (SceneTree, RenderingServer Forward+ provisional and Vulkan on   │\n│  Windows, ADR-0008; AudioServer, Input,                                       │",
+   "i": 105,
+   "path": "docs/architecture/architecture.md",
+   "check": "OLD_PRESENT",
+   "source": "foundation-adrs run 2 (2026-10-28)"
+  },
+  {
+   "adr": "ADR-0008",
+   "file": "docs/architecture/architecture.md",
+   "old": "1. Engine boot; project.godot guard rails asserted (stretch, filters, snap, hdr_2d, physics_interpolation off)",
+   "new": "1. Engine boot; project.godot guard rails asserted by effective value (stretch disabled, filters, snap, hdr_2d off on the root, physics_interpolation off, renderer and driver), ADR-0008 s5",
+   "i": 106,
+   "path": "docs/architecture/architecture.md",
+   "check": "OLD_PRESENT",
+   "source": "foundation-adrs run 2 (2026-10-28)"
+  },
+  {
+   "adr": "ADR-0008",
+   "file": "docs/engine-reference/godot/modules/rendering.md",
+   "old": "Windows default backend: D3D12 (was Vulkan pre-4.6)",
+   "new": "Windows default backend: D3D12 (was Vulkan pre-4.6) per the 4.6 migration notes; NOTE probed 2026-10-28: the installed 4.7.2 editor reports rendering/rendering_device/driver.windows = vulkan as its built-in default, so pin and assert the driver explicitly (ADR-0008 s1)",
+   "i": 107,
+   "path": "docs/engine-reference/godot/modules/rendering.md",
+   "check": "OLD_PRESENT",
+   "source": "foundation-adrs run 2 (2026-10-28)"
+  },
+  {
+   "adr": "ADR-0008",
+   "file": "design/gdd/pixel-perfect-render-pipeline-camera.md",
+   "old": "`D_root = D_hud + D_filter + D_hold + D_L3`",
+   "new": "`D_root = D_hud + D_composite + D_filter + D_hold + D_L3`",
+   "i": 108,
+   "path": "design/gdd/pixel-perfect-render-pipeline-camera.md",
+   "check": "OLD_PRESENT",
+   "source": "foundation-adrs run 2 (2026-10-28)"
+  },
+  {
+   "adr": "ADR-0008",
+   "file": "design/gdd/pixel-perfect-render-pipeline-camera.md",
+   "old": "`D_root ≈ 21 – 62`",
+   "new": "`D_root ≈ 22 – 63`",
+   "i": 109,
+   "path": "design/gdd/pixel-perfect-render-pipeline-camera.md",
+   "check": "OLD_PRESENT",
+   "source": "foundation-adrs run 2 (2026-10-28)"
+  },
+  {
+   "adr": "ADR-0008",
+   "file": "design/gdd/pixel-perfect-render-pipeline-camera.md",
+   "old": "≈ 35 – 92 while it is open",
+   "new": "≈ 36 – 93 while it is open",
+   "i": 110,
+   "path": "design/gdd/pixel-perfect-render-pipeline-camera.md",
+   "check": "OLD_PRESENT",
+   "source": "foundation-adrs run 2 (2026-10-28)"
+  },
+  {
+   "adr": "ADR-0008",
+   "file": "design/gdd/pixel-perfect-render-pipeline-camera.md",
+   "old": "`D_root ≤ 62` (chart table closed; ≤ 92 while open)",
+   "new": "`D_root ≤ 63` (chart table closed; ≤ 93 while open)",
+   "i": 111,
+   "path": "design/gdd/pixel-perfect-render-pipeline-camera.md",
+   "check": "OLD_PRESENT",
+   "source": "foundation-adrs run 2 (2026-10-28)"
+  },
+  {
+   "adr": "ADR-0008",
+   "file": "design/gdd/pixel-perfect-render-pipeline-camera.md",
+   "old": "layer 4 visible with true values",
+   "new": "layer 5 visible with true values",
+   "i": 112,
+   "path": "design/gdd/pixel-perfect-render-pipeline-camera.md",
+   "check": "OLD_PRESENT",
+   "source": "foundation-adrs run 2 (2026-10-28)"
+  },
+  {
+   "adr": "ADR-0008",
+   "file": "design/gdd/pixel-perfect-render-pipeline-camera.md",
+   "old": "| 4 | **Debug overlay** | `CanvasLayer`, dev builds only |",
+   "new": "| 5 | **Debug overlay** | `CanvasLayer`, dev builds only |",
+   "i": 113,
+   "path": "design/gdd/pixel-perfect-render-pipeline-camera.md",
+   "check": "OLD_PRESENT",
+   "source": "foundation-adrs run 2 (2026-10-28)"
+  },
+  {
+   "adr": "ADR-0008",
+   "file": "design/gdd/pixel-perfect-render-pipeline-camera.md",
+   "old": "converts the cursor to **physical window px** through the inverse of `get_window().get_final_transform()`",
+   "new": "reads the cursor as **physical window px** (root stretch is disabled, so `get_mouse_position()` is already window px and no inverse `get_final_transform` is needed; ADR-0008 s3.3)",
+   "i": 114,
+   "path": "design/gdd/pixel-perfect-render-pipeline-camera.md",
+   "check": "OLD_PRESENT",
+   "source": "foundation-adrs run 2 (2026-10-28)"
+  },
+  {
+   "adr": "ADR-0008",
+   "file": "design/gdd/pixel-perfect-render-pipeline-camera.md",
+   "old": "the mouse event / window position taken through the inverse of `get_window().get_final_transform()`, which is wiring-independent",
+   "new": "the mouse event / window position; with root stretch disabled (ADR-0008 s3.3) it is already physical window px and no inverse final transform is needed",
+   "i": 115,
+   "path": "design/gdd/pixel-perfect-render-pipeline-camera.md",
+   "check": "OLD_PRESENT",
+   "source": "foundation-adrs run 2 (2026-10-28)"
+  },
+  {
+   "adr": "ADR-0008",
+   "file": "docs/architecture/architecture.md",
+   "old": "└─ priority 2  Presentation subscribers (render callback)",
+   "new": "└─ PRESENTATION (0)  PipelineRoot._process = the single PresentationHost (ADR-0008 s6.2, ADR-0009 s3): present_time, zoom cooldown, RESCALING, then driver.frame stages",
+   "i": 116,
+   "path": "docs/architecture/architecture.md",
+   "check": "OLD_PRESENT",
+   "source": "foundation-adrs run 2 (2026-10-28)"
+  },
+  {
+   "adr": "ADR-0008",
+   "file": "docs/architecture/architecture.md",
+   "old": "Avatar Presenter → Lighting → Trail → Instruments (perceived()) → HUD (perceived()) → Audio",
+   "new": "stages in ADR-0009 order: CAMERA_SOLVE, Avatar, Filter, Instruments (perceived()), HUD (perceived(), world_to_hud with this frame's pose), Lighting, ..., Audio",
+   "i": 117,
+   "path": "docs/architecture/architecture.md",
+   "check": "OLD_PRESENT",
+   "source": "foundation-adrs run 2 (2026-10-28)"
+  },
+  {
+   "adr": "ADR-0008",
+   "file": "docs/architecture/architecture.md",
+   "old": "Pipeline root: CameraSolver → canvas_transform in frame_pre_draw",
+   "new": "CAMERA_SOLVE (stage 1) solves in _process; frame_pre_draw (after all _process, probed) only writes canvas_transform and the parallax offsets",
+   "i": 118,
+   "path": "docs/architecture/architecture.md",
+   "check": "OLD_PRESENT",
+   "source": "foundation-adrs run 2 (2026-10-28)"
+  },
+  {
+   "adr": "ADR-0008",
+   "file": "docs/engine-reference/godot/breaking-changes.md",
+   "old": "| Rendering | D3D12 default on Windows | Was Vulkan. For better driver compatibility. |",
+   "new": "| Rendering | D3D12 default on Windows | Was Vulkan. For better driver compatibility. NOTE probed 2026-10-28: a 4.7.2 project with no driver key reports vulkan and the ProjectSettings default of driver.windows is vulkan; the D3D12 default is probably a new-project-template value (UNVERIFIED, ADR-0008 OQ-C). |",
+   "i": 119,
+   "path": "docs/engine-reference/godot/breaking-changes.md",
+   "check": "OLD_PRESENT",
+   "source": "foundation-adrs run 2 (2026-10-28)"
+  },
+  {
+   "adr": "ADR-0008",
+   "file": "docs/architecture/tr-baseline.md",
+   "old": "in the pipeline root's frame_pre_draw handler (fallback _process lowest priority)",
+   "new": "in a frame_pre_draw handler from the solved pose_q (the solve runs in the CAMERA_SOLVE stage, ADR-0009; fallback: the write moves to the end of PipelineRoot._process)",
+   "i": 120,
+   "path": "docs/architecture/tr-baseline.md",
+   "check": "OLD_PRESENT",
+   "source": "foundation-adrs run 2 (2026-10-28)"
+  },
+  {
+   "adr": "ADR-0008",
+   "file": "docs/architecture/tr-baseline.md",
+   "old": "cursor is converted to physical window px via inverse get_final_transform",
+   "new": "cursor is physical window px (root stretch is disabled, so no inverse get_final_transform is needed)",
+   "i": 121,
+   "path": "docs/architecture/tr-baseline.md",
+   "check": "OLD_PRESENT",
+   "source": "foundation-adrs run 2 (2026-10-28)"
+  },
+  {
+   "adr": "ADR-0008",
+   "file": "docs/architecture/tr-baseline.md",
+   "old": "owners of moving read views set previous := current in post_restore.",
+   "new": "the kernel calls snap_baseline on every interpolated block on each transition into RUNNING (ADR-0001 4, ADR-0003) and the camera CUTs on DISCONTINUITY_RESTORE (PresentationClock.load_seq).",
+   "i": 122,
+   "path": "docs/architecture/tr-baseline.md",
+   "check": "OLD_PRESENT",
+   "source": "foundation-adrs run 2 (2026-10-28)"
+  },
+  {
+   "adr": "ADR-0008",
+   "file": "docs/architecture/tr-baseline.md",
+   "old": "B: window size with size_2d_override_stretch",
+   "new": "B: picture size (field_px * k_z) with size_2d_override_stretch",
+   "i": 123,
+   "path": "docs/architecture/tr-baseline.md",
+   "check": "OLD_PRESENT",
+   "source": "foundation-adrs run 2 (2026-10-28)"
+  },
+  {
+   "adr": "ADR-0008",
+   "file": "docs/architecture/tr-baseline.md",
+   "old": "HDR output off; a debug-build pipeline-root assertion",
+   "new": "HDR output off, fallback_to_opengl3 and fallback_to_d3d12 false, thread_model 1, the root and world viewports SDR at MVP; a debug-build pipeline-root assertion",
+   "i": 124,
+   "path": "docs/architecture/tr-baseline.md",
+   "check": "OLD_PRESENT",
+   "source": "foundation-adrs run 2 (2026-10-28)"
+  },
+  {
+   "adr": "ADR-0008",
+   "file": "docs/architecture/tr-baseline.md",
+   "old": "D_root <= 62",
+   "new": "D_root <= 63 (93 with the chart open; includes the container composite)",
+   "i": 125,
+   "path": "docs/architecture/tr-baseline.md",
+   "check": "OLD_PRESENT",
+   "source": "foundation-adrs run 2 (2026-10-28)"
+  },
+  {
+   "adr": "ADR-0008",
+   "file": "docs/architecture/tr-baseline.md",
+   "old": "igins are integer base px. | Rendering | PR-5 Sort origin | ADR-0009 |",
+   "new": "igins are integer base px. | Rendering | PR-5 Sort origin | ADR-0034 |",
+   "i": 126,
+   "path": "docs/architecture/tr-baseline.md",
+   "check": "OLD_PRESENT",
+   "source": "foundation-adrs run 2 (2026-10-28)"
+  },
+  {
+   "adr": "ADR-0008",
+   "file": "docs/architecture/tr-baseline.md",
+   "old": "a wall (y_0 + 24). | Rendering | PR-5 Passable footprints | ADR-0009 |",
+   "new": "a wall (y_0 + 24). | Rendering | PR-5 Passable footprints | ADR-0034 |",
+   "i": 127,
+   "path": "docs/architecture/tr-baseline.md",
+   "check": "OLD_PRESENT",
+   "source": "foundation-adrs run 2 (2026-10-28)"
+  },
+  {
+   "adr": "ADR-0008",
+   "file": "docs/architecture/tr-baseline.md",
+   "old": " no flush item face > 72. | Rendering | PR-5 z-band table | ADR-0009 |",
+   "new": " no flush item face > 72. | Rendering | PR-5 z-band table | ADR-0034 |",
+   "i": 128,
+   "path": "docs/architecture/tr-baseline.md",
+   "check": "OLD_PRESENT",
+   "source": "foundation-adrs run 2 (2026-10-28)"
+  },
+  {
+   "adr": "ADR-0008",
+   "file": "docs/architecture/tr-baseline.md",
+   "old": "ield draw caps. | Performance | PR-5 fallback, D.13, D.16 | ADR-0009 |",
+   "new": "ield draw caps. | Performance | PR-5 fallback, D.13, D.16 | ADR-0034 |",
+   "i": 129,
+   "path": "docs/architecture/tr-baseline.md",
+   "check": "OLD_PRESENT",
+   "source": "foundation-adrs run 2 (2026-10-28)"
+  },
+  {
+   "adr": "ADR-0008",
+   "file": "docs/architecture/tr-baseline.md",
+   "old": "ort, never as container offset). | Core | PR-6 C7, C8, C9 | ADR-0009 |",
+   "new": "ort, never as container offset). | Core | PR-6 C7, C8, C9 | ADR-0034 |",
+   "i": 130,
+   "path": "docs/architecture/tr-baseline.md",
+   "check": "OLD_PRESENT",
+   "source": "foundation-adrs run 2 (2026-10-28)"
+  },
+  {
+   "adr": "ADR-0008",
+   "file": "docs/architecture/tr-baseline.md",
+   "old": "ty (kernel CR-7), no shared camera. | Rendering | PR-6 C2 | ADR-0009 |",
+   "new": "ty (kernel CR-7), no shared camera. | Rendering | PR-6 C2 | ADR-0034 |",
+   "i": 131,
+   "path": "docs/architecture/tr-baseline.md",
+   "check": "OLD_PRESENT",
+   "source": "foundation-adrs run 2 (2026-10-28)"
+  }
+ ],
+ "contradictions": [
+  {
+   "tr": "TR-cmd-018",
+   "adr": "ADR-0006",
+   "gdd": "design/gdd/command-simulation-layer.md",
+   "conflict": "req single slot_epoch.bin, epoch excluded from snapshot header; ADR uses slot_epoch_a/b.bin with seq and a recovery copy in container header",
+   "stale_text_only": false,
+   "status": "done 2026-10-29 (GDD synced to ADR, registry reworded)"
+  },
+  {
+   "tr": "TR-cmd-040",
+   "adr": "ADR-0005",
+   "gdd": "design/gdd/command-simulation-layer.md",
+   "conflict": "TR says invalidation only by mark_dirty; ADR invalidates by ADR-0004 touch serial (TR wording to be synced)",
+   "stale_text_only": false,
+   "status": "done 2026-10-29 (GDD synced to ADR, registry reworded)"
+  },
+  {
+   "tr": "TR-lsg-021",
+   "adr": "ADR-0005",
+   "gdd": "design/gdd/life-support-graph.md",
+   "conflict": "TR says owner-written canonical_bytes() [u32 tag][u32 len]; ADR withdraws owner layout, kernel encodes",
+   "stale_text_only": false,
+   "status": "done 2026-10-29 (GDD synced to ADR, registry reworded)"
+  },
+  {
+   "tr": "TR-lsg-022",
+   "adr": "ADR-0006",
+   "gdd": "design/gdd/life-support-graph.md",
+   "conflict": "req never var_to_bytes for saves and all values <2^53; ADR stores every payload with var_to_bytes and allows native int64",
+   "stale_text_only": false,
+   "status": "done 2026-10-29 (GDD synced to ADR, registry reworded)"
+  },
+  {
+   "tr": "TR-lsg-023",
+   "adr": "ADR-0006",
+   "gdd": "design/gdd/life-support-graph.md",
+   "conflict": "req named reasons returned; ADR reports failure via ctx.fault, not return value",
+   "stale_text_only": false,
+   "status": "done 2026-10-29 (GDD synced to ADR, registry reworded)"
+  },
+  {
+   "tr": "TR-lsg-030",
+   "adr": "ADR-0007",
+   "gdd": "design/gdd/life-support-graph.md",
+   "conflict": "STALE-TEXT requirement says Item DB loads first; ADR §1.7 loads Graph type tables (stage 1) before Item DB, graph.state block registers last",
+   "stale_text_only": true,
+   "status": "done (registry revised 2026-10-28)"
+  },
+  {
+   "tr": "TR-itemdb-001",
+   "adr": "ADR-0007",
+   "gdd": "design/gdd/item-and-module-database.md",
+   "conflict": "STALE-TEXT \"loaded once in BOOTING\"; ADR §1.7 loads at start-up before kernel BOOTING",
+   "stale_text_only": true,
+   "status": "done (registry revised 2026-10-28)"
+  },
+  {
+   "tr": "TR-pxl-002",
+   "adr": "ADR-0008",
+   "gdd": "design/gdd/pixel-perfect-render-pipeline-camera.md",
+   "conflict": "TR puts menus layer 3, debug layer 4; ADR uses menus 3 and 4, debug 5 (documented sync item)",
+   "stale_text_only": false,
+   "status": "done 2026-10-29 (GDD synced to ADR, registry reworded)"
+  },
+  {
+   "tr": "TR-pxl-014",
+   "adr": "ADR-0008",
+   "gdd": "design/gdd/pixel-perfect-render-pipeline-camera.md",
+   "conflict": "TR says convert cursor via inverse get_final_transform; ADR says stretch disabled so none needed",
+   "stale_text_only": false,
+   "status": "done 2026-10-29 (GDD synced to ADR, registry reworded)"
+  },
+  {
+   "tr": "TR-pxl-015",
+   "adr": "ADR-0008",
+   "gdd": "design/gdd/pixel-perfect-render-pipeline-camera.md",
+   "conflict": "TR says owners set previous:=current in post_restore; ADR replaces with kernel snap_baseline (documented)",
+   "stale_text_only": false,
+   "status": "done 2026-10-29 (GDD synced to ADR, registry reworded)"
+  },
+  {
+   "tr": "TR-pxl-025",
+   "adr": "ADR-0008",
+   "gdd": "design/gdd/pixel-perfect-render-pipeline-camera.md",
+   "conflict": "TR wants B at window size and get_final_transform scale; ADR sizes B to picture and uses readback chain",
+   "stale_text_only": false,
+   "status": "done 2026-10-29 (GDD synced to ADR, registry reworded)"
+  },
+  {
+   "tr": "TR-pxl-030",
+   "adr": "ADR-0008",
+   "gdd": "design/gdd/pixel-perfect-render-pipeline-camera.md",
+   "conflict": "TR says D_root <= 62; ADR caps 63 (62 expected at MVP, documented)",
+   "stale_text_only": false,
+   "status": "done 2026-10-29 (GDD synced to ADR, registry reworded)"
+  },
+  {
+   "tr": "TR-emitter-032",
+   "adr": "ADR-0010",
+   "gdd": "design/gdd/emitter-state-and-light-exposure-query.md",
+   "conflict": "req says counter compiled in only under EM_WORK_COUNTER flag; ADR uses injection with NullWorkCounter in shipped builds, not conditional compilation",
+   "stale_text_only": false,
+   "status": "done 2026-10-29 (GDD synced to ADR, registry reworded)"
+  },
+  {
+   "tr": "TR-emitter-038",
+   "adr": "ADR-0005",
+   "gdd": "design/gdd/emitter-state-and-light-exposure-query.md",
+   "conflict": "TR says block exposes its own canonical_bytes()/block_hash(); ADR replaces with kernel reads",
+   "stale_text_only": false,
+   "status": "done 2026-10-29 (GDD synced to ADR, registry reworded)"
+  },
+  {
+   "tr": "TR-pc-027",
+   "adr": "ADR-0010",
+   "gdd": "design/gdd/player-controller-input.md",
+   "conflict": "req allow-lists render-time timers in Adapter/Presenter; ADR allow-list is four files and states no render-timer exemption",
+   "stale_text_only": false,
+   "status": "done 2026-10-29 (GDD synced to ADR, registry reworded)"
+  },
+  {
+   "tr": "TR-pc-039",
+   "adr": "ADR-0009",
+   "gdd": "design/gdd/player-controller-input.md",
+   "conflict": "TR says outputs byte-identical across cadences incl. Presenter position logs; ADR says per-frame placements vary with alpha, identity only for per-tick samples",
+   "stale_text_only": false,
+   "status": "done 2026-10-29 (GDD synced to ADR, registry reworded)"
+  },
+  {
+   "tr": "TR-suit-009",
+   "adr": "ADR-0006",
+   "gdd": "design/gdd/suit-and-equipment.md",
+   "conflict": "req restore returning (ok, reason, detail); ADR uses ctx.fault, no return value",
+   "stale_text_only": false,
+   "status": "done 2026-10-29 (GDD synced to ADR, registry reworded)"
+  },
+  {
+   "tr": "TR-section-003",
+   "adr": "ADR-0007",
+   "gdd": "design/gdd/ship-section-and-layout-data-model.md",
+   "conflict": "STALE-TEXT \"loaded in BOOTING\"; ADR §1.7 loads at start-up before kernel BOOTING",
+   "stale_text_only": true,
+   "status": "done (registry revised 2026-10-28)"
+  },
+  {
+   "tr": "TR-section-033",
+   "adr": "ADR-0007",
+   "gdd": "design/gdd/ship-section-and-layout-data-model.md",
+   "conflict": "requirement rejects out-of-range knobs at min/max; ADR §2.5 says Tuning Knob ranges are never boot assertions (only schema bounds and named invariants)",
+   "stale_text_only": false,
+   "status": "done 2026-10-29 (GDD synced to ADR, registry reworded)"
+  },
+  {
+   "tr": "TR-section-040",
+   "adr": "ADR-0007",
+   "gdd": "design/gdd/ship-section-and-layout-data-model.md",
+   "conflict": "STALE-TEXT \"BOOTING template loader\"; ADR loads before kernel BOOTING",
+   "stale_text_only": true,
+   "status": "done (registry revised 2026-10-28)"
+  },
+  {
+   "tr": "TR-shipbody-009",
+   "adr": "ADR-0006",
+   "gdd": "design/gdd/ship-body-and-interior-physics.md",
+   "conflict": "req named reason returned; ADR uses ctx.fault",
+   "stale_text_only": false,
+   "status": "done 2026-10-29 (GDD synced to ADR, registry reworded)"
+  },
+  {
+   "tr": "TR-attention-024",
+   "adr": "ADR-0006",
+   "gdd": "design/gdd/attention-system.md",
+   "conflict": "req restore returns (ok, reason, detail); ADR uses ctx.fault",
+   "stale_text_only": false,
+   "status": "done 2026-10-29 (GDD synced to ADR, registry reworded)"
+  },
+  {
+   "tr": "TR-sanity-001",
+   "adr": "ADR-0003",
+   "gdd": "design/gdd/sanity-and-hallucination-rules.md",
+   "conflict": "GDD restore returns (ok, reason, detail); ADR-0003 §1/§3 forbids domain-value returns (all callables -> CompletionToken, report via ctx)",
+   "stale_text_only": false,
+   "status": "done 2026-10-29 (GDD synced to ADR, registry reworded)"
+  },
+  {
+   "tr": "TR-sanity-020",
+   "adr": "ADR-0006",
+   "gdd": "design/gdd/sanity-and-hallucination-rules.md",
+   "conflict": "req values <2^53 and JSON-float recast on restore; ADR allows int64 and restricts recast to dev fixtures",
+   "stale_text_only": false,
+   "status": "done 2026-10-29 (GDD synced to ADR, registry reworded)"
+  },
+  {
+   "tr": "TR-hud-026",
+   "adr": "ADR-0007",
+   "gdd": "design/gdd/hud-and-suit-layer.md",
+   "conflict": "requirement fails out-of-range knobs (PROMPT_MIN_CYCLE_TICKS<20 etc.); ADR §2.5 says published ranges are guidance, not boot assertions",
+   "stale_text_only": false,
+   "status": "done 2026-10-29 (GDD synced to ADR, registry reworded)"
+  },
+  {
+   "tr": "TR-saveload-003",
+   "adr": "ADR-0006",
+   "gdd": "design/gdd/save-load-and-versioned-format.md",
+   "conflict": "req MAX_DECODE_NODES 250000 and owner canonical byte form allowed; ADR provisional 100000 and drops raw-bytes form",
+   "stale_text_only": false,
+   "status": "done 2026-10-29 (GDD synced to ADR, registry reworded)"
+  },
+  {
+   "tr": "TR-saveload-017",
+   "adr": "ADR-0006",
+   "gdd": "design/gdd/save-load-and-versioned-format.md",
+   "conflict": "req numeric values below 2^53; ADR relaxes payload ints to native int64",
+   "stale_text_only": false,
+   "status": "done 2026-10-29 (GDD synced to ADR, registry reworded)"
+  },
+  {
+   "tr": "TR-saveload-020",
+   "adr": "ADR-0006",
+   "gdd": "design/gdd/save-load-and-versioned-format.md",
+   "conflict": "req slot_epoch.bin single file u32+CRC32; ADR uses two alternating files with seq",
+   "stale_text_only": false,
+   "status": "done 2026-10-29 (GDD synced to ADR, registry reworded)"
+  },
+  {
+   "tr": "TR-saveload-033",
+   "adr": "ADR-0003",
+   "gdd": "design/gdd/save-load-and-versioned-format.md",
+   "conflict": "requirement has restore() return (ok, reason, detail); ADR-0003 §3 has restore -> CompletionToken reporting via ctx",
+   "stale_text_only": false,
+   "status": "done 2026-10-29 (GDD synced to ADR, registry reworded)"
+  },
+  {
+   "tr": "TR-saveload-033",
+   "adr": "ADR-0006",
+   "gdd": "design/gdd/save-load-and-versioned-format.md",
+   "conflict": "req owner restore() returns (ok, reason, detail); ADR says failure by ctx.fault, never by return value",
+   "stale_text_only": false,
+   "status": "done 2026-10-29 (GDD synced to ADR, registry reworded)"
+  },
+  {
+   "tr": "TR-debug-033",
+   "adr": "ADR-0005",
+   "gdd": "design/gdd/debug-overlay-true-values.md",
+   "conflict": "TR says each owner optionally publishes block_hash/schema_version; ADR has kernel publish, no owner does",
+   "stale_text_only": false,
+   "status": "done 2026-10-29 (GDD synced to ADR, registry reworded)"
+  },
+  {
+   "tr": "TR-debug-044",
+   "adr": "ADR-0007",
+   "gdd": "design/gdd/debug-overlay-true-values.md",
+   "conflict": "requirement clamps and logs a NOTE on violation; ADR §1.4/§2.5 refuse with CONTENT_FIELD_RANGE / CONTENT_INVARIANT (no clamping)",
+   "stale_text_only": false,
+   "status": "done 2026-10-29 (GDD synced to ADR, registry reworded)"
+  },
+  {
+   "tr": "TR-charttable-036",
+   "adr": "ADR-0008",
+   "gdd": "design/gdd/chart-table-web-map-and-menus.md",
+   "conflict": "TR assumes a canvas_items stretch; ADR-0008 § 5 pins stretch mode disabled (PipelineRoot derives k and H). Reword to the disabled-stretch wiring: POINTER position unit and HUD (0,0) mapping against RenderLayout.picture_rect",
+   "stale_text_only": false,
+   "status": "done 2026-10-29 (GDD synced to ADR, registry reworded)"
+  }
+ ]
+}

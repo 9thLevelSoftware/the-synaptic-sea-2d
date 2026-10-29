@@ -139,3 +139,73 @@ Findings:
 - [RECOMMENDED] F-26 K3 / registry carry_decision: [main review] Boarding's `LIVE_PM_MIN` and Attention's 'F_LIVE 250 permille' are the same number under two names, and nothing ties them together.
 Reviewed-Content-Hash: design/gdd/attention-system.md 4c7fe0c451521028c3b80baab58a5b73e8f9e260
 Reviewed-Content-Hash: design/registry/entities.yaml cafe6d1169a1fe5dd043eae35c2c07a90c93b4c6
+
+
+## Review — 2026-10-29 — Foundation ADR sync (lean confirming)
+Verdict: NEEDS REVISION (1 blocker, 7 advisories)
+Scope: lean confirming of the 2026-10-29 ADR-0005/0006/0007 sync edits only (29 diff hunks). Covered: RNG through RngFacet.draw_epoch (AT-8/28, F-10/F-12, E-68, AC-AT-130/101); Ihash.h32 replacing hash32 for beat jitter and the presenter (AT-9, F-9, AV-4); restore failure via ctx.fault (SL-15 row, E-50, AC-AT-70); the slot_epoch_a/b pair; web.state polling replacing POD_DEPARTED/POD_ARRIVED (AT-16/22, AC-AT-46, OQ-AT-12/29/37); integer-division closure (AC-AT-54a, engine gaps); and the AC-AT-106 range semantics. Design intent preserved: no rule, number or threshold changed.
+Confirmed against the ADRs: Ihash.h32 arity and salt (ADR-0005 s2.6); draw_epoch, epoch_keyed, RNG_COUNTER_RANGE_VIOLATION (s2.3/2.4); slot_epoch_a/b, ctx.fault to load_failed to RESTORE_FAILED, pod_arrived_seq (ADR-0006 3.1/2.2/1.12); CONTENT_INVARIANT and CONTENT_FIELD_RANGE (ADR-0007 s2.5). No leftover slot_epoch.bin, hash32 or Attention-side counter_eff computation.
+Blocker:
+  - AC-AT-106 (L1704) / Formulas note 7 (L1828): the new clause 1 ('one step outside the safe range gives only an ADVISORY diff; boot does not refuse') contradicts the same AC's cliff clause, the Tuning Knobs preamble ('safe range = what the lints allow') and E-10. For lint-edged knobs (TAU_ATT_TICKS, HOLD_PM, L_CEIL_PM, ATT_MARGIN, W_P, TELL_DRAW_LO) one step outside is a CONTENT_INVARIANT boot refusal. Fix: split into invariant-bound knobs (refuse) and guidance-only knobs (advisory); reword note 7 to take negative fixtures from invariant- or schema-bound rows.
+Advisories:
+  - SALT_BEAT is used 5 times and registered, but the GDD has no knob row or value. The AV-4 presenter hash names no salt.
+  - HASH_SEED row says 'any fixed value' but must be non-zero (AC-AT-101).
+  - Header Last Updated has a find-and-replace leftover ('written slot_epoch') and no 2026-10-29 entry.
+  - web.state read vs Ship Body actor_section: say which drives the AT-22 void.
+  - Stale 'not story-ready' / CONFLICT gates (L373, C35, AC-AT-130) are carried a fourth time, now beside text saying ADR-0005 s2.4 states the draw side.
+  - AC-AT-106 is mis-tagged 'ADR-0006 sync' (authority is ADR-0007 s2.5). AC-AT-130's counter assertion should be marked as run against the real RngFacet.
+  - Note that int_in is the ADR-0005 s2.5 float exception to 'integer-only sim' (AT-28, AC-AT-101).
+Next: fix the blocker, then re-run lean confirming; the advisories can ride along.
+
+## Review — 2026-10-29 — Foundation ADR sync (lean confirming, round 2)
+**Verdict:** NEEDS REVISION (one new blocker, introduced by the round-2 fix).
+**Scope:** `design/gdd/attention-system.md`, the 2026-10-29 diff. Close read of AC-AT-106, the Tuning Knobs preamble, Formulas note 7, the AC tag legend, the Safe-ranges-by-row table, AC-AT-03/04/05/52/64 and the knob rows. The ADR-0005/0006 sync hunks were skim-checked for dangling references.
+**Blockers resolved:**
+- AC-AT-106 vs the Tuning Knobs preamble, note 7 and the tag legend. All four now state the two classes: (a) invariant-bound edges refuse boot with CONTENT_INVARIANT, (b) guidance-only edges give an ADVISORY CI diff. The numbers match the knob rows and the Safe-ranges table, and the TELL_DRAW_LO figures (774 ring 3 with glows, 756 clean, 779 advisory, 773 refuses) agree with AC-AT-64 and the knob row.
+**Remaining blockers:**
+1. Class (b) lists U_TOOL as advisory-only, but AC-AT-03 (IR-1) says boot refuses outside 2 to 6 (negative fixture U_TOOL 7). It also lists 'W_P above 300' as advisory-only (also in L1264), but the W_P rows call 0 to 300 the 'hard range'. With 'a test must not assert refusal for class (b)', a correct implementation would fail tests written from it. Fix: move U_TOOL to class (a); settle whether W_P 300 is a schema bound and align L1163, L476, L1264 and class (b).
+**Advisories:**
+- TELL_DRAW_LO is under 'one step outside refuses' but its clause says 779 does not; reword as an exception.
+- State that the ring-3 cliff refusals need the ring-3 test row in the loaded data.
+- Name the knob in the 'F-5's 300' parenthetical.
+- ABORT_HOLD_TICKS: the multiple-of-6 and RELEASE_TICKS (90) relations conflict with the printed lower edge of 60.
+- No stale hash32 or single-file epoch references remain after the ADR-0005/0006 sync.
+
+## Review — 2026-10-29 — Foundation ADR sync (lean confirming, round 3)
+
+**Scope:** the 2026-10-29 diff to `attention-system.md` (36 edited lines) against the ADR-0005, ADR-0006 and ADR-0007 rulings, plus the round-2 result file.
+**Verdict:** NEEDS REVISION (1 blocker, 6 advisories).
+
+**Round-2 blockers for this file:** none. The only round-2 mentions are other files' cites of AC-AT-66 (attention-system.md:1761), which still resolve, since the diff changed no line counts.
+
+**Confirmed consistent:**
+- RNG: `RngFacet.draw_epoch(attention.tell, rng_counter)`, `epoch_keyed`, and no `counter_eff` or `restore_epoch` read in Attention (AT-1, AT-8, AT-28, F-10, E-edge, AC-AT-130).
+- Hash: `Ihash.h32(HASH_SEED, tell_epoch, k, 0, SALT_BEAT)` in AT-9, F-6, the unit table, the knob row and the presentation lint.
+- Restore: failure through `ctx.fault`, with no `(ok, reason, detail)` return.
+- Save/Load: the `slot_epoch_a/b.bin` pair; pod-hop departure read from the `web.state` view, with Save/Load polling `pod_arrived_seq`.
+- Knobs: the W_P bound is consistent, with 300 as the schema bound (`CONTENT_FIELD_RANGE`), 117 as the F-15 cliff and 301 refusing. The AC-AT-106 class (a) and (b) split matches the Tuning Knobs preamble and the AC-fixture rule.
+
+**Blocker:** `U_BURDEN` 6 and 11 are still stated to 'refuse boot' (IR-4 Lints paragraph, AC-AT-132 negative fixtures). No named invariant or schema bound binds that range, so under ADR-0007 s2.5 and AC-AT-106 class (b) it is an advisory CI diff, not a refusal. The two ACs contradict each other. Fix: demote to advisory, or name the invariant and list it in class (a).
+
+**Advisories:**
+- The C35 row and AC-AT-130 still carry the stale 'CONFLICT / not story-ready until both GDDs carry it' gate.
+- The AC-AT-130 fixture must run against the facet, and the `RESTORE_KEY_STRIDE` lint is ambiguous between the content lint and the restore check.
+- Stale 'No ADR exists yet' and 'hash is an ADR candidate' text (lines 1125 and 1437); the line 1125 integer-division note is mis-tagged 'ADR-0006 sync'.
+- `REACT_ALLOW_TICKS` 205 is not named in class (a).
+- The header Last Updated date is not bumped.
+- AC-AT-03 to AC-AT-05 do not name `CONTENT_INVARIANT`.
+
+**Registry or ADR changes needed:** none from this file. No edits were made in this review.
+
+## Review — 2026-10-29 — Foundation ADR sync (lean confirming, round 4)
+
+**Scope:** the round-4 edits to `attention-system.md` (marked "sync knock-on fix, round 4": line 978 IR-4 Lints, line 1669 AC-AT-132, line 1720 AC-AT-84) against the round-3 blocker and the rest of the GDD.
+**Verdict:** APPROVED (0 blockers, 4 advisories).
+
+**Round-3 blocker resolved:** line 978 and AC-AT-132 no longer say `U_BURDEN` 6 and 11 refuse boot. Both now give the advisory CI diff only, "no schema bound or named invariant binds the edge, ADR-0007 s2.5", and AC-AT-132 drops them as negative fixtures. `Lc` 240 with `ATT_CARRY_NO_CROSSING` stays the only refusing fixture. This now agrees with the U_BURDEN knob row (1137: 6 gives a thinner live share, 93 permille, no crossing claim), with AC-AT-106 (U_BURDEN is not in class (a)) and with the AC tags rule (1626). No other "U_BURDEN 6 or 11 refuse" text remains.
+
+**Round-4 edits consistent:** the ABORT_RELIEF_PM 599 edit (AC-AT-84) matches the knob row (600 to 1000) and AC-AT-106, and ABORT_RELIEF_PM is not in class (a). AT-10, line 664 and E-edge text do not assert a refusal on it.
+
+**Advisories:** one wording fix in AC-AT-84 ("lowest accepted value"); unnamed relational refusals in AC-AT-126, AC-AT-88 and AC-AT-03 to AC-AT-05; the open ADR-0007 question of whether an invariant may read another table; the round-3 stale-gate advisories are still open.
+Reviewed-Content-Hash: design/gdd/attention-system.md a279a93e71dca603cad2ff889389998571ef14aa
+Reviewed-Content-Hash: design/registry/entities.yaml 4d9d9f7a469ff3c3aeb97b06fa6fa82c1b2dec16

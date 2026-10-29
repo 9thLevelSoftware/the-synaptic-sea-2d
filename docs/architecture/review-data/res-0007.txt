@@ -1,0 +1,104 @@
+TR-lsg-030 | PARTIAL | §1.7, §3.2 | Boot unique-check vs code enums covered; Graph table append-only stability owned by ADR-0011; no ledger for Graph tables | CONFLICT: STALE-TEXT requirement says Item DB loads first; ADR §1.7 loads Graph type tables (stage 1) before Item DB, graph.state block registers last
+TR-lsg-033 | PARTIAL | §2.1, §2.3 | Only GRAPH_BOOT_TYPE_ID named; power cycle, tuning relations, overflow, caps/equilibrium lints left to ADR-0011 | -
+TR-lsg-043 | NOT | - | Redeclaration lint and read-by-name rule not addressed; ADR-0010 lint / ADR-0011 | -
+TR-itemdb-001 | COVERED | §1.5, §1.7 | Catalogs are not state blocks, loaded once before kernel, no setters | CONFLICT: STALE-TEXT "loaded once in BOOTING"; ADR §1.7 loads at start-up before kernel BOOTING
+TR-itemdb-002 | COVERED | §1.5, §1.8 | Injected constructor, scene-tree free, no static/autoload, many catalogs coexist | -
+TR-itemdb-003 | COVERED | §1.5 | Typed RefCounted rows, write-once in _freeze, read-only typed arrays, never Resource | -
+TR-itemdb-004 | COVERED | §1.5 | Pure read-only queries callable anywhere; iteration only over sorted arrays, never Dictionary | -
+TR-itemdb-005 | PARTIAL | §1.4, §1.5 | Sorted-array iteration decided, but ascending type_id order not fixed (rows sort by key); Item DB GDD | -
+TR-itemdb-006 | COVERED | §3.1, §3.2 | def_id persists, type_id memory-only; prefix check via ledger; format via STRING_ID schema | -
+TR-itemdb-007 | COVERED | §3.2 | Ledger boot check raises ITEM_BOOT_TYPE_ID for collision, range, retired, disagreement | -
+TR-itemdb-008 | COVERED | §1.1, §1.4 | Integer-only JSON under items/, SCALED roundi conversion once, no res:// on saved fields | -
+TR-itemdb-009 | PARTIAL | §1.7, §2.3 | Order and domain-2 ITEM_BOOT_* covered; UNLOADED..REFUSED lifecycle not addressed; Item DB GDD | -
+TR-itemdb-010 | COVERED | §1.7 | Stage 2 validates ports against LS-4 ids and pure connectable | -
+TR-itemdb-015 | NOT | §Addressed table | ADR disclaims; pure query rule owned by Item DB GDD IDB-17 / Boarding | -
+TR-itemdb-016 | NOT | §Addressed table | ADR disclaims; hp/cap/patch-clock preservation owned by Item DB IDB-18 and ADR-0011 | -
+TR-itemdb-017 | PARTIAL | §Addressed table, §2.1 | ITEM_BOOT_REPAIR at BOOT only; totality rule and charge timing owned by Item DB GDD / Interaction | -
+TR-itemdb-018 | PARTIAL | §Addressed table, §2.1 | Schema ranges, forbidden price/rarity/recipe, weight invariant; speed/noise independence owned by Item DB GDD | -
+TR-itemdb-019 | PARTIAL | §2.1 | WEIGHT_CLASS_MARGIN_PM and junk tell are CI lints; lure data placement not addressed; Item DB GDD | -
+TR-itemdb-020 | COVERED | §3.4 | Single integer catalogue_version bump rules; hash diagnostic only; placement in header by ADR-0006 | -
+TR-itemdb-021 | COVERED | §3.3, §3.2 | renamed_from/replaced_by reserved, resolve at restore, retired never reused; behaviour pre-SHIPPED story | -
+TR-itemdb-022 | PARTIAL | §Addressed table, §1.4 | SCALED conversion and radius invariant only; throw-tick life, stowed inert, WANE curve owned by Item DB / ADR-0017 | -
+TR-itemdb-023 | COVERED | §Validation, §1.5 | OBJECT_COUNT unchanged over 10,000 queries plus is_same/read-only checks | -
+TR-itemdb-024 | COVERED | §Performance, §Validation | 25 Objects and release-to-baseline decided; P99 budget pending CONTENT-PERF-1 as required | -
+TR-itemdb-026 | NOT | - | No dead-variant or non-def-kind rule; Item DB GDD content rule | -
+TR-itemdb-027 | PARTIAL | §Addressed table, §1.4 | Forbidden price/recipe keys only; salvage-as-sole-faucet rule owned by Item DB IDB-29 | -
+TR-itemdb-028 | PARTIAL | §Addressed table | Schema enum only; foundry-only/no-stat-override rule owned by Item DB IDB-23 | -
+TR-itemdb-030 | COVERED | §1.6, §1.4 | Include filter, JSON.new().parse with line/message, integrality check, 2^53 refusal | -
+TR-itemdb-031 | NOT | - | Copy-at-install vs read-live split not addressed; ADR-0011 | -
+TR-itemdb-034 | NOT | - | emits validation against Emitter shape table and hue map not addressed; ADR-0017 | -
+TR-itemdb-035 | PARTIAL | §2.1, §2.2 | Generic CI lint tool and some lint ids; item_db_lints suite, severities and its tests owned by ADR-0010 | -
+TR-itemdb-036 | PARTIAL | §1.9 | Pure functions (cap_seam, connectable) callable by loader; fluid/power/O2 lint specifics owned by ADR-0011 | -
+TR-itemdb-037 | PARTIAL | §1.5 | NO_DEF on miss, never null; NONE for repair kinds, resolve_alias and salvage_yield empty cases unstated | -
+TR-emitter-031 | PARTIAL | §2.3, §1.6, §Validation | Errors-as-values, no assert, root refuses start, export smoke; Emitter I-* invariants and warn-only owned by ADR-0017/0010 | -
+TR-emitter-043 | NOT | - | Per-def emits kind/hue/reach validation not addressed; ADR-0017 | -
+TR-emitter-044 | NOT | - | Anchor clearance lint and runtime lux-0 behaviour not addressed; ADR-0014/0017 | -
+TR-light-041 | NOT | - | Light containment/density content lints not addressed; ADR-0028 | -
+TR-pc-015 | COVERED | §1.4 | authored_tick_rate header vs TICK_RATE, CONTENT_TICK_RATE from unit column | -
+TR-pc-046 | NOT | - | Sprite-sheet import checks not addressed; asset-pipeline/presenter ADR | -
+TR-interact-030 | PARTIAL | §1.1, §1.4 | interaction/ data, tick units, forbidden stats/cooldown/reward; HARM_TOTAL_BP and reason-string rules owned by Interaction ADR-0020 | -
+TR-ftrail-036 | NOT | §1.1 | Only treats glow table as content; descriptor-row lint and runtime unknown-id diagnostics not addressed | -
+TR-ftrail-037 | PARTIAL | §2.5, §2.2 | Named invariants and TUNING_SOURCE_DRIFT generic; derived read-only values and refuse-never-clamp for F&T unspecified | -
+TR-suit-028 | PARTIAL | §1.1, Alt 1 | JSON decision settled; four Graph band constants by-name from registry not addressed | -
+TR-suit-032 | PARTIAL | §2.5 | Generic named invariants failing with name; A1-A16, warn-only cases, 2^14 corner analysis owned by Suit module | -
+TR-suit-042 | NOT | - | VACUUM_BUDGET_S export and cross-multiplied integer lint not addressed | -
+TR-section-003 | COVERED | §1.2, §1.4, §1.5, §3.5 | Committed sorted manifest, no scan, int-cast bound-checked, immutable, not in snapshots | CONFLICT: STALE-TEXT "loaded in BOOTING"; ADR §1.7 loads at start-up before kernel BOOTING
+TR-section-029 | COVERED | §2.1, §2.3 | Layout structural ERRORs (LY-30) are BOOT tier, reject template and abort start; ids Layout-owned | -
+TR-section-033 | PARTIAL | §1.4, §2.5 | Schema range refusal exists, but published knob ranges are guidance not boot assertions; Layout ADR-0013 | CONFLICT: requirement rejects out-of-range knobs at min/max; ADR §2.5 says Tuning Knob ranges are never boot assertions (only schema bounds and named invariants)
+TR-section-040 | COVERED | §2.2, §2.1 | One ContentLoader shared by game and offline lint; Layout ERRORs are BOOT | CONFLICT: STALE-TEXT "BOOTING template loader"; ADR loads before kernel BOOTING
+TR-section-041 | COVERED | §1.6, §1.2, Validation | Include filter, manifest order, exported-build smoke compares content hashes with editor | -
+TR-derelict-001 | NOT | - | No-state-block rule not decided here; ADR-0007 supplies none (Derelict DA-1) | -
+TR-derelict-002 | PARTIAL | §1.1 | sections/ and world/mvp_world.json domains exist; four named files and record fields not specified | -
+TR-derelict-003 | PARTIAL | §1.4 | Closed schema machinery only; allowed content field set owned by ADR-0013/Derelict | -
+TR-derelict-004 | COVERED | §1.4 | Int cast and bound check, float literal rejected (INT_LITERAL_SHAPE/FIELD_TYPE) | -
+TR-derelict-007 | PARTIAL | §3.5 | Hash changes on edit stated; default_state diff (DA-35) and state_hash owned by ADR-0013/ADR-0005 | -
+TR-derelict-008 | PARTIAL | §3.5, §1.5 | Hash and no runtime mutation covered; restore-from-saved-values policy owned by Layout ADR-0013/0016 | -
+TR-derelict-013 | COVERED | §2.1, §2.4 | DEAD_FAULT_NOT_DRIED is a BOOT rule refusing the template | -
+TR-derelict-014 | PARTIAL | §2.4 | Classified CI ERROR; headless G0_ZERO_PART_SURVIVABLE test owned by Derelict GDD | -
+TR-derelict-015 | PARTIAL | §2.4 | Classified CI ERROR only; ledger counts owned by Derelict GDD | -
+TR-derelict-016 | PARTIAL | §2.4, §2.1 | PLACEMENT_DEF_UNKNOWN is BOOT; fresh_instance/place_loose expansion owned by Layout/Item DB | -
+TR-derelict-017 | PARTIAL | §2.1 | BEACON_COUNT and SELF_POWERED_LAMP_COUNT BOOT; Attention set_beacon-only rule owned elsewhere | -
+TR-derelict-020 | PARTIAL | §2.4 | Classified CI ERROR only; budgets owned by Derelict GDD | -
+TR-derelict-023 | COVERED | §2.1, §2.3, §2.4 | Six BOOT rules, template refused naming record, others CI-only | -
+TR-derelict-024 | COVERED | §2.2 | Pure deterministic lint, config rows, ordering, waiver reason, no STORY_SLOT_FILLED_IN_MVP waiver | -
+TR-derelict-025 | COVERED | §2.1, §2.2 | BOOT six plus CI tranches T1-T3; TUNING_SOURCE_DRIFT compares LOCKED rows to registry | -
+TR-derelict-027 | COVERED | §2.6 | Deterministic committed-output generator with drift check; settles that no converter ADR is needed | -
+TR-derelict-028 | PARTIAL | §Addressed table, §1.1 | Manifest/schema only; template-agnostic rows and atlas selection by template_id owned by ADR-0034 | -
+TR-derelict-029 | PARTIAL | §2.4 | Classified CI ERROR only; never-do content rules owned by Derelict GDD | -
+TR-derelict-031 | COVERED | §1.6, CONTENT-EXP-1 | Include filter for assets/data json, cast-and-bound-check, export spike gates acceptance | -
+TR-derelict-034 | NOT | - | CONSOLE anchors and dock glow counts not addressed; ADR-0013 | -
+TR-boarding-014 | PARTIAL | §2.4 | CI ERROR tier only; glow placement geometry rule owned by Boarding GDD | -
+TR-boarding-019 | NOT | §Addressed table | ADR disclaims; salvage_yield/condition_bp/no remove_module owned by Boarding/Item DB | -
+TR-boarding-025 | PARTIAL | §2.4 | Traversal/vacuum budgets classified CI ERROR; budget values owned by Boarding GDD | -
+TR-boarding-036 | NOT | - | Interactable registration budget not addressed; ADR-0020 | -
+TR-webmap-006 | PARTIAL | §1.1, §1.7 | mvp_world.json and legs.json loaded at stage 4; star-topology lint rule owned by web-map module ADR | -
+TR-webmap-035 | NOT | - | Tuple-grid blocking load-time inequality lints not addressed; web-map module ADR | -
+TR-attention-010 | COVERED | §2.1, §2.4, §2.5 | Attention abortability and survivable-dark invariants are BOOT, game does not start | -
+TR-attention-039 | PARTIAL | §1.1 | attention/ domain exists; seven-file split and registry-sourced noise values not specified | -
+TR-attention-043 | NOT | - | DERELICT_LOCUS_BODY_NO_FAULT lint not addressed; Derelict/Attention | -
+TR-horror-006 | COVERED | §1.4, §3.2 | Per-type row table, exact forbidden-key list rejected, type_id unique/range-checked | -
+TR-horror-037 | PARTIAL | §2.5 | Generic named invariants at load; Horror relations and negative fixtures owned by Horror module ADR | -
+TR-sanity-024 | PARTIAL | §1.1, §2.1, §2.3 | SANITY_BOOT_LIE_TARGET_DATA is BOOT domain-2; row schema and no-lie-in-templates rule owned by Sanity | -
+TR-sanity-025 | COVERED | §2.5, §2.1 | safe_ranges.json fixture per system, CI-diffed ADVISORY, ranges never boot assertions | -
+TR-sanity-026 | COVERED | §1.6, Validation | Include filter plus template_release exported-build smoke running same boot checks | -
+TR-percfilter-039 | PARTIAL | §2.5 | Named boot invariants generic; Filter assertions and assertion-list-equals-table lint not specified | -
+TR-percfilter-045 | NOT | - | ref_key reservation and PerceptionRef join rules not addressed; ADR-0024 | -
+TR-hud-026 | PARTIAL | §1.4, §1.5, §2.5 | hud_tuning as ScalarTable validated at load; HUD forbidden keys and range refusal vs guidance unsettled; ADR-0027 | CONFLICT: requirement fails out-of-range knobs (PROMPT_MIN_CYCLE_TICKS<20 etc.); ADR §2.5 says published ranges are guidance, not boot assertions
+TR-hud-035 | NOT | - | By-name zone constants, missing-edge handling and HUD lint not addressed; ADR-0027 | -
+TR-instr-007 | PARTIAL | §1.1, §1.5 | instruments/ domain and row catalogs; record fields, scene rendering and lie_unrenderable build failure owned by instruments ADR | -
+TR-instr-008 | PARTIAL | §2.1 | Instrument lints assigned to CI tier by example; full lint set and thresholds owned by instruments ADR | -
+TR-instr-009 | NOT | - | Build-time zone derivation and baked sprites not addressed | -
+TR-instr-028 | NOT | - | Lie-eligibility floor lints not addressed; instruments/Sanity ADR | -
+TR-instr-037 | NOT | - | Palette-locked PNG and slice lints not addressed; asset pipeline | -
+TR-instr-038 | NOT | - | Placement record fields and mount lints not addressed | -
+TR-instr-039 | NOT | - | Per-flag switches and test matrix not addressed | -
+TR-charttable-013 | PARTIAL | §1.1, §2.2 | ui/chart_layout data and CI lint; missing-position runtime fallback and layout schema owned by chart-table ADR | -
+TR-charttable-031 | NOT | - | Data-driven state-machine transition file and diff fixture not addressed; ADR-0030 | -
+TR-charttable-032 | PARTIAL | §2.5, §2.1 | Named invariants and registry drift check generic; C-1..C-10 and derived knobs owned by ADR-0030 | -
+TR-audio-011 | PARTIAL | §2.1 | Audio identity lint is CI tier; identity table, families, buses owned by ADR-0029 | -
+TR-audio-012 | PARTIAL | §1.1 | audio/ data domain only; asset formats, sample rate and preload rules owned by ADR-0029 | -
+TR-audio-032 | PARTIAL | §2.5 | Hard invariants refuse boot; soft-relation DIAGNOSTIC tier and audio relations not addressed; ADR-0029 | -
+TR-audio-040 | NOT | - | Master peak soak and asset-size budget not addressed; ADR-0029 | -
+TR-saveload-024 | COVERED | §2.5, §1.1 | Boot asserts named knob invariants (retry <= max_defer/4) over post-cast data | -
+TR-saveload-036 | PARTIAL | §3.1 | def_id-only persistence decided; 6-element to_array form and named restore failure owned by ADR-0006 | -
+TR-debug-044 | PARTIAL | §1.1, §2.5 | Generic data-file validation; invariant violations refuse boot, not clamp; DIAG knobs owned by ADR-0031 | CONFLICT: requirement clamps and logs a NOTE on violation; ADR §1.4/§2.5 refuse with CONTENT_FIELD_RANGE / CONTENT_INVARIANT (no clamping)

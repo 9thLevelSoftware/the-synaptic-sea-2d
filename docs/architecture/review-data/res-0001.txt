@@ -1,0 +1,30 @@
+TR-cmd-001 | COVERED | §1, Constraints | Fixed 60 Hz integer ticks, no wall-clock/delta in kernel; adopts CR-1a verbatim, single delta conversion | -
+TR-cmd-002 | COVERED | §1, Key Interfaces | TickDriver RefCounted, TICK_UNITS accumulator, one ALWAYS host _process, MAX_TICKS_PER_FRAME 4, physics not clock | -
+TR-cmd-003 | COVERED | §1, §4, §6 | LAG_FORGIVE_TICKS 0, accumulator cleared on entry to RUNNING, kernel state re-read after each step | -
+TR-cmd-004 | COVERED | §2 | Priority constants and lints/boot walk; adds HOST_SERVICE -40 slot beyond the three-slot requirement | -
+TR-cmd-005 | PARTIAL | Constraints, Alt 3, §2 | Main-thread rule and thread-group walk decided; Thread/WorkerThreadPool/call_deferred lint not specified; ADR-0010 owns lints | -
+TR-cmd-006 | PARTIAL | Diagram | Phases P0-P6 only shown in diagram; ordering, no interleaving and post-P4 subscriber visibility owned by kernel GDD/ADR-0004 | -
+TR-cmd-046 | PARTIAL | §4 | snap_baseline on RUNNING entry and tick_alpha 1.0 not-RUNNING covered; interpolated blocks, commit_baseline cache owned by ADR-0003/0009 | -
+TR-cmd-047 | PARTIAL | Constraints, Validation | L_first cited and KRN-LAT-01 bound tested; L_full, p95 targets, press-frame acknowledgement and spike not decided | -
+TR-pxl-021 | PARTIAL | §4, §6 | Cosmetic-vs-tick clock rule and SceneTree.paused not kernel pause covered; present_time freeze/reduced-motion/layer clocks owned by ADR-0008 | -
+TR-pxl-022 | COVERED | §1, §2, §4, Validation | Tick on _process driver, no physics coupling, priority order, 10-s replay at max_fps 30/60/144/0 | -
+TR-light-008 | COVERED | §4 | Kernel tick for sim-computed values, present_time for cosmetic phase, tick never for cosmetic phase | -
+TR-pc-004 | COVERED | §3 | Adapter samples/submits in own _process at INPUT_ADAPTER; same-tick P2/P3, one tick latency | -
+TR-pc-038 | NOT | - | Confirm-bar/tap timer delta clamp and pause freeze not addressed; ADR-0009/ADR-0030 should own | -
+TR-pc-039 | PARTIAL | Validation, §1 | Render-rate-independent state_hash replay covered; Presenter/log byte-identity and input-trace replay format owned by ADR-0009 | -
+TR-ftrail-039 | NOT | - | Never states present_time holds still while PAUSED; ADR-0008 owns present_time | -
+TR-suit-038 | NOT | - | Same-tick command commit into one integrity_bp not decided here; ADR-0003/ADR-0027 own | -
+TR-assembly-042 | NOT | - | Boot checks cover time_scale, low_processor_mode, physics tps info only; no TICK_RATE/MAX_TICKS refuse-to-start check | -
+TR-derelict-021 | PARTIAL | GDD table, Performance | Budgets mentioned only; STEP_BUDGET_MS 4 ms/P99 per-tick semantics deferred to ADR-0003 | -
+TR-boarding-040 | NOT | - | Same-tick cut/cancel/Attention/abort ordering not addressed; ADR-0022 owns | -
+TR-horror-033 | PARTIAL | §3 | Same-tick submit-applied-integrated covered; horror.step ordering fixture and INPUT_LATENCY_TICKS/UNFOLD_LO rule owned by ADR-0015 | -
+TR-sanity-036 | NOT | - | 5 Hz hook mutator stamping not addressed; ADR-0025 owns | -
+TR-percfilter-035 | NOT | - | DT_SLEW_MAX_S slew clamp not addressed; ADR-0024 owns | -
+TR-hud-010 | PARTIAL | §4 | Cosmetic-vs-tick clock rule covered; HUD_DT_CLAMP_MS, layer-3 process time, no-dt-division owned by ADR-0030 | -
+TR-hud-040 | NOT | - | HUD mount/unmount around first tick and LOADING not addressed; ADR-0030 owns | -
+TR-charttable-005 | PARTIAL | §6 | Only says SceneTree.paused policy for UI is decided by ADR-0030; layer-3 UI clock and UI_DT_MAX_MS not decided | -
+TR-audio-035 | NOT | - | Audio request ordering within a poll not addressed; ADR-0029 owns | -
+TR-saveload-039 | NOT | - | Window-close interception and per-state quit routing not addressed; ADR-0006 owns | -
+TR-saveload-040 | PARTIAL | §1, §6, Diagram | Accumulator cleared on RUNNING entry and frame delta discarded; explicit at-most-one-tick next frame not stated (kernel D.5) | -
+TR-debug-032 | NOT | - | t_hook sample delivery per (T, restore epoch) not addressed; ADR-0031 owns | -
+TR-debug-036 | NOT | - | No Overlay priority slot or same-T read_straddle rule; ADR-0031 owns | -

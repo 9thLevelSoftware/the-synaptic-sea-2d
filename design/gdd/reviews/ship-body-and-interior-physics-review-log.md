@@ -110,3 +110,50 @@ Findings:
   - [RECOMMENDED] OQ 47: [main review] The kernel has not confirmed that restore() may call pure reads of restore_after blocks.
 Reviewed-Content-Hash: design/gdd/ship-body-and-interior-physics.md 1d74491b210090f366c37fed7d0ec2a39559980f
 Reviewed-Content-Hash: design/registry/entities.yaml 259f2c28b21a009ca35000d94fe3ef5b4d3ef301
+
+
+## Review — 2026-10-29 — Foundation ADR sync (lean confirming)
+
+Verdict: NEEDS REVISION (1 blocker, 6 advisories). Prior verdict: APPROVED (2026-10-28).
+Scope: diff only (12 hunks, wording amendments tagged "2026-10-29 — ADR-00NN sync"): BDY-3 lint scope and PROJECTOR path (ADR-0010 sections 1.2, 5, 5.4, SIM-02, SIM-05, PRJ-04, P11); `IntMath` path and shared use (BDY-35, ADR-0005 sections 1.4 and 1.7); `restore(data, stored_version, ctx)` and failure via `ctx.fault(BDY_RESTORE_*)` (BDY-31, Edge Cases, 8.3 Kernel row, ADR-0006 section 2.2); odometer as native int64 (BDY-7, ADR-0006); DICT key order by code point (ADR-0005 section 3.3); camera limits published to the Pipeline solver, never written to `Camera2D.limit_*` (BDY-33, 8.3 Pipeline row, AC-BDY-79 area, ADR-0009 OQ-C, ADR-0008 section 6.2); restore continuity via kernel `snap_baseline` (ADR-0008 section 6.1).
+Checked and consistent: ADR section and rule ids cited (SIM-02, SIM-05, PRJ-04, P11, LINT-SPIKE-1, ADR-0005 sections 1.4 and 3.3, ADR-0006 section 2.2, ADR-0008 section 6.2, ADR-0009 OQ-C) exist and say what the GDD claims. The lint AC (1247), the camera-limits AC (1261) and the trunc_div/floor_div ACs match the amended rules. The restore-failure Edge Case matches BDY-31. No AC still asserts a return-tuple restore. No old "Body module" or "either directory" wording for the integer-division site remains. Design intent is unchanged (the integer-only, Layout-driven, Controller-aligned model is preserved).
+Blocker:
+  - BDY-31 / BDY-6 / BDY-14 / BDY-26 / AC-BDY-87 vs 8.3 Pipeline row: BDY-31 still says `post_restore` sets `pos_prev := pos_curr` citing Pipeline C5, while the amended Pipeline row says Body has no `post_restore` `previous := current`. It is unclear whether Body writes `pos_prev` and `world_prev` on restore or the kernel `snap_baseline` does. Fix: keep Body's non-persisted derived `pos_prev` reset as block-internal (cite BDY-6), state that camera and presentation continuity is solely `snap_baseline` plus the camera CUT, and reword the Pipeline row to "no Pipeline-driven `post_restore` reset".
+Advisories:
+  - Line 38: probed-semantics parenthetical sits inside the "[UNV]" sentence and reads as a contradiction.
+  - BDY-35 tail still says a fixture failure is "a spike finding"; point at LINT-SPIKE-1.
+  - BDY-3 states both the narrow (Body and Layout) and wide (`src/`, `tools/`) lint scopes; lead with the wide one.
+  - BDY-33 cites ADR-0034, which does not exist on disk yet; mark it planned.
+  - The Count paragraph (tags by type) was not re-verified after the amendments.
+  - Reviewed-Content-Hash is stale; refresh when the entry is appended.
+
+## Review — 2026-10-29 — Foundation ADR sync (lean confirming, round 2)
+
+**Verdict: APPROVED**
+
+**Scope.** Read the full `git diff` of ship-body-and-interior-physics.md (146 diff lines) and grepped the whole file. Checked the diff against ADR-0001, 0003, 0005, 0006, 0008, 0009 and 0010. Covered BDY-3, 6, 7, 31, 32, 33 and 35; the Section 3 Restore row; the 8.3 Pipeline row; row 964; the Kernel row; the Edge Cases restore entry; AC-BDY-19, 60, 87 and 92; and G-E.
+
+**Blockers resolved (1 of 1).** The post_restore pos_prev ambiguity is closed. One rule now holds in BDY-6, BDY-31, the Section 3 Restore row, the 8.3 Pipeline row, row 964 and AC-BDY-87:
+- Body's own post_restore re-derives pos_prev and world_prev, because they are non-persisted derived fields.
+- That reset is Body-internal and is not the camera-continuity mechanism.
+- Camera continuity is the kernel snap_baseline plus the camera CUT on a load_seq change (ADR-0008 section 6.1).
+
+I grepped the other post_restore and `previous := current` mentions (BDY-14, BDY-26, lines 193 and 490, AC-BDY-55 and AC-BDY-15) and found no contradicting text.
+
+**Other diff content, consistent.**
+- ADR-0006: restore(data, stored_version, ctx) and ctx.fault(BDY_RESTORE_*) agree across BDY-31, the Edge Cases entry, the Kernel row and AC-BDY-120.
+- ADR-0005: the DICT key order by code point matches the 518-byte golden file layout in AC-BDY-110.
+- ADR-0010: IntMath.trunc_div is the single annotated site in `src/`; PROJECTOR scripts live in `src/presentation/projector/`; directory_rules is probed, and AC-BDY-60 matches.
+- Native int64 odometer is consistent across BDY-7, the Edge Cases and AC-BDY-137.
+- Float-free fixtures are unchanged.
+
+**Remaining blockers.** None.
+
+**Advisories (5).**
+1. BDY-5 does not say whether body.state is `interpolated`. ADR-0003 makes commit_baseline and snap_baseline owner-supplied Callables, so 'the kernel snap_baseline' has no stated Body-side half. Behaviour is correct as written; add one clause to BDY-5.
+2. Gaps rows 22 and 39 still call integer-division, posmod and directory-scoped warnings [UNV] or OPEN. G-E and BDY-35 say they are probed or settled.
+3. BDY-6's `Decides:` still cites PIPE C5 and SL-15 item 8 as the reason for the post_restore pos_prev write.
+4. BDY-33 (b) and AC-BDY-92 name no channel for the camera-limits rectangle published to the solver. Line 915 is also unqualified.
+5. AC-BDY-60 duplicates the token list that BDY-3 now assigns to ADR-0010 SIM-02.
+Reviewed-Content-Hash: design/gdd/ship-body-and-interior-physics.md 402fe1c2c94b57d283c918461d96b7a9b1aebed4
+Reviewed-Content-Hash: design/registry/entities.yaml 4d9d9f7a469ff3c3aeb97b06fa6fa82c1b2dec16

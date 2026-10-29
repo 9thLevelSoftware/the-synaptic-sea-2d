@@ -38,7 +38,7 @@
 #   line in any other shape is reported as unsupported layout, with its number.
 
 version: 2
-last_updated: "2026-10-28"
+last_updated: "2026-10-29"
 
 requirements:
 - id: TR-cmd-001
@@ -68,9 +68,9 @@ requirements:
 - id: TR-cmd-004
   system: cmd
   gdd: design/gdd/command-simulation-layer.md
-  requirement: "Per-frame order is fixed by process priority: input adapter (0), TickDriver (1: boundary service, tick loop, forgiveness, result flush, paused service), presentation nodes (2), with a lint on process_priority values."
+  requirement: "Per-frame order is fixed by process priority: INPUT_ADAPTER -100, TICK_DRIVER -50 (boundary service, tick loop, forgiveness, result flush, paused service), HOST_SERVICE -40 (SaveHost only), PRESENTATION 0, with a lint on process_priority values; the GDD ordinals 0/1/2 name order only (ADR-0001 section 2)."
   created: 2026-10-28
-  revised: ""
+  revised: 2026-10-29
   status: active
 
 - id: TR-cmd-005
@@ -180,9 +180,9 @@ requirements:
 - id: TR-cmd-018
   system: cmd
   gdd: design/gdd/command-simulation-layer.md
-  requirement: "`kernel.clock` (T, world_seed) is the kernel's only registered block (SIM, persist, WORLD, never dirty); `restore_epoch` is owned and persisted by Save/Load (`slot_epoch.bin`), passed into `request_restore`/`request_new_game`, held read-only, exposed in the clock read view, and excluded from the snapshot header and all hashes."
+  requirement: "`kernel.clock` (T, world_seed) is the kernel's only registered block (SIM, persist, WORLD, never dirty); `restore_epoch` is owned and persisted by Save/Load in the slot_epoch_a.bin / slot_epoch_b.bin pair (12 bytes each with seq), passed into `request_restore`/`request_new_game`, held read-only, exposed in the clock read view, and excluded from the kernel snapshot payload and every hash; the container header carries a read-only write-time recovery copy covered only by the file trailer (ADR-0006)."
   created: 2026-10-28
-  revised: ""
+  revised: 2026-10-29
   status: active
 
 - id: TR-cmd-019
@@ -356,9 +356,9 @@ requirements:
 - id: TR-cmd-040
   system: cmd
   gdd: design/gdd/command-simulation-layer.md
-  requirement: "Block hashes are cached and invalidated only by `mark_dirty`; every verification path (G3/G4 tests, snapshot hash, diagnostics diff) uses uncached encoding; `block_hash(id, uncached)` returns `ok=false` with BLOCK_HASH_IN_WRITE during a WriteScope or BLOCK_HASH_UNKNOWN for unknown or non-persist ids."
+  requirement: "Block hashes are cached and invalidated by the block's touch serial (every granted `open_for`; restore also advances it), not by a dirty key; every verification path (G3/G4 tests, snapshot hash, diagnostics diff) uses uncached encoding; `block_hash(id, uncached)` returns `ok=false` with BLOCK_HASH_IN_WRITE during a WriteScope or BLOCK_HASH_UNKNOWN for unknown or non-persist ids; KRN-HASH-02 targets a write made outside any WriteScope (ADR-0005 5.2)."
   created: 2026-10-28
-  revised: ""
+  revised: 2026-10-29
   status: active
 
 - id: TR-cmd-041
@@ -628,25 +628,25 @@ requirements:
 - id: TR-lsg-021
   system: lsg
   gdd: design/gdd/life-support-graph.md
-  requirement: "`canonical_bytes()` serialises persisted fields in fixed order as `[u32 tag][u32 len][bytes]` raw packed arrays with tombstones; `block_hash()` is cached H64 (first 8 bytes of SHA-256 via HashingContext), recomputed only after a write."
+  requirement: "The Graph's `snapshot()` payload is a Dictionary of named packed arrays encoded by the kernel's CanonicalEncoder; `canonical_bytes()` and `block_hash()` forward to the kernel and the Graph has no owner byte writer (ADR-0005 section 3.1); the block hash is the cached H64 (first 8 bytes of SHA-256), invalidated by the touch serial."
   created: 2026-10-28
-  revised: ""
+  revised: 2026-10-29
   status: active
 
 - id: TR-lsg-022
   system: lsg
   gdd: design/gdd/life-support-graph.md
-  requirement: "Save interchange keeps all values < 2^53, uses packed int arrays, carries raw canonical bytes as base64 (`Marshalls.raw_to_base64`) in any JSON form, and never uses `var_to_bytes` or a Resource for saves."
+  requirement: "The payload is stored with `var_to_bytes` (native int64, exact), never uses `var_to_bytes` bytes as hash input, and never uses a Resource for saves; JSON appears only in the header and the dev dump (integers >= 2^53 as decimal strings, `PackedByteArray` fields as base64 via `Marshalls.raw_to_base64`) (ADR-0006 sections 1.2, 1.3; ADR-0005 section 4.8)."
   created: 2026-10-28
-  revised: ""
+  revised: 2026-10-29
   status: active
 
 - id: TR-lsg-023
   system: lsg
   gdd: design/gdd/life-support-graph.md
-  requirement: "Restore is two-phase (decode+validate into scratch state, then swap); only schema version 1 is supported; every failure is a named `GRAPH_RESTORE_*` reason with live state untouched; `post_restore` rebuilds derived caches and seeds last-emitted buckets (one ALL then silence)."
+  requirement: "Restore `restore(data, stored_version, ctx)` is two-phase (decode+validate into scratch state, then swap); only schema version 1 is supported; every failure is reported through `ctx.fault(GRAPH_RESTORE_*)` with a named detail, never by return value or clamping, with live state untouched (ADR-0006 section 2.2); `post_restore` rebuilds derived caches and seeds last-emitted buckets (one ALL then silence)."
   created: 2026-10-28
-  revised: ""
+  revised: 2026-10-29
   status: active
 
 - id: TR-lsg-024
@@ -1036,7 +1036,7 @@ requirements:
 - id: TR-itemdb-029
   system: itemdb
   gdd: design/gdd/item-and-module-database.md
-  requirement: "A canonical positional ItemInstance encoding (`var_to_bytes(inst.to_array(), false)`) must be at most 96 bytes per instance, a twelve-instance holder block with an 8-field header at most 1,024 bytes (25 percent of MAX_PAYLOAD 4096), and every integer at most 2^53."
+  requirement: "A canonical positional ItemInstance encoding (`var_to_bytes(inst.to_array())`) must be at most 96 bytes per instance, a twelve-instance holder block with an 8-field header at most 1,024 bytes (25 percent of MAX_PAYLOAD 4096), and every integer at most 2^53."
   created: 2026-10-28
   revised: ""
   status: active
@@ -1140,9 +1140,9 @@ requirements:
 - id: TR-pxl-002
   system: pxl
   gdd: design/gdd/pixel-perfect-render-pipeline-camera.md
-  requirement: "World content renders in its own SubViewport inside a SubViewportContainer (layer 0); HUD (layer 2), chart table/menus (layer 3), transit-hold quad (layer 1) and debug overlay (layer 4, dev only) are CanvasLayers above it that receive no world light, glow, ambient, occlusion, Filter pass or camera jolt."
+  requirement: "World content renders in its own SubViewport inside a SubViewportContainer (layer 0); transit-hold quad (layer 1), HUD (layer 2), menu pixel face (layer 3, scale H), menu reading face (layer 4, scale (1,1)) and debug overlay (layer 5, dev only) are CanvasLayers above it that receive no world light, glow, ambient, occlusion, Filter pass or camera jolt."
   created: 2026-10-28
-  revised: ""
+  revised: 2026-10-29
   status: active
 
 - id: TR-pxl-003
@@ -1204,9 +1204,9 @@ requirements:
 - id: TR-pxl-010
   system: pxl
   gdd: design/gdd/pixel-perfect-render-pipeline-camera.md
-  requirement: "The camera is a pure CameraSolver (RefCounted solve(input,state,params)->pose, float64 per-axis state, no scene-tree dependency, headless-testable) hosted by a top-level presentation node that writes the world viewport canvas_transform from pose_q in the pipeline root's frame_pre_draw handler (fallback _process lowest priority); Camera2D.limit_* stays at defaults, solver is the only clamp, no Camera2D descends from a PhysicsBody2D."
+  requirement: "The camera is a pure CameraSolver (RefCounted solve(input,state,params)->pose, float64 per-axis state, no scene-tree dependency, headless-testable) hosted by a top-level presentation node that writes the world viewport canvas_transform in a frame_pre_draw handler from the solved pose_q (the solve runs in the CAMERA_SOLVE stage, ADR-0009; fallback: the write moves to the end of PipelineRoot._process); Camera2D.limit_* stays at defaults, solver is the only clamp, no Camera2D descends from a PhysicsBody2D."
   created: 2026-10-28
-  revised: ""
+  revised: 2026-10-29
   status: active
 
 - id: TR-pxl-011
@@ -1236,17 +1236,17 @@ requirements:
 - id: TR-pxl-014
   system: pxl
   gdd: design/gdd/pixel-perfect-render-pipeline-camera.md
-  requirement: "The aim-pose loop is open: mouse_to_world_aim(cursor,p) = f_q + (cursor - picture_centre)/k_z using the published look-ahead-free follow pose f_q with no L, inner-box clamp or jolt; cursor is converted to physical window px via inverse get_final_transform; mouse_to_world_view is separately published and must never feed beam aim (lint)."
+  requirement: "The aim-pose loop is open: mouse_to_world_aim(cursor,p) = f_q + (cursor - picture_centre)/k_z using the published look-ahead-free follow pose f_q with no L, inner-box clamp or jolt; cursor is physical window px (root stretch is disabled, so no inverse get_final_transform is needed, ADR-0008 3.3); mouse_to_world_view is separately published and must never feed beam aim (lint)."
   created: 2026-10-28
-  revised: ""
+  revised: 2026-10-29
   status: active
 
 - id: TR-pxl-015
   system: pxl
   gdd: design/gdd/pixel-perfect-render-pipeline-camera.md
-  requirement: "Camera state is never persisted; solver resets (CUT) on every LOADING->RUNNING and pod/transit body transfer, starts with L=0 easing in; weld/detach BODY_TRANSFER with frame_delta_px is a rebase (shift f and history, keep lag and L); owners of moving read views set previous := current in post_restore."
+  requirement: "Camera state is never persisted; solver resets (CUT) on every LOADING->RUNNING and pod/transit body transfer, starts with L=0 easing in; weld/detach BODY_TRANSFER with frame_delta_px is a rebase (shift f and history, keep lag and L); the kernel calls snap_baseline on every interpolated block on each transition into RUNNING (ADR-0001 4, ADR-0003) and the camera CUTs on DISCONTINUITY_RESTORE (PresentationClock.load_seq)."
   created: 2026-10-28
-  revised: ""
+  revised: 2026-10-29
   status: active
 
 - id: TR-pxl-016
@@ -1284,9 +1284,9 @@ requirements:
 - id: TR-pxl-020
   system: pxl
   gdd: design/gdd/pixel-perfect-render-pipeline-camera.md
-  requirement: "Every visual system is a kernel PRESENTATION subscriber: reads last-committed state via read views, treats notifications as dirty marks and draws in the render callback, writes only CanvasItem/Material/Light2D/particle/audio properties, never a block/command/physics body/camera or viewport property, interpolates with tick_alpha (clamped at 1, no extrapolation), never causes or blocks a tick; Debug Overlay alone is DIAGNOSTIC."
+  requirement: "Every visual system is a kernel PRESENTATION subscriber: reads last-committed state via read views, treats notifications as dirty marks and draws in its presenter's present step, run by the PresentationDriver from the `_process` pass (ADR-0008 § 6.2, ADR-0009 § 3), writes only CanvasItem/Material/Light2D/particle/audio properties, never a block/command/physics body/camera or viewport property, interpolates with tick_alpha (clamped at 1, no extrapolation), never causes or blocks a tick; Debug Overlay alone is DIAGNOSTIC."
   created: 2026-10-28
-  revised: ""
+  revised: 2026-10-29
   status: active
 
 - id: TR-pxl-021
@@ -1324,9 +1324,9 @@ requirements:
 - id: TR-pxl-025
   system: pxl
   gdd: design/gdd/pixel-perfect-render-pipeline-camera.md
-  requirement: "RENDER_MODE in {A,B} is a single build flag (A default: world viewport at logical size, B: window size with size_2d_override_stretch); get_final_transform().get_scale() must equal (k,k) for the world and (H,H) for the HUD at every window in PR-1's table; renderer is Forward+; A and B must be identical in coordinate space, sort contract, camera contract and HUD."
+  requirement: "RENDER_MODE in {A,B} is a single build flag (A default: world viewport at logical size, B: picture size (field_px * k_z) with size_2d_override_stretch); the scale criterion is the ADR-0008 5.4 readback chain, giving (k,k) for the world and (H,H) for the HUD at every window in PR-1's table; renderer is Forward+; A and B must be identical in coordinate space, sort contract, camera contract and HUD."
   created: 2026-10-28
-  revised: ""
+  revised: 2026-10-29
   status: active
 
 - id: TR-pxl-026
@@ -1348,9 +1348,9 @@ requirements:
 - id: TR-pxl-028
   system: pxl
   gdd: design/gdd/pixel-perfect-render-pipeline-camera.md
-  requirement: "Startup guard rails: project.godot pins stretch block, default_texture_filter, both snap_2d keys, hdr_2d, use_debanding=false, physics_interpolation=false, clear colour black, window override 1280x720, HDR output off; a debug-build pipeline-root assertion reads back effective values (fails loudly), a headless gdUnit4 test parses project.godot, and a debug tree-walk flags fractional positions, rotation under human-built groups, Camera2D.zoom != (1,1), HUD Control.scale != (1,1), and Camera2D under PhysicsBody2D."
+  requirement: "Startup guard rails: project.godot pins stretch block, default_texture_filter, both snap_2d keys, hdr_2d, use_debanding=false, physics_interpolation=false, clear colour black, window override 1280x720, HDR output off, fallback_to_opengl3 and fallback_to_d3d12 false, thread_model 1, the root and world viewports SDR at MVP; a debug-build pipeline-root assertion reads back effective values (fails loudly), a headless gdUnit4 test parses project.godot, and a debug tree-walk flags fractional positions, rotation under human-built groups, Camera2D.zoom != (1,1), HUD Control.scale != (1,1), and Camera2D under PhysicsBody2D."
   created: 2026-10-28
-  revised: ""
+  revised: 2026-10-29
   status: active
 
 - id: TR-pxl-029
@@ -1364,9 +1364,9 @@ requirements:
 - id: TR-pxl-030
   system: pxl
   gdd: design/gdd/pixel-perfect-render-pipeline-camera.md
-  requirement: "Performance budget (pending spike on RM-DESKTOP i5-9400F/GTX 1050 Ti and RM-DECK, release export): pipeline _process <= 0.5 ms P99 (solver <= 0.05 ms), draw calls D_world <= 350 and D_root <= 62 with sum <= 1000, total frame P99 <= 14.9 ms desktop / 30.0 ms Deck, RESCALING re-derivation <= 4 ms in one frame, world render targets <= 3 MB (A) / 22 MB (B)."
+  requirement: "Performance budget (pending spike on RM-DESKTOP i5-9400F/GTX 1050 Ti and RM-DECK, release export): pipeline _process <= 0.5 ms P99 (solver <= 0.05 ms), draw calls D_world <= 350 and D_root <= 63 (62 expected at MVP with a null filter slot; 93 with the chart open; D_composite = 1 is a draw-call term in D_root) with sum <= 1000 (D_world cap 937 at the D_root cap, 938 at the expected 62), total frame P99 <= 14.9 ms desktop / 30.0 ms Deck, RESCALING re-derivation <= 4 ms in one frame, world render targets <= 3 MB (A) / 22 MB (B)."
   created: 2026-10-28
-  revised: ""
+  revised: 2026-10-29
   status: active
 
 - id: TR-pxl-031
@@ -1676,9 +1676,9 @@ requirements:
 - id: TR-emitter-032
   system: emitter
   gdd: design/gdd/emitter-state-and-light-exposure-query.md
-  requirement: "The emitter runs headless against injected seams only (FakeClock, Layout, Graph, Body, Controller, Suit, Diagnostics, CommandBus, WorkCounter); the work counter is compiled in solely under the EM_WORK_COUNTER test flag and never in the benchmarked build, and must equal the D.14 formula exactly."
+  requirement: "The emitter runs headless against injected seams only (FakeClock, Layout, Graph, Body, Controller, Suit, Diagnostics, CommandBus, WorkCounter); the work counter is injected through a WorkCounter port (a counting double in tests/support/, NullWorkCounter in every shipped and benchmarked build) and must equal the D.14 formula exactly."
   created: 2026-10-28
-  revised: ""
+  revised: 2026-10-29
   status: active
 
 - id: TR-emitter-033
@@ -1692,9 +1692,9 @@ requirements:
 - id: TR-emitter-034
   system: emitter
   gdd: design/gdd/emitter-state-and-light-exposure-query.md
-  requirement: "Source under src/sim/emitter/ uses no bare integer `/` or `%`; a possibly negative operand always goes through checked helpers `floor_div` (non-negative operands) or `posmod_i`, enforced by a grep lint with committed bad/good fixture files per banned token."
+  requirement: "Source under src/sim/emitter/ uses no bare integer `/` or `%`; a possibly negative operand always goes through the checked helpers `IntMath.floor_div` (non-negative operands) or `IntMath.posmod_i` (src/shared/int_math.gd; ADR-0005 owns the list, ADR-0010 5.4), enforced by a grep lint with committed bad/good fixture files per banned token."
   created: 2026-10-28
-  revised: ""
+  revised: 2026-10-29
   status: active
 
 - id: TR-emitter-035
@@ -1724,9 +1724,9 @@ requirements:
 - id: TR-emitter-038
   system: emitter
   gdd: design/gdd/emitter-state-and-light-exposure-query.md
-  requirement: "emitter.place and all mutators do nothing while the kernel is RESTORING or FAULTED; an unsupported `schema_version` on restore is a reported failure; the block exposes `canonical_bytes()` byte-identical across round trips and `block_hash()` once kernel amendment K-1 lands."
+  requirement: "emitter.place and all mutators do nothing while the kernel is RESTORING or FAULTED; an unsupported `schema_version` on restore is a reported failure; the round-trip check uses the kernel-side reads canonical_encode(snapshot payload) and block_hash(&\"emitter.state\", uncached = true), byte-identical across round trips (ADR-0005 sections 1, 4.3, 5)."
   created: 2026-10-28
-  revised: ""
+  revised: 2026-10-29
   status: active
 
 - id: TR-emitter-039
@@ -2348,9 +2348,9 @@ requirements:
 - id: TR-pc-027
   system: pc
   gdd: design/gdd/player-controller-input.md
-  requirement: "Controller and body sources contain no forbidden time/RNG calls (`Time.get_ticks_*`, `get_process_delta_time`, `randi`, `randf`, `RandomNumberGenerator`) except allow-listed render-time timers in Adapter/Presenter."
+  requirement: "Controller and body sources contain no forbidden time/RNG calls (`Time.get_ticks_*`, `get_process_delta_time`, `randi`, `randf`, `RandomNumberGenerator`); render-time timers use delta, present_time or the injected Clock, under the four-entry ADR-0010 SIM-02 allow-list with no render-timer exemption in the Adapter or Presenter."
   created: 2026-10-28
-  revised: ""
+  revised: 2026-10-29
   status: active
 
 - id: TR-pc-028
@@ -2444,9 +2444,9 @@ requirements:
 - id: TR-pc-039
   system: pc
   gdd: design/gdd/player-controller-input.md
-  requirement: "Controller and Presenter outputs (sim blocks, `set_move_intent`/`set_aim` submission logs, Presenter frame/position/light logs) are byte-identical across render cadences of 30, 60, 120 and 144 fps, across calm/tell/breach/sanity-stage fixtures, and with `aim_indicator` on or off; a recorded input-trace replay format is required."
+  requirement: "Controller outputs (sim blocks, `set_move_intent`/`set_aim` submission logs) and per-tick samples of Presenter frame/position/light are byte-identical across render cadences of 30, 60, 120 and 144 fps, across calm/tell/breach/sanity-stage fixtures, and with `aim_indicator` on or off (per-frame placements vary with alpha by design, ADR-0009); a recorded input-trace replay format is required."
   created: 2026-10-28
-  revised: ""
+  revised: 2026-10-29
   status: active
 
 - id: TR-pc-040
@@ -3196,9 +3196,9 @@ requirements:
 - id: TR-ftrail-044
   system: ftrail
   gdd: design/gdd/failure-and-trail-system.md
-  requirement: "Mapping a 64-bit rng_derive result to variant, phase and flip indices must yield non-negative indices for every bit pattern, including all-ones and the sign bit alone, using the signed 64-bit semantics of GDScript."
+  requirement: "Mapping the 63-bit `Ihash.h` result to variant, phase and flip indices must yield non-negative indices for every value in its range (range ends 0 and 0x7FFFFFFFFFFFFFFF), using the signed 64-bit semantics of GDScript."
   created: 2026-10-28
-  revised: ""
+  revised: 2026-10-29
   status: active
 
 - id: TR-suit-001
@@ -3268,9 +3268,9 @@ requirements:
 - id: TR-suit-009
   system: suit
   gdd: design/gdd/suit-and-equipment.md
-  requirement: "Save/Load contract per SL-15: plain-data `snapshot()` (no Vector2i, StringName keys, typed containers), two-phase `restore` returning `(ok, reason, detail)`, `default_state()`, restore-idempotent (`snapshot(restore(snapshot()))` byte-equal), hard failure never clamp."
+  requirement: "Save/Load contract per SL-15: plain-data `snapshot()` (String or int keys only; StringName keys and values are banned by the type walk; no Vector2i; typed containers are allowed), two-phase `restore` that reports failure through `ctx.fault(SUIT_RESTORE_*)` rather than an `(ok, reason, detail)` return, `default_state()`, restore-idempotent (`snapshot(restore(snapshot()))` byte-equal), hard failure never clamp."
   created: 2026-10-28
-  revised: ""
+  revised: 2026-10-29
   status: active
 
 - id: TR-suit-010
@@ -3420,9 +3420,9 @@ requirements:
 - id: TR-suit-028
   system: suit
   gdd: design/gdd/suit-and-equipment.md
-  requirement: "Gameplay values come from `assets/data/suit/*.json` (integers-only JSON vs `Resource` is ADR candidate 2); the four Graph band constants (`COLD_DMG_ONSET_MC`, `HEAT_DMG_ONSET_MC`, `HYPOXIA_PP`, `DECOMP_P`) are referenced by name from the registry and never restated."
+  requirement: "Gameplay values come from `assets/data/suit/*.json` (integers-only JSON vs `Resource` is ADR candidate 2); the four Graph band constants (`COLD_DMG_ONSET_MC`, `HEAT_DMG_ONSET_MC`, `HYPOXIA_PP`, `DECOMP_P`) are referenced by name from the registry and never restated. The Suit owns the named invariant RESERVE_WARN_S < RESERVE_S (CONTENT_INVARIANT(suit_tuning, RESERVE_WARN_BELOW_RESERVE), AC-SE-98, evaluated first at table load and weaker than build assertion A5 RESERVE_WARN_S <= RESERVE_S / 2); other published knob ranges are guidance (ADR-0007 2.5)."
   created: 2026-10-28
-  revised: ""
+  revised: 2026-10-29
   status: active
 
 - id: TR-suit-029
@@ -3436,9 +3436,9 @@ requirements:
 - id: TR-suit-030
   system: suit
   gdd: design/gdd/suit-and-equipment.md
-  requirement: "Ladder, hold counters and rung limiter integer rates use a defined integer-division convention for negative operands in the thermal integrator (ADR candidate 4) and per-axis rung minimum dwell (`RUNG_MIN_TICKS`)."
+  requirement: "Ladder, hold counters and rung limiter integer rates use the floor convention for negative operands in the thermal integrator (closed by ADR-0005 section 1.4): floor for every quotient through `IntMath.floor_div`/`IntMath.posmod_i`, `IntMath.trunc_div` named where truncation is meant, plus per-axis rung minimum dwell (`RUNG_MIN_TICKS`)."
   created: 2026-10-28
-  revised: ""
+  revised: 2026-10-29
   status: active
 
 - id: TR-suit-031
@@ -3588,9 +3588,9 @@ requirements:
 - id: TR-section-006
   system: section
   gdd: design/gdd/ship-section-and-layout-data-model.md
-  requirement: "Snapshot encoding uses dense parallel packed arrays in ascending id order (no int-keyed Dictionary, no Vector2i/Rect2/Resource), 64-bit values (`welded_at_T`, `cut_at_T`) as two 32-bit halves, and `snapshot()` returns deep copies."
+  requirement: "Snapshot encoding uses dense parallel packed arrays in ascending id order (no int-keyed Dictionary, no Vector2i/Rect2/Resource); 64-bit values (`welded_at_T`, `cut_at_T`) as two 32-bit halves or strings remain legal and a native int64 is accepted in the binary payload, the convention being mandatory only where a value can reach JSON (header, dump-save); `snapshot()` returns deep copies and restore validates into scratch then replaces block contents in place."
   created: 2026-10-28
-  revised: ""
+  revised: 2026-10-29
   status: active
 
 - id: TR-section-007
@@ -3804,9 +3804,9 @@ requirements:
 - id: TR-section-033
   system: section
   gdd: design/gdd/ship-section-and-layout-data-model.md
-  requirement: "Every Layout-owned tuning knob is loaded from the default-config file with no literal in module source; each is validated at its range minimum and maximum, and an out-of-range value is rejected loudly with the knob's name and never clamped."
+  requirement: "Every Layout-owned tuning knob is loaded from the default-config file with no literal in module source, and the module starts at each knob's published minimum and maximum; published ranges are guidance (ADVISORY CI diff, never a boot assertion, never clamped), and only schema bounds (CONTENT_FIELD_RANGE) and named structural invariants (CONTENT_INVARIANT) refuse the load at boot."
   created: 2026-10-28
-  revised: ""
+  revised: 2026-10-29
   status: active
 
 - id: TR-section-034
@@ -3972,9 +3972,9 @@ requirements:
 - id: TR-shipbody-009
   system: shipbody
   gdd: design/gdd/ship-body-and-interior-physics.md
-  requirement: "`restore(data, version)` validates in order (type, count, per-row fields, order and canonicity, Layout liveness), rejects the whole block with a named BDY_RESTORE_* reason on the first failure leaving live state untouched, never clamps, and `snapshot(restore(snapshot()))` is byte-identical for `body.state`."
+  requirement: "`restore(data, stored_version, ctx)` validates in order (type, count, per-row fields, order and canonicity, Layout liveness), rejects the whole block on the first failure by reporting a named BDY_RESTORE_* reason through `ctx.fault` (ADR-0006 2.2) leaving live state untouched, never clamps, and `snapshot(restore(snapshot()))` is byte-identical for `body.state`."
   created: 2026-10-28
-  revised: ""
+  revised: 2026-10-29
   status: active
 
 - id: TR-shipbody-010
@@ -4156,9 +4156,9 @@ requirements:
 - id: TR-shipbody-032
   system: shipbody
   gdd: design/gdd/ship-body-and-interior-physics.md
-  requirement: "`body.projector` is the only Body script that may name Node2D/Camera2D/Viewport; it owns one per-body root Node2D (translation only, rotation 0), one `y_sort_enabled` actor/props layer per body root, the loaded body's `Camera2D.limit_*`, and reparents Presenter nodes on `BODY_TRANSFER` via `attach_presenter(actor_id, node)` without using global-transform-preserving `Node.reparent`."
+  requirement: "No script under src/sim/body/ names Node2D/Camera2D/Viewport; `body.projector` lives in src/presentation/projector/, owns one per-body root Node2D (translation only, rotation 0) and one `y_sort_enabled` actor/props layer per body root, publishes the loaded body's camera-limits rectangle to the Pipeline solver (it never writes `Camera2D.limit_*`), and reparents Presenter nodes on `BODY_TRANSFER` via `attach_presenter(actor_id, node)` without using global-transform-preserving `Node.reparent`."
   created: 2026-10-28
-  revised: ""
+  revised: 2026-10-29
   status: active
 
 - id: TR-shipbody-033
@@ -4404,9 +4404,9 @@ requirements:
 - id: TR-assembly-013
   system: assembly
   gdd: design/gdd/modular-ship-assembly.md
-  requirement: "64-bit tick values (`T`, `submit_T`, `welded_at_T`) are stored as two 32-bit ints or strings and never as JSON numbers; the block uses no packed-array fields and dirty keys are marked explicitly in every mutator (Godot 4.7 packed-array element setter change)."
+  requirement: "64-bit tick values (`T`, `submit_T`, `welded_at_T`) are stored as two 32-bit ints or strings (both remain legal; a native int64 is also exact in the binary payload) and never as JSON numbers; the halves-or-strings convention is mandatory only where a value can reach JSON (header, dump-save); the block uses no packed-array fields and dirty keys are marked explicitly in every mutator (Godot 4.7 packed-array element setter change)."
   created: 2026-10-28
-  revised: ""
+  revised: 2026-10-29
   status: active
 
 - id: TR-assembly-014
@@ -4540,9 +4540,9 @@ requirements:
 - id: TR-assembly-030
   system: assembly
   gdd: design/gdd/modular-ship-assembly.md
-  requirement: "The PROJECTOR / Emitter rebuild / Lighting / Trail rebuilds run as P5 subscribers after commit with writes disabled and coalesce to the latest committed state across catch-up ticks (`MAX_TICKS_PER_FRAME` 4)."
+  requirement: "PROJECTOR, Lighting and Trail rebuilds are dirty-marked at P5 and performed in the driver's stages, coalescing to the latest committed state across catch-up ticks (`MAX_TICKS_PER_FRAME` 4); the Emitter's re-derivation is the simulation hook `emitter.place`, not a subscriber (ADR-0009 section 2)."
   created: 2026-10-28
-  revised: ""
+  revised: 2026-10-29
   status: active
 
 - id: TR-assembly-031
@@ -5737,6 +5737,14 @@ requirements:
   revised: ""
   status: active
 
+- id: TR-webmap-047
+  system: webmap
+  gdd: design/gdd/web-map-and-transit.md
+  requirement: "The web.state read view exposes the monotonic counters pod_arrived_seq and berthed_seq, which Save/Load polls to trigger autosave on POD_ARRIVED and BERTHED (ADR-0006 1.12); Attention and Horror read the view in their hooks instead of subscribing, and Audio is the only event subscriber."
+  created: 2026-10-29
+  revised: ""
+  status: active
+
 - id: TR-attention-001
   system: attention
   gdd: design/gdd/attention-system.md
@@ -5924,9 +5932,9 @@ requirements:
 - id: TR-attention-024
   system: attention
   gdd: design/gdd/attention-system.md
-  requirement: "Restore is two-phase, returns `(ok, reason, detail)` with closed reasons `ATTENTION_RESTORE_{SCHEMA,RANGE,PHASE_INCOHERENT,SECTION_UNKNOWN,RNG_COUNTER}`, never clamps out-of-range values, and enforces `rng_counter <= tell_epoch`; `restore_epoch` is read from `kernel.clock` and never stored in the block."
+  requirement: "Restore is two-phase and reports failure through `ctx.fault(ATTENTION_RESTORE_*)` with closed reasons `ATTENTION_RESTORE_{SCHEMA,RANGE,PHASE_INCOHERENT,SECTION_UNKNOWN,RNG_COUNTER}` and a named detail (the kernel fires `load_failed`, mapped to RESTORE_FAILED, ADR-0006 2.2; the `(ok, reason, detail)` return form is retired), never clamps out-of-range values, and enforces `rng_counter <= tell_epoch`; `restore_epoch` is read from `kernel.clock` and never stored in the block."
   created: 2026-10-28
-  revised: ""
+  revised: 2026-10-29
   status: active
 
 - id: TR-attention-025
@@ -6460,9 +6468,9 @@ requirements:
 - id: TR-sanity-001
   system: sanity
   gdd: design/gdd/sanity-and-hallucination-rules.md
-  requirement: "Sanity registers exactly three state blocks (`sanity.state` SIM/WORLD/SHARED_SUMMARY, `sanity.ledger` SIM/WORLD/HOST_ONLY, `sanity.perception` PERCEPTION_OUT/non-persisted/OWNER_PRIVATE), all PER_PLAYER, each with schema_version 1, explicit dirty keys, restore-idempotence, default_state, post_restore and a two-phase restore returning (ok, reason, detail)."
+  requirement: "Sanity registers exactly three state blocks (`sanity.state` SIM/WORLD/SHARED_SUMMARY, `sanity.ledger` SIM/WORLD/HOST_ONLY, `sanity.perception` PERCEPTION_OUT/non-persisted/OWNER_PRIVATE), all PER_PLAYER, each with schema_version 1, explicit dirty keys, restore-idempotence, default_state, post_restore and a two-phase restore that reports failure via `ctx.fault(SANITY_RESTORE_*)`, not an `(ok, reason, detail)` return."
   created: 2026-10-28
-  revised: ""
+  revised: 2026-10-29
   status: active
 
 - id: TR-sanity-002
@@ -6612,9 +6620,9 @@ requirements:
 - id: TR-sanity-020
   system: sanity
   gdd: design/gdd/sanity-and-hallucination-rules.md
-  requirement: "Restore validates strictly (out-of-range or wrong-shape values are hard failures, never clamped); JSON-parsed integer-valued floats are accepted and re-cast to int, while fractional/NaN/inf values fail SHAPE; values stay below 2^53."
+  requirement: "Restore validates strictly (out-of-range or wrong-shape values are hard failures, never clamped); binary payload ints are exact and a float where an int is expected is a SHAPE failure; the integral-float re-cast applies only to dev JSON fixtures, and fractional/NaN/inf values fail SHAPE; the former '< 2^53' clause is a design bound only."
   created: 2026-10-28
-  revised: ""
+  revised: 2026-10-29
   status: active
 
 - id: TR-sanity-021
@@ -7340,9 +7348,9 @@ requirements:
 - id: TR-hud-026
   system: hud
   gdd: design/gdd/hud-and-suit-layer.md
-  requirement: "Tuning data lives in external `hud_tuning` data validated at load; out-of-range knobs (e.g. `PROMPT_MIN_CYCLE_TICKS` < 20, `HONEST_TICK_MS` != 500, `HUD_SETTLE_MS` outside 250-400, `BAR_LEN_*` not ordered S<M<L in 12-64) fail, and no gameplay-balance key may exist in it."
+  requirement: "Tuning data lives in external `hud_tuning` data validated at load for named structural invariants only (`CONTENT_INVARIANT(table, name)`): the PROMPT_MIN_CYCLE_TICKS flash-rate floor, the HONEST_TICK_MS = 500 pin and feasibility with u = 1, FLASH_AREA_EXEMPT_PM <= 100, BAR_LEN_S < M < L, and no gameplay-balance key (RESERVE_WARN_S < RESERVE_S is a Suit constant pair, owned by the Suit's suit_tuning named invariant, TR-suit-028, not a hud_tuning invariant); published knob ranges (HUD_SETTLE_MS 250-400, BAR_LEN 12-64, BAR_STROKE_PX, MARK_DUTY_PM, the PROMPT_MIN_CYCLE_TICKS ceiling of 40) are guidance, checked as ADVISORY against tests/fixtures/hud/safe_ranges.json (ADR-0007 2.5)."
   created: 2026-10-28
-  revised: ""
+  revised: 2026-10-29
   status: active
 
 - id: TR-hud-027
@@ -8084,9 +8092,9 @@ requirements:
 - id: TR-charttable-036
   system: charttable
   gdd: design/gdd/chart-table-web-map-and-menus.md
-  requirement: "Adapter `POINTER` events carry a position in a defined unit (canvas or window px) mapped to HUD and art px under the `canvas_items` stretch, with picture top-left mapping to HUD (0,0); the layer publishes a cursor-hint request on hover; the unit is verified by a 4.7.2 spike."
+  requirement: "Adapter `POINTER` events carry a position in window pixels (root Window stretch disabled per ADR-0008 s5; no inverse stretch conversion); the layer subtracts RenderLayout.picture_rect.position (the HUD origin) and maps to HUD px (/H) and art px (/k), with the picture top-left mapping to HUD (0,0); the layer publishes a cursor-hint request on hover; the window-px unit is confirmed by a 4.7.2 spike."
   created: 2026-10-28
-  revised: ""
+  revised: 2026-10-29
   status: active
 
 - id: TR-charttable-037
@@ -8468,9 +8476,9 @@ requirements:
 - id: TR-saveload-003
   system: saveload
   gdd: design/gdd/save-load-and-versioned-format.md
-  requirement: "Block payloads are encoded with `var_to_bytes(dict)` (never `var_to_bytes_with_objects`/`bytes_to_var_with_objects`) or the owner's canonical byte form, and decode is bounded by `MAX_DECODE_DEPTH` 16, `MAX_DECODE_NODES` 250 000 and `MAX_JSON_DEPTH` 8."
+  requirement: "Block payloads are encoded as a single Dictionary with `var_to_bytes(dict)` (never `var_to_bytes_with_objects`/`bytes_to_var_with_objects`); var_to_bytes encodes Objects as EncodedObjectAsID (probed), so the walk rejects TYPE_OBJECT and VERIFYING decodes and walks; decode is bounded by `MAX_DECODE_DEPTH` 16, `MAX_DECODE_NODES` provisional 100 000 (ceiling 250 000) and `MAX_JSON_DEPTH` 8."
   created: 2026-10-28
-  revised: ""
+  revised: 2026-10-29
   status: active
 
 - id: TR-saveload-004
@@ -8580,9 +8588,9 @@ requirements:
 - id: TR-saveload-017
   system: saveload
   gdd: design/gdd/save-load-and-versioned-format.md
-  requirement: "Every persisted block meets the authoring contract: registers with the kernel (never calls Save/Load directly), declares `supported_versions`, `persist_scope`, `restore_after`, returns plain data with no object refs, and uses numeric values below 2^53 (S-1)."
+  requirement: "Every persisted block meets the authoring contract: registers with the kernel (never calls Save/Load directly), declares `supported_versions`, `persist_scope`, `restore_after`, returns plain data with no object refs; payload ints may be native int64, and the below-2^53 rule and string convention (S-1) apply to the JSON header and dump-save only."
   created: 2026-10-28
-  revised: ""
+  revised: 2026-10-29
   status: active
 
 - id: TR-saveload-018
@@ -8604,9 +8612,9 @@ requirements:
 - id: TR-saveload-020
   system: saveload
   gdd: design/gdd/save-load-and-versioned-format.md
-  requirement: "Per-slot `restore_epoch` is stored in `slot_epoch.bin` (u32 + CRC32), made durable before `request_restore`, and is the carrier by which threat draws re-key per restore while physical counters and seeds replay exactly."
+  requirement: "Per-slot `restore_epoch` is stored in slot_epoch_a.bin / slot_epoch_b.bin, 12 bytes each (u32 epoch, u32 seq, u32 CRC32 of the first 8); the reader takes the valid file with the higher seq and the writer overwrites the older file in place (no rename, remove or .tmp); the value is made durable before `request_restore` and is the carrier by which threat draws re-key per restore while physical counters and seeds replay exactly."
   created: 2026-10-28
-  revised: ""
+  revised: 2026-10-29
   status: active
 
 - id: TR-saveload-021
@@ -8708,9 +8716,9 @@ requirements:
 - id: TR-saveload-033
   system: saveload
   gdd: design/gdd/save-load-and-versioned-format.md
-  requirement: "Every owner `restore()` returns `(ok, reason, detail)` with `reason` from its declared closed `<BLOCK>_RESTORE_*` set, never clamps out-of-range data, and leaves the live block byte-identical on failure; a non-conforming return or an owner failure during LOADING sends the kernel to FAULTED with no in-line retry and a persisted per-generation failure counter."
+  requirement: "Owner restore failure is reported via `ctx.fault(<OWNER>_RESTORE_*)` with `reason` from its declared closed `<BLOCK>_RESTORE_*` set (no `(ok, reason, detail)` return), never clamps out-of-range data, and leaves the live block byte-identical on failure; Save/Load maps the kernel `load_failed` trigger to RESTORE_FAILED, an owner failure during LOADING sends the kernel to FAULTED with no in-line retry, and a persisted per-generation failure counter is kept."
   created: 2026-10-28
-  revised: ""
+  revised: 2026-10-29
   status: active
 
 - id: TR-saveload-034
@@ -9044,9 +9052,9 @@ requirements:
 - id: TR-debug-033
   system: debug
   gdd: design/gdd/debug-overlay-true-values.md
-  requirement: "Every state-block owner optionally publishes `block_hash()` and a `schema_version`; the Overlay shows owner values, shows n/a where none is published, and never hashes itself, so HASH_DRIFT names a block only from an owner-published hash."
+  requirement: "The kernel publishes `block_hash` for every persist block and owners publish only `schema_version`; the Overlay shows owner values, shows n/a for BLOCK_HASH_UNKNOWN, and never hashes itself, so HASH_DRIFT names a block from the kernel hashes."
   created: 2026-10-28
-  revised: ""
+  revised: 2026-10-29
   status: active
 
 - id: TR-debug-034
@@ -9132,9 +9140,9 @@ requirements:
 - id: TR-debug-044
   system: debug
   gdd: design/gdd/debug-overlay-true-values.md
-  requirement: "All DIAG_* and OVERLAY_* knobs load from a data file with a startup assertion for ranges and cross-knob constraints (e.g. P99 min samples within window, alert at or above warn, ladder strictly decreasing), clamping and logging a NOTE on violation."
+  requirement: "All DIAG_* and OVERLAY_* knobs load from a data file; cross-knob invariants (e.g. P99 min samples within window, alert at or above warn, ladder strictly decreasing) refuse the load with CONTENT_INVARIANT, ranges are guidance rather than boot assertions, and nothing is clamped and no NOTE is logged on violation (ADR-0007 sections 1.4, 2.5)."
   created: 2026-10-28
-  revised: ""
+  revised: 2026-10-29
   status: active
 
 - id: TR-debug-045

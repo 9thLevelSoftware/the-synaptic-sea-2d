@@ -135,3 +135,35 @@ Findings:
 - [RECOMMENDED] Header, Summary MVP slice, Tuning Knobs safe ranges: [main review] [creative-director confirmed L8] 'Last Verified 2026-10-26' is stale. The Summary still lists can_detach CAPACITY as deferred, but it is implemented. Several safe-range floors sit below the MVP content they must hold.
 Reviewed-Content-Hash: design/gdd/ship-section-and-layout-data-model.md 7894fa30e9f5c6a0978e7b9c2c14bacd24590aec
 Reviewed-Content-Hash: design/registry/entities.yaml 259f2c28b21a009ca35000d94fe3ef5b4d3ef301
+
+
+## Review — 2026-10-29 — Foundation ADR sync (lean confirming)
+Verdict: NEEDS REVISION (2 blockers, 6 advisories)
+Scope: diff only, 9 hunks, the 2026-10-29 sync to ADR-0003/0005/0006/0007/0010: restore signature with `ctx` and in-place copy, 64-bit encoding relaxed, Debug Overlay now reads the kernel `block_hash`, IntMath division, PROJECTOR path, knob ranges as guidance (AC-14, AC-171 and the One-step-outside column). Checked inside this GDD for consistency, testable ACs and dangling references.
+Verified OK: `restore(data, stored_version, ctx)` and the in-place rule (ADR-0003 section 2, ADR-0006), `src/presentation/projector/` (ADR-0010 section 1.2), IntMath names (ADR-0005 section 1.4), overlay hash text (ADR-0005 sections 5.3 and 5.4; no overlay reader of `layout_hash` remains), and the AC-14 table columns now say 'reported'.
+Blockers:
+1. AC-61 (L1565) still rejects `area_max` 31 and 129 at boot, but AC-171 lists `area_max` 32-128 as 'one step outside is not refused' (ADR-0007 section 2.5). Make AC-61, AC-171, L668 and L1204 agree.
+2. LY-26 a rule (2) and AC-7 (L1478) still say the dev dump renders 64-bit values as 16-char hex. ADR-0006 section 1.3 item 4 and Save/Load L181 say a decimal string for ints of 2^53 or more, and halves render as plain ints. Align rule (2) and AC-7's dump clause.
+Advisories:
+- State explicitly that Layout keeps halves (AC-7, L1397 and L1761 mandate them) although native int64 is now legal.
+- Fixture name `knob_ranges.csv` versus ADR-0007 `safe_ranges.json`.
+- `CONTENT_FIELD_RANGE` is not in the ADR-0007 domain-2 code list (`FIELD_RANGE`); it comes from TR-section-033.
+- Close spike P4 (L1716) and the [UNV] JSON-float note (L142), both now probed.
+- `SCHEMA_TYPE_RANGE` is a pre-existing name not in ADR-0007; flag it for the ContentFaults list.
+Design intent preserved: no rule, formula or pillar changed; every blocker is a leftover of the sync's own edit.
+
+## Review — 2026-10-29 — Foundation ADR sync (lean confirming, round 2)
+**Verdict: APPROVED** (design/gdd/ship-section-and-layout-data-model.md; 0 blockers, 5 advisories)
+**Scope:** git diff of the GDD (19 hunks, all dated 2026-10-29), plus the two blockers from the previous round (r2/b10.json). I checked the rules, D.5/D.10 formulas, lint table, edge cases, ACs (7, 14, 61, 171) and Tuning Knobs for consistency, and grepped for stale references.
+**Blockers resolved:**
+- B1, door `area_max` (AC-61 vs AC-171/AC-14): resolved. Only `area_max` <= 0 is refused (DOOR_AREA_MAX, a named invariant). 32-128 is guidance only, and 31 and 129 load unclamped and show up in the ADVISORY report. The D.5 variable row, the D.5 Output Range, the lint row (L402), the Edge Case (L1034), the Tuning Knobs row (L1204), AC-61 and AC-171 now agree. No stale "<= 128" or "31/129 rejected" text remains. The D.5 overflow argument (96 x area, with area clamped to [0, area_max]) holds.
+- B2, dump-save hex vs ADR-0006 s1.3 item 4: resolved. LY-26 a rule (2) limits Hex64 to Save/Load's header. The dev dump renders ints of 2^53 or more as decimal strings and shows the halves as plain ints. AC-7 now asserts the round trip through that format, and its (0x200000, 1) example is correct for 2^53+1.
+**Remaining blockers:** none.
+**Advisories:**
+1. AC-14 row MAX_DOORS_PER_SECTION says 49 doors raises SCHEMA_TYPE_RANGE, while the same row's last column says 49 is reported only. AC-171 has the same tension for any knob with a cap equal to its range maximum. State that a structural cap refuses at cap+1 and that the ADVISORY column applies to uncapped knobs only.
+2. AC-7 has no half at or above 2^31 (signed int32 in PackedInt32Array, so negative in the dump). Add a lo = 0xFFFFFFFF case.
+3. L227 unit note still claims a lint checks `area_max` against the door width. No such lint exists, so reword it as the Graph-owner ASK (OQ-5).
+4. AC-61 is tagged lint but also asserts D.5 behaviour. Retag it (lint + auto).
+5. D.10 Output Range says `layout_hash` travels as halves in the payload, but LY-26 a says `layout.state` holds none. This predates the round.
+Reviewed-Content-Hash: design/gdd/ship-section-and-layout-data-model.md 6ad789ac9eb7723e195a6871f057398a0f7578d9
+Reviewed-Content-Hash: design/registry/entities.yaml 4d9d9f7a469ff3c3aeb97b06fa6fa82c1b2dec16

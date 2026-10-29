@@ -148,3 +148,29 @@ Findings:
 - [RECOMMENDED] Siblings EM-22, Horror AC-59b: [main review] The stale lit(ref) prompt wording is unverified, not closed.
 Reviewed-Content-Hash: design/gdd/hud-and-suit-layer.md 177a175e64ca64307c8d41f7b6214315392e9e03
 Reviewed-Content-Hash: design/registry/entities.yaml cafe6d1169a1fe5dd043eae35c2c07a90c93b4c6
+
+
+## Review — 2026-10-29 — Foundation ADR sync (lean confirming)
+Verdict: NEEDS REVISION (1 blocker, 6 advisories)
+Scope: confirming review of the 2026-10-29 diff only. Changes: (1) ADR-0007 § 2.5 split of boot invariants versus guidance ranges in Tuning Knobs, AC-HS-21/69/73/98/123/135 and the Evidence mapping paragraph; (2) ADR-0008 Debug Overlay renumbered from layer 4 to layer 5 (HS-57, the Debug Overlay row, the UI row, AC-HS-83); (3) ADR-0009 § 3 presenter stage order (candidate F, latency paragraph, AC-HS-89, OQ-HS-44, OQ-HS-51). Design intent, rules, formulas and pillars are untouched.
+Blocker:
+- Tuning Knobs line 1145 lists `RESERVE_WARN_S < RESERVE_S` as a `hud_tuning` schema invariant. Both keys are Suit-owned constants outside `hud_tuning`, and no AC covers the check (AC-HS-123 omits it). Fix: assign it to the Suit's schema, or make it an HUD-evaluated cross-table invariant with a named id and an AC. Align TR-hud-026 with whichever is chosen.
+Advisories:
+- Line 38 still says 'No ADR exists yet', which contradicts the new ADR-0009 closure note beside it.
+- `CONTENT_INVARIANT` names are given only in some ACs (AC-HS-69, AC-HS-135). AC-HS-73 and AC-HS-123 use the bare tag. Fix: one canonical name per invariant.
+- OQ-HS-44 is marked closed while its text still asks the HUD GDD owner to confirm the order half.
+- 'TD-22' is ambiguous: ADR-0001 and ADR-0008 use it for the restore ruling, ADR-0009 for the stage order.
+- AC-HS-89 no longer states the order edges inside the criterion; make it self-contained.
+- Mixed vocabulary for the boot check (validator, data-load lint, boot invariant).
+Verified clean: layer 5 propagation at all 4 sites, layers 3-4 process-time references still valid, AC-HS-21/98/135 and the ADVISORY CI-diff wording consistent with the Tuning Knobs table, latency stage list matches ADR-0009.
+
+## Review — 2026-10-29 — Foundation ADR sync (lean confirming, round 2)
+
+**Verdict:** APPROVED (design/gdd/hud-and-suit-layer.md). No GDD blockers remain.
+**Scope:** git diff of the GDD only (18 hunks, 20 insertions, 18 deletions). Checked the Tuning Knobs 'Boot invariants versus guidance' paragraph, the Suit-owned constants table (lines 1132 and 1669), AC-HS-21, 69, 73, 83, 89, 98, 123 and 135, OQ-HS-44, 51 and 80, and the layer 4 to 5 and ADR-0009 presenter-order amendments. Spot-checked tr-registry.yaml and suit-and-equipment.md.
+**Blockers resolved:** (1) RESERVE_WARN_S < RESERVE_S was listed as a hud_tuning invariant but neither key is a hud_tuning key. It is now removed from the HUD's list. The Tuning Knobs paragraph, the line-1132 row and AC-HS-123 agree that the Suit's schema owns the pair as a CONTENT_INVARIANT. The HUD only consumes it as a D.3 precondition and keeps the warn_pm clamp and the hud_perceived_oob count. AC-HS-123 now has a clause for this. The five remaining invariants match the ACs (69, 73, 135, 123).
+**Consistency confirmed:** Range-versus-invariant wording is uniform (AC-HS-21, 98 and 123 are ADVISORY CI range diffs; AC-HS-69, 73 and 135 are boot refusals). Overlay layer 5 appears everywhere (HS-57, AC-HS-83, the dependency rows). The presenter order matches ADR-0009 in AC-HS-89, OQ-HS-44 and OQ-HS-51, with no residual 'layer 4' or 'ADR candidate F open' text.
+**Remaining blockers:** none in this file.
+**Advisories:** (a) TR-hud-026 (tr-registry.yaml:7351) still lists RESERVE_WARN_S < RESERVE_S and must be corrected before stories are cut. (b) The Suit GDD does not yet register the pair, so AC-HS-123 defers to a Suit test that does not exist; OQ-HS-80 (3) tracks it. (c) Line 38 still says 'No ADR exists yet'. (d) CONTENT_INVARIANT ids are named for only two of the five invariants. (e) The 'validator' wording at line 1147 is stale. (f) The Suit-pair clause in AC-HS-123 should cite the D.3 clamp AC for an executable check.
+Reviewed-Content-Hash: design/gdd/hud-and-suit-layer.md c549d2b9123af345121dff792e5f37c49e531422
+Reviewed-Content-Hash: design/registry/entities.yaml 4d9d9f7a469ff3c3aeb97b06fa6fa82c1b2dec16
